@@ -82,7 +82,6 @@
         };
 
         const seedAssets = [
-            { id: '1', account: '中國銀行', name: '澳門幣儲蓄', subtype: '現金', symbol: '', quantity: 8914.76, costBasis: 1, currentPrice: 1, currency: 'MOP', category: 'LIQUID' },
         ];
 
         const parseStorage = (key, fallback) => {
@@ -987,6 +986,33 @@
                 }
             };
 
+            // 重設為範例資料（會覆蓋 localStorage）
+            const resetToSeed = () => {
+                if (!confirm('確定要重設為範例資料？此動作會覆蓋本地儲存的資料。')) return;
+                const normalized = seedAssets.map(item => ({
+                    ...item,
+                    quantity: Number(item.quantity || 0),
+                    costBasis: Number(item.costBasis || 0),
+                    currentPrice: Number(item.currentPrice || 0),
+                    symbol: (item.symbol || '').toString().toUpperCase().trim()
+                }));
+
+                setAssets(normalized);
+                setDisplayCurrency('HKD');
+                setMonthlySnapshots({});
+
+                // 同步寫入 localStorage（useEffect 也會在 state 變更時覆寫，但這裡先寫以確保立即一致）
+                try {
+                    localStorage.setItem(STORAGE_KEYS.assets, JSON.stringify(normalized));
+                    localStorage.setItem(STORAGE_KEYS.displayCurrency, JSON.stringify('HKD'));
+                    localStorage.setItem(STORAGE_KEYS.monthlySnapshots, JSON.stringify({}));
+                } catch (e) {
+                    // 忽略 storage 錯誤
+                }
+
+                setPriceStatus('已重設為範例資料');
+            };
+
             useEffect(() => {
                 updateMarketPrices(false);
                 const timer = setInterval(() => updateMarketPrices(false), 5 * 60 * 1000);
@@ -1295,6 +1321,12 @@
                                 >
                                     <i data-lucide="plus-circle" className="w-4 h-4"></i> 新增資產
                                 </button>
+                                <button
+                                    onClick={resetToSeed}
+                                    className="flex-none bg-rose-500 text-white px-3 py-2 rounded-lg font-bold text-sm hover:bg-rose-400 transition-all shadow-md"
+                                >
+                                    重設範例資料
+                                </button>
                                 <div className="relative">
                                     <button
                                         type="button"
@@ -1340,6 +1372,9 @@
                                 <select value={displayCurrency} onChange={e => setDisplayCurrency(e.target.value)} className="bg-white border border-slate-200 rounded-lg px-3 py-2 font-bold text-sm shadow-sm outline-none">
                                     {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
                                 </select>
+                                <button onClick={resetToSeed} className="bg-rose-500 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-rose-400 transition-all shadow-md">
+                                    重設資料
+                                </button>
                                 <button onClick={handleExportData} className="bg-emerald-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-emerald-500 transition-all shadow-md">
                                     匯出資料
                                 </button>
