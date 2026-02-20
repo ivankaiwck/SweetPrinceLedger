@@ -1,0 +1,2477 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>資產管理系統</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Lucide 圖標 -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
+        body { 
+            font-family: 'Noto Sans TC', sans-serif; 
+            background-color: #F8FAFC; 
+            color: #1E293B;
+        }
+        .percento-card {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+            transition: all 0.2s ease;
+        }
+        .modal-overlay { background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(8px); }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 10px; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo, useRef } = React;
+
+        const CURRENCIES = ['HKD', 'MOP', 'TWD', 'USD', 'CNY', 'JPY', 'EUR', 'GBP'];
+        const DEFAULT_RATES = { HKD: 1, MOP: 1.03, TWD: 4.15, USD: 0.128, CNY: 0.92, JPY: 19.2, EUR: 0.118, GBP: 0.101 };
+        const STORAGE_KEYS = {
+            assets: 'assetTracker.assets.v2',
+            displayCurrency: 'assetTracker.displayCurrency.v2',
+            monthlySnapshots: 'assetTracker.monthlySnapshots.v2'
+        };
+
+        const CATEGORIES = {
+            LIQUID: { label: '流動資金', color: 'text-emerald-500', bgColor: 'bg-emerald-50', icon: 'wallet', subtypes: ['現金', '電子錢包', '金融卡', '其他'] },
+            INVEST: { label: '投資', color: 'text-blue-500', bgColor: 'bg-blue-50', icon: 'trending-up', subtypes: ['基金', '股票', '加密貨幣', '銀行理財', '其他投資'] },
+            INSURANCE: { label: '保險', color: 'text-cyan-500', bgColor: 'bg-cyan-50', icon: 'shield', subtypes: ['投資/投資相連', '人壽/累積財富', '健康'] },
+            FIXED: { label: '固定資產', color: 'text-amber-500', bgColor: 'bg-amber-50', icon: 'home', subtypes: ['房產', '汽車', '其他固定資產'] },
+            RECEIVABLE: { label: '應收款', color: 'text-indigo-500', bgColor: 'bg-indigo-50', icon: 'hand-coins', subtypes: ['個人借款', '公司應收', '退稅/補貼', '保證金', '租金', '其他應收'] },
+            LIABILITY: { label: '負債', color: 'text-rose-500', bgColor: 'bg-rose-50', icon: 'credit-card', isNegative: true, subtypes: ['房貸', '信用卡', '貸款', '應付款', '其他負債'] }
+        };
+
+        const CRYPTO_ID_MAP = {
+            BTC: 'bitcoin', ETH: 'ethereum', SOL: 'solana', BNB: 'binancecoin', XRP: 'ripple', ADA: 'cardano', DOGE: 'dogecoin', DOT: 'polkadot', TRX: 'tron', LTC: 'litecoin'
+        };
+
+        const CATEGORY_MIX_STYLES = {
+            LIQUID: { bg: 'bg-emerald-500', hex: '#10B981' },
+            INVEST: { bg: 'bg-blue-500', hex: '#3B82F6' },
+            INSURANCE: { bg: 'bg-cyan-500', hex: '#06B6D4' },
+            FIXED: { bg: 'bg-amber-500', hex: '#F59E0B' },
+            RECEIVABLE: { bg: 'bg-indigo-500', hex: '#6366F1' },
+            LIABILITY: { bg: 'bg-rose-500', hex: '#F43F5E' }
+        };
+        const CATEGORY_KEYS = Object.keys(CATEGORIES);
+        const INVEST_CHART_COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#6366F1', '#F43F5E', '#0EA5E9', '#8B5CF6', '#14B8A6'];
+
+        const polarToCartesian = (centerX, centerY, radius, angleInDegrees) => {
+            const angleInRadians = (angleInDegrees - 90) * Math.PI / 180;
+            return {
+                x: centerX + (radius * Math.cos(angleInRadians)),
+                y: centerY + (radius * Math.sin(angleInRadians))
+            };
+        };
+
+        const describeArc = (x, y, radius, startAngle, endAngle) => {
+            const start = polarToCartesian(x, y, radius, endAngle);
+            const end = polarToCartesian(x, y, radius, startAngle);
+            const largeArcFlag = endAngle - startAngle <= 180 ? '0' : '1';
+            return `M ${x} ${y} L ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArcFlag} 0 ${end.x} ${end.y} Z`;
+        };
+
+        const seedAssets = [
+            { id: '1', account: '中國銀行', name: '澳門幣儲蓄', subtype: '現金', symbol: '', quantity: 8914.76, costBasis: 1, currentPrice: 1, currency: 'MOP', category: 'LIQUID' },
+        ];
+
+        const parseStorage = (key, fallback) => {
+            try {
+                const raw = localStorage.getItem(key);
+                return raw ? JSON.parse(raw) : fallback;
+            } catch (error) {
+                return fallback;
+            }
+        };
+
+        const toHKD = (amount, currency) => amount / (DEFAULT_RATES[currency] || 1);
+        const fromHKD = (amountHKD, currency) => amountHKD * (DEFAULT_RATES[currency] || 1);
+        const formatAmount = (value) => {
+            const numeric = Number(value) || 0;
+            return numeric.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        };
+
+        const getNetWorthTier = (netWorthHKD) => {
+            const value = Number(netWorthHKD) || 0;
+            if (value < 0) return { emoji: '⚠️', label: '負資產' };
+            if (value < 780000) return { emoji: '🪴', label: '基層 / 下層階層' };
+            if (value < 1000000) return { emoji: '🧭', label: '大眾富裕 / 上層工人階級' };
+            if (value < 5000000) return { emoji: '🏡', label: '中產階級' };
+            if (value < 10000000) return { emoji: '💠', label: '富裕階層 / 中上階層' };
+            if (value < 100000000) return { emoji: '💎', label: '高淨值富豪' };
+            return { emoji: '👑', label: '超級富豪階層' };
+        };
+
+        const calculateMortgageMetrics = ({ propertyPrice, ltvRatio, annualInterestRate, mortgageYears, paidPeriods }) => {
+            const price = Number(propertyPrice) || 0;
+            const ltv = Number(ltvRatio) || 0;
+            const annualRate = Number(annualInterestRate) || 0;
+            const years = Number(mortgageYears) || 0;
+            const rawPaidPeriods = Number(paidPeriods) || 0;
+
+            if (price <= 0 || ltv <= 0 || ltv > 100 || years <= 0 || annualRate < 0) return null;
+
+            const loanAmount = price * (ltv / 100);
+            const downPayment = price - loanAmount;
+            const totalPeriods = Math.max(1, Math.round(years * 12));
+            const monthlyRate = annualRate / 100 / 12;
+
+            let monthlyPayment = 0;
+            if (monthlyRate === 0) {
+                monthlyPayment = loanAmount / totalPeriods;
+            } else {
+                const factor = Math.pow(1 + monthlyRate, totalPeriods);
+                monthlyPayment = loanAmount * monthlyRate * factor / (factor - 1);
+            }
+
+            const totalInterest = monthlyPayment * totalPeriods - loanAmount;
+            const paidPeriodsClamped = Math.min(Math.max(Math.floor(rawPaidPeriods), 0), totalPeriods);
+
+            let outstandingPrincipal = 0;
+            if (monthlyRate === 0) {
+                outstandingPrincipal = loanAmount - monthlyPayment * paidPeriodsClamped;
+            } else {
+                const paidFactor = Math.pow(1 + monthlyRate, paidPeriodsClamped);
+                outstandingPrincipal = loanAmount * paidFactor - monthlyPayment * ((paidFactor - 1) / monthlyRate);
+            }
+
+            outstandingPrincipal = Math.max(0, outstandingPrincipal);
+            const remainingPeriods = Math.max(0, totalPeriods - paidPeriodsClamped);
+
+            return {
+                propertyPrice: price,
+                ltvRatio: ltv,
+                annualInterestRate: annualRate,
+                mortgageYears: years,
+                paidPeriods: paidPeriodsClamped,
+                totalPeriods,
+                remainingPeriods,
+                downPayment,
+                loanAmount,
+                totalInterest,
+                monthlyPayment,
+                outstandingPrincipal
+            };
+        };
+
+        const calculateInstallmentLoanMetrics = ({ loanPrincipal, annualInterestRate, loanYears, paidPeriods }) => {
+            const principal = Number(loanPrincipal) || 0;
+            const annualRate = Number(annualInterestRate) || 0;
+            const years = Number(loanYears) || 0;
+            const rawPaidPeriods = Number(paidPeriods) || 0;
+
+            if (principal <= 0 || years <= 0 || annualRate < 0) return null;
+
+            const totalPeriods = Math.max(1, Math.round(years * 12));
+            const monthlyRate = annualRate / 100 / 12;
+            let monthlyPayment = 0;
+
+            if (monthlyRate === 0) {
+                monthlyPayment = principal / totalPeriods;
+            } else {
+                const factor = Math.pow(1 + monthlyRate, totalPeriods);
+                monthlyPayment = principal * monthlyRate * factor / (factor - 1);
+            }
+
+            const totalInterest = monthlyPayment * totalPeriods - principal;
+            const paidPeriodsClamped = Math.min(Math.max(Math.floor(rawPaidPeriods), 0), totalPeriods);
+
+            let outstandingPrincipal = 0;
+            if (monthlyRate === 0) {
+                outstandingPrincipal = principal - monthlyPayment * paidPeriodsClamped;
+            } else {
+                const paidFactor = Math.pow(1 + monthlyRate, paidPeriodsClamped);
+                outstandingPrincipal = principal * paidFactor - monthlyPayment * ((paidFactor - 1) / monthlyRate);
+            }
+
+            outstandingPrincipal = Math.max(0, outstandingPrincipal);
+            const remainingPeriods = Math.max(0, totalPeriods - paidPeriodsClamped);
+
+            return {
+                loanPrincipal: principal,
+                annualInterestRate: annualRate,
+                loanYears: years,
+                paidPeriods: paidPeriodsClamped,
+                totalPeriods,
+                remainingPeriods,
+                totalInterest,
+                monthlyPayment,
+                outstandingPrincipal
+            };
+        };
+
+        const normalizeYahooSymbol = (symbol) => {
+            const clean = (symbol || '').trim().toUpperCase();
+            if (/^\d{4,6}$/.test(clean)) return `${clean}.TW`;
+            return clean;
+        };
+
+        const toStooqSymbol = (symbol) => {
+            const upper = (symbol || '').trim().toUpperCase();
+            if (/^\d{4,6}\.TW$/.test(upper)) return `${upper.replace('.TW', '')}.TW`;
+            if (/^[A-Z]+$/.test(upper)) return `${upper}.US`;
+            return upper;
+        };
+
+        async function fetchTextWithTimeout(url, timeoutMs = 12000) {
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), timeoutMs);
+            try {
+                const response = await fetch(url, { signal: controller.signal });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                return await response.text();
+            } finally {
+                clearTimeout(timeout);
+            }
+        }
+
+        async function fetchJSONWithTimeout(url, timeoutMs = 12000) {
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), timeoutMs);
+            try {
+                const response = await fetch(url, { signal: controller.signal });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                return await response.json();
+            } finally {
+                clearTimeout(timeout);
+            }
+        }
+
+        const parseYahooQuoteResponse = (data) => {
+            const map = {};
+            (data?.quoteResponse?.result || []).forEach(item => {
+                if (item.symbol && typeof item.regularMarketPrice === 'number') {
+                    map[item.symbol.toUpperCase()] = item.regularMarketPrice;
+                }
+            });
+            return map;
+        };
+
+        const parseYahooChartResponse = (data) => {
+            const price = data?.chart?.result?.[0]?.meta?.regularMarketPrice;
+            return typeof price === 'number' ? price : null;
+        };
+
+        async function fetchYahooChartPrice(symbol) {
+            const upper = symbol.toUpperCase();
+            if (!/^[A-Z0-9.\-]+$/.test(upper)) return null;
+            const base = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(upper)}?interval=1d&range=1d`;
+            const fallbackBase = `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(upper)}?interval=1d&range=1d`;
+            const sources = [
+                `https://api.allorigins.win/raw?url=${encodeURIComponent(base)}`,
+                `https://api.allorigins.win/raw?url=${encodeURIComponent(fallbackBase)}`
+            ];
+
+            for (const source of sources) {
+                try {
+                    const data = await fetchJSONWithTimeout(source);
+                    const price = parseYahooChartResponse(data);
+                    if (typeof price === 'number') return price;
+                } catch (error) {}
+            }
+
+            return null;
+        }
+
+        async function fetchStooqQuotes(symbols) {
+            const map = {};
+            await Promise.all(symbols.map(async yahooSymbol => {
+                const stooqSymbol = toStooqSymbol(yahooSymbol).toLowerCase();
+                const stooqUrl = `https://stooq.com/q/l/?s=${encodeURIComponent(stooqSymbol)}&f=sd2t2ohlcv&h&e=csv`;
+                const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(stooqUrl)}`;
+
+                const tryParse = (csvText) => {
+                    const lines = (csvText || '').trim().split('\n');
+                    if (lines.length < 2) return null;
+                    const columns = lines[1].split(',');
+                    const close = Number(columns[6]);
+                    return Number.isFinite(close) && close > 0 ? close : null;
+                };
+
+                try {
+                    const directCsv = await fetchTextWithTimeout(stooqUrl);
+                    const directPrice = tryParse(directCsv);
+                    if (directPrice) {
+                        map[yahooSymbol.toUpperCase()] = directPrice;
+                        return;
+                    }
+                } catch (error) {}
+
+                try {
+                    const proxyCsv = await fetchTextWithTimeout(proxyUrl);
+                    const proxyPrice = tryParse(proxyCsv);
+                    if (proxyPrice) {
+                        map[yahooSymbol.toUpperCase()] = proxyPrice;
+                    }
+                } catch (error) {}
+            }));
+            return map;
+        }
+
+        async function fetchYahooQuotes(symbols) {
+            if (!symbols.length) return {};
+            const base = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbols.join(','))}`;
+            const fallbackBase = `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbols.join(','))}`;
+            const sources = [
+                `https://api.allorigins.win/raw?url=${encodeURIComponent(base)}`,
+                `https://api.allorigins.win/raw?url=${encodeURIComponent(fallbackBase)}`
+            ];
+
+            let results = {};
+            for (const source of sources) {
+                try {
+                    const data = await fetchJSONWithTimeout(source);
+                    const parsed = parseYahooQuoteResponse(data);
+                    if (Object.keys(parsed).length) {
+                        results = { ...results, ...parsed };
+                    }
+                } catch (error) {}
+            }
+
+            const missingSymbols = symbols.filter(symbol => !results[symbol.toUpperCase()]);
+            if (missingSymbols.length) {
+                const chartQuotes = await Promise.all(missingSymbols.map(async symbol => {
+                    const price = await fetchYahooChartPrice(symbol);
+                    return { symbol: symbol.toUpperCase(), price };
+                }));
+                chartQuotes.forEach(entry => {
+                    if (typeof entry.price === 'number') results[entry.symbol] = entry.price;
+                });
+            }
+
+            const stillMissing = symbols.filter(symbol => !results[symbol.toUpperCase()]);
+            if (stillMissing.length) {
+                const stooqQuotes = await fetchStooqQuotes(stillMissing);
+                results = { ...results, ...stooqQuotes };
+            }
+
+            return results;
+        }
+
+        async function fetchCryptoQuotes(cryptoSymbols) {
+            const ids = [...new Set(cryptoSymbols.map(symbol => CRYPTO_ID_MAP[symbol]).filter(Boolean))];
+            if (!ids.length) return {};
+            const baseUrl = `https://api.coingecko.com/api/v3/simple/price?ids=${ids.join(',')}&vs_currencies=usd`;
+            const sources = [
+                baseUrl,
+                `https://api.allorigins.win/raw?url=${encodeURIComponent(baseUrl)}`
+            ];
+
+            let data = null;
+            for (const source of sources) {
+                try {
+                    data = await fetchJSONWithTimeout(source);
+                    if (data && typeof data === 'object') break;
+                } catch (error) {}
+            }
+
+            if (!data) return {};
+
+            try {
+                const bySymbol = {};
+                Object.entries(CRYPTO_ID_MAP).forEach(([symbol, id]) => {
+                    if (data[id]?.usd) bySymbol[symbol] = data[id].usd;
+                });
+                return bySymbol;
+            } catch (error) {
+                return {};
+            }
+        }
+
+        function App() {
+            const [assets, setAssets] = useState(() => parseStorage(STORAGE_KEYS.assets, seedAssets));
+            const [displayCurrency, setDisplayCurrency] = useState(() => parseStorage(STORAGE_KEYS.displayCurrency, 'HKD'));
+            const [monthlySnapshots, setMonthlySnapshots] = useState(() => parseStorage(STORAGE_KEYS.monthlySnapshots, {}));
+
+            const [isModalOpen, setIsModalOpen] = useState(false);
+            const [editingId, setEditingId] = useState(null);
+            const [selectedCategories, setSelectedCategories] = useState(CATEGORY_KEYS);
+            const [sortMode, setSortMode] = useState('AMOUNT_DESC');
+            const [viewMode, setViewMode] = useState('DETAIL');
+            const [isUpdatingPrice, setIsUpdatingPrice] = useState(false);
+            const [priceStatus, setPriceStatus] = useState('');
+            const [lastPriceUpdate, setLastPriceUpdate] = useState(null);
+            const [showSettings, setShowSettings] = useState(false);
+            const [selectedMixCategory, setSelectedMixCategory] = useState('INVEST');
+            const [expandedAccounts, setExpandedAccounts] = useState({});
+            const [selectedStatsCategory, setSelectedStatsCategory] = useState('INVEST');
+            const [selectedStatsAccount, setSelectedStatsAccount] = useState('');
+            const [selectedStatsSegmentKey, setSelectedStatsSegmentKey] = useState('');
+            const [statsBreakdownMode, setStatsBreakdownMode] = useState('ACCOUNT');
+
+            const [formData, setFormData] = useState({
+                account: '',
+                name: '',
+                category: 'LIQUID',
+                subtype: '現金',
+                symbol: '',
+                quantity: '',
+                costBasis: '',
+                currency: 'HKD',
+                premiumAmount: '',
+                premiumFrequency: 'monthly',
+                premiumPaidCount: '',
+                propertyPrice: '',
+                ltvRatio: '',
+                annualInterestRate: '',
+                mortgageYears: '',
+                paidPeriods: '',
+                loanPrincipal: '',
+                loanYears: '',
+                loanPaidPeriods: '',
+                loanAnnualInterestRate: '',
+                creditCardBalance: '',
+                creditCardMinPayment: '',
+                creditCardDueDate: '',
+                creditCardAnnualRate: '',
+                payableAmount: '',
+                payableDueDate: '',
+                payableInstallments: '',
+                otherOutstanding: '',
+                otherAnnualRate: '',
+                otherDueDate: '',
+                receivableAmount: '',
+                receivableDueDate: '',
+                receivableInstallments: '',
+                receivableParty: '',
+                fixedPurchasePrice: '',
+                fixedCurrentValue: '',
+                fixedPurchaseDate: '',
+                fixedNote: ''
+            });
+            const importInputRef = useRef(null);
+
+            const isLiquidForm = formData.category === 'LIQUID';
+            const isInvestForm = formData.category === 'INVEST';
+            const isCryptoForm = isInvestForm && formData.subtype === '加密貨幣';
+            const isStockForm = isInvestForm && formData.subtype === '股票';
+            const isFundForm = isInvestForm && formData.subtype === '基金';
+            const isInsuranceForm = formData.category === 'INSURANCE';
+            const isLiabilityForm = formData.category === 'LIABILITY';
+            const isReceivableForm = formData.category === 'RECEIVABLE';
+            const isFixedForm = formData.category === 'FIXED';
+            const isMortgageForm = isLiabilityForm && formData.subtype === '房貸';
+            const isLoanForm = isLiabilityForm && formData.subtype === '貸款';
+            const isCreditCardForm = isLiabilityForm && formData.subtype === '信用卡';
+            const isPayableForm = isLiabilityForm && formData.subtype === '應付款';
+            const isOtherLiabilityForm = isLiabilityForm && formData.subtype === '其他負債';
+            const needsPremium = isInsuranceForm && ['人壽/累積財富', '健康'].includes(formData.subtype);
+            const premiumTotal = (Number(formData.premiumAmount) || 0) * (Number(formData.premiumPaidCount) || 0);
+            const mortgageMetrics = isMortgageForm ? calculateMortgageMetrics(formData) : null;
+            const loanMetrics = isLoanForm ? calculateInstallmentLoanMetrics({
+                loanPrincipal: formData.loanPrincipal,
+                annualInterestRate: formData.loanAnnualInterestRate,
+                loanYears: formData.loanYears,
+                paidPeriods: formData.loanPaidPeriods
+            }) : null;
+
+            const assetsRef = useRef(assets);
+            useEffect(() => { assetsRef.current = assets; }, [assets]);
+
+            useEffect(() => {
+                localStorage.setItem(STORAGE_KEYS.assets, JSON.stringify(assets));
+            }, [assets]);
+
+            useEffect(() => {
+                localStorage.setItem(STORAGE_KEYS.displayCurrency, JSON.stringify(displayCurrency));
+            }, [displayCurrency]);
+
+            useEffect(() => {
+                if (window.lucide) window.lucide.createIcons();
+            }, [assets, isModalOpen, selectedCategories, sortMode, isUpdatingPrice]);
+
+            const totals = useMemo(() => {
+                let assetsHKD = 0;
+                let liabilitiesHKD = 0;
+                const categoryBreakdownHKD = {};
+                const investSubtypeHKD = {};
+
+                assets.forEach(asset => {
+                    const marketValueHKD = toHKD(asset.quantity * asset.currentPrice, asset.currency);
+                    categoryBreakdownHKD[asset.category] = (categoryBreakdownHKD[asset.category] || 0) + marketValueHKD;
+                    if (asset.category === 'INVEST') {
+                        investSubtypeHKD[asset.subtype] = (investSubtypeHKD[asset.subtype] || 0) + marketValueHKD;
+                    }
+                    if (CATEGORIES[asset.category].isNegative) liabilitiesHKD += marketValueHKD;
+                    else assetsHKD += marketValueHKD;
+                });
+
+                const investTotalHKD = Object.values(investSubtypeHKD).reduce((sum, value) => sum + value, 0);
+                const debtRatio = assetsHKD > 0 ? (liabilitiesHKD / assetsHKD) * 100 : 0;
+
+                return {
+                    assetsHKD,
+                    liabilitiesHKD,
+                    netWorthHKD: assetsHKD - liabilitiesHKD,
+                    debtRatio,
+                    investTotalHKD,
+                    categoryBreakdownHKD,
+                    investSubtypeHKD,
+                    assets: fromHKD(assetsHKD, displayCurrency),
+                    liabilities: fromHKD(liabilitiesHKD, displayCurrency),
+                    netWorth: fromHKD(assetsHKD - liabilitiesHKD, displayCurrency)
+                };
+            }, [assets, displayCurrency]);
+
+            useEffect(() => {
+                const monthKey = new Date().toISOString().slice(0, 7);
+                setMonthlySnapshots(prev => {
+                    const current = prev[monthKey];
+                    const nextSnapshot = {
+                        assetsHKD: Number(totals.assetsHKD.toFixed(2)),
+                        liabilitiesHKD: Number(totals.liabilitiesHKD.toFixed(2)),
+                        netWorthHKD: Number(totals.netWorthHKD.toFixed(2)),
+                        debtRatio: Number(totals.debtRatio.toFixed(2)),
+                        updatedAt: Date.now()
+                    };
+                    if (
+                        current &&
+                        current.assetsHKD === nextSnapshot.assetsHKD &&
+                        current.liabilitiesHKD === nextSnapshot.liabilitiesHKD &&
+                        current.netWorthHKD === nextSnapshot.netWorthHKD &&
+                        current.debtRatio === nextSnapshot.debtRatio
+                    ) {
+                        return prev;
+                    }
+                    const next = { ...prev, [monthKey]: nextSnapshot };
+                    localStorage.setItem(STORAGE_KEYS.monthlySnapshots, JSON.stringify(next));
+                    return next;
+                });
+            }, [totals.assetsHKD, totals.liabilitiesHKD, totals.netWorthHKD, totals.debtRatio]);
+
+            const groupedAssets = useMemo(() => {
+                const groups = {};
+                assets.forEach(asset => {
+                    if (!selectedCategories.includes(asset.category)) return;
+                    if (!groups[asset.category]) groups[asset.category] = {};
+                    if (!groups[asset.category][asset.account]) groups[asset.category][asset.account] = [];
+                    groups[asset.category][asset.account].push(asset);
+                });
+
+                const compareByName = (a, b) => a.localeCompare(b, 'zh-Hant', { numeric: true, sensitivity: 'base' });
+
+                return CATEGORY_KEYS
+                    .filter(categoryKey => groups[categoryKey])
+                    .map(categoryKey => {
+                        const accountMap = groups[categoryKey];
+                        const accounts = Object.entries(accountMap).map(([accountName, items]) => {
+                            const sortedItems = [...items].sort((a, b) => {
+                                if (sortMode === 'NAME_ASC') {
+                                    return compareByName(a.name || '', b.name || '');
+                                }
+                                const aValue = Math.abs(toHKD(a.quantity * a.currentPrice, a.currency));
+                                const bValue = Math.abs(toHKD(b.quantity * b.currentPrice, b.currency));
+                                return bValue - aValue;
+                            });
+
+                            const accountTotalHKD = sortedItems.reduce((sum, item) => {
+                                return sum + Math.abs(toHKD(item.quantity * item.currentPrice, item.currency));
+                            }, 0);
+
+                            return {
+                                accountName,
+                                items: sortedItems,
+                                accountTotalHKD
+                            };
+                        });
+
+                        const sortedAccounts = [...accounts].sort((a, b) => {
+                            if (sortMode === 'NAME_ASC') {
+                                return compareByName(a.accountName, b.accountName);
+                            }
+                            return b.accountTotalHKD - a.accountTotalHKD;
+                        });
+
+                        return {
+                            categoryKey,
+                            accounts: sortedAccounts
+                        };
+                    });
+            }, [assets, selectedCategories, sortMode]);
+
+            const toggleCategory = (categoryKey) => {
+                setSelectedCategories(prev => {
+                    if (prev.includes(categoryKey)) {
+                        if (prev.length === 1) return prev;
+                        return prev.filter(key => key !== categoryKey);
+                    }
+                    return [...prev, categoryKey];
+                });
+            };
+
+            useEffect(() => {
+                const keys = [];
+                groupedAssets.forEach(group => {
+                    group.accounts.forEach(account => {
+                        keys.push(`${group.categoryKey}::${account.accountName}`);
+                    });
+                });
+
+                setExpandedAccounts(prev => {
+                    const next = { ...prev };
+                    keys.forEach(key => {
+                        if (typeof next[key] === 'undefined') next[key] = true;
+                    });
+                    return next;
+                });
+            }, [groupedAssets]);
+
+            const toggleAccountExpand = (categoryKey, accountName) => {
+                const key = `${categoryKey}::${accountName}`;
+                setExpandedAccounts(prev => ({
+                    ...prev,
+                    [key]: !(prev[key] ?? true)
+                }));
+            };
+
+            const assetMix = useMemo(() => {
+                const rows = Object.keys(CATEGORIES).map(categoryKey => {
+                    const valueHKD = Math.abs(totals.categoryBreakdownHKD[categoryKey] || 0);
+                    return {
+                        categoryKey,
+                        label: CATEGORIES[categoryKey].label,
+                        valueHKD,
+                        amount: fromHKD(valueHKD, displayCurrency),
+                        ...CATEGORY_MIX_STYLES[categoryKey]
+                    };
+                });
+
+                const totalMixHKD = rows.reduce((sum, row) => sum + row.valueHKD, 0);
+                const rowsWithRatio = rows.map(row => ({
+                    ...row,
+                    ratio: totalMixHKD > 0 ? (row.valueHKD / totalMixHKD) * 100 : 0
+                })).sort((a, b) => b.valueHKD - a.valueHKD);
+
+                let cumulative = 0;
+                const segments = rowsWithRatio
+                    .filter(row => row.ratio > 0)
+                    .map(row => {
+                        const start = cumulative;
+                        cumulative += row.ratio;
+                        return `${row.hex} ${start}% ${cumulative}%`;
+                    });
+
+                return {
+                    rows: rowsWithRatio,
+                    gradient: segments.length ? `conic-gradient(${segments.join(', ')})` : 'conic-gradient(#E2E8F0 0% 100%)'
+                };
+            }, [totals.categoryBreakdownHKD, displayCurrency]);
+
+            useEffect(() => {
+                const selectedExists = assetMix.rows.some(row => row.categoryKey === selectedMixCategory);
+                if (!selectedExists) {
+                    const first = assetMix.rows[0]?.categoryKey || 'INVEST';
+                    setSelectedMixCategory(first);
+                }
+            }, [assetMix.rows, selectedMixCategory]);
+
+            const detailMix = useMemo(() => {
+                const category = selectedMixCategory;
+                const categoryAssets = assets.filter(item => item.category === category);
+                const groupMap = {};
+
+                categoryAssets.forEach(item => {
+                    const key = category === 'LIQUID'
+                        ? (item.currency || 'N/A')
+                        : (item.subtype || '其他');
+                    const amountHKD = Math.abs(toHKD(item.quantity * item.currentPrice, item.currency));
+                    groupMap[key] = (groupMap[key] || 0) + amountHKD;
+                });
+
+                const totalHKD = Object.values(groupMap).reduce((sum, value) => sum + value, 0);
+                const palette = ['#3B82F6', '#10B981', '#F59E0B', '#6366F1', '#F43F5E', '#0EA5E9', '#8B5CF6', '#14B8A6'];
+
+                const rows = Object.entries(groupMap)
+                    .map(([label, valueHKD], idx) => ({
+                        label,
+                        valueHKD,
+                        amount: fromHKD(valueHKD, displayCurrency),
+                        ratio: totalHKD > 0 ? (valueHKD / totalHKD) * 100 : 0,
+                        color: palette[idx % palette.length]
+                    }))
+                    .sort((a, b) => b.valueHKD - a.valueHKD);
+
+                let cumulative = 0;
+                const segments = rows
+                    .filter(row => row.ratio > 0)
+                    .map(row => {
+                        const start = cumulative;
+                        cumulative += row.ratio;
+                        return `${row.color} ${start}% ${cumulative}%`;
+                    });
+
+                return {
+                    categoryLabel: CATEGORIES[category]?.label || '細項',
+                    rows,
+                    gradient: segments.length ? `conic-gradient(${segments.join(', ')})` : 'conic-gradient(#E2E8F0 0% 100%)'
+                };
+            }, [assets, selectedMixCategory, displayCurrency]);
+
+            const accountStats = useMemo(() => {
+                const category = selectedStatsCategory;
+                const categoryAssets = assets.filter(item => item.category === category);
+
+                const accountMap = {};
+                categoryAssets.forEach(item => {
+                    if (!accountMap[item.account]) accountMap[item.account] = [];
+                    accountMap[item.account].push(item);
+                });
+
+                const accountNames = Object.keys(accountMap).sort((a, b) => a.localeCompare(b, 'zh-Hant'));
+                const currentAccount = accountNames.includes(selectedStatsAccount) ? selectedStatsAccount : (accountNames[0] || '');
+                const selectedAssets = statsBreakdownMode === 'ITEM' ? (accountMap[currentAccount] || []) : categoryAssets;
+
+                const grouped = {};
+                if (statsBreakdownMode === 'ACCOUNT') {
+                    accountNames.forEach(accountName => {
+                        const accountItems = accountMap[accountName] || [];
+                        const valueDisplay = accountItems.reduce((sum, item) => {
+                            return sum + fromHKD(toHKD(item.quantity * item.currentPrice, item.currency), displayCurrency);
+                        }, 0);
+                        grouped[`ACC:${accountName}`] = {
+                            key: `ACC:${accountName}`,
+                            label: accountName,
+                            subtype: CATEGORIES[category].label,
+                            symbol: '',
+                            quantity: accountItems.length,
+                            valueDisplay,
+                            members: accountItems
+                        };
+                    });
+                } else {
+                    selectedAssets.forEach(item => {
+                        const key = category === 'LIQUID'
+                            ? `CUR:${item.currency}`
+                            : `ASSET:${item.id}`;
+
+                        if (!grouped[key]) {
+                            grouped[key] = {
+                                key,
+                                label: category === 'LIQUID' ? item.currency : item.name,
+                                subtype: item.subtype,
+                                symbol: item.symbol,
+                                quantity: 0,
+                                valueDisplay: 0,
+                                members: []
+                            };
+                        }
+
+                        grouped[key].quantity += Number(item.quantity || 0);
+                        grouped[key].valueDisplay += fromHKD(toHKD(item.quantity * item.currentPrice, item.currency), displayCurrency);
+                        grouped[key].members.push(item);
+                    });
+                }
+
+                const items = Object.values(grouped)
+                    .map((entry, index) => ({
+                        ...entry,
+                        color: INVEST_CHART_COLORS[index % INVEST_CHART_COLORS.length]
+                    }))
+                    .sort((a, b) => b.valueDisplay - a.valueDisplay);
+
+                const total = items.reduce((sum, item) => sum + item.valueDisplay, 0);
+                const itemsWithRatio = items.map(item => ({
+                    ...item,
+                    ratio: total > 0 ? (item.valueDisplay / total) * 100 : 0
+                }));
+
+                let currentAngle = 0;
+                const segments = itemsWithRatio.map(item => {
+                    const segmentAngle = (item.ratio / 100) * 360;
+                    const startAngle = currentAngle;
+                    const endAngle = currentAngle + segmentAngle;
+                    currentAngle = endAngle;
+                    return {
+                        ...item,
+                        startAngle,
+                        endAngle
+                    };
+                });
+
+                const selectedItem = segments.find(item => item.key === selectedStatsSegmentKey) || segments[0] || null;
+
+                return {
+                    category,
+                    accountNames,
+                    currentAccount,
+                    total,
+                    segments,
+                    selectedItem,
+                    mode: statsBreakdownMode
+                };
+            }, [assets, displayCurrency, selectedStatsCategory, selectedStatsAccount, selectedStatsSegmentKey, statsBreakdownMode]);
+
+            useEffect(() => {
+                if (!CATEGORY_KEYS.includes(selectedStatsCategory)) {
+                    setSelectedStatsCategory('INVEST');
+                }
+            }, [selectedStatsCategory]);
+
+            useEffect(() => {
+                if (!accountStats.accountNames.length) {
+                    setSelectedStatsAccount('');
+                    setSelectedStatsSegmentKey('');
+                    return;
+                }
+
+                if (!accountStats.accountNames.includes(selectedStatsAccount)) {
+                    setSelectedStatsAccount(accountStats.accountNames[0]);
+                }
+
+                if (!accountStats.segments.some(item => item.key === selectedStatsSegmentKey)) {
+                    setSelectedStatsSegmentKey(accountStats.segments[0]?.key || '');
+                }
+            }, [accountStats.accountNames, accountStats.segments, selectedStatsAccount, selectedStatsSegmentKey]);
+
+            const updateMarketPrices = async (showToast) => {
+                const latestAssets = assetsRef.current;
+                const stockTargets = latestAssets.filter(a => a.category === 'INVEST' && ['股票', '基金'].includes(a.subtype) && a.symbol);
+                const cryptoTargets = latestAssets.filter(a => a.category === 'INVEST' && a.subtype === '加密貨幣' && a.symbol);
+
+                if (!stockTargets.length && !cryptoTargets.length) {
+                    if (showToast) setPriceStatus('沒有可更新的股票或加密貨幣代號');
+                    return;
+                }
+
+                setIsUpdatingPrice(true);
+                setPriceStatus('更新行情中...');
+
+                const stockSymbolMap = {};
+                stockTargets.forEach(item => {
+                    stockSymbolMap[item.id] = normalizeYahooSymbol(item.symbol);
+                });
+                const isValidYahooSymbol = (symbol) => /^[A-Z0-9\.\-]+$/.test(symbol || '');
+                const stockSymbols = [...new Set(Object.values(stockSymbolMap))].filter(isValidYahooSymbol);
+                const cryptoSymbols = [...new Set(cryptoTargets.map(item => item.symbol.trim().toUpperCase()))];
+
+                const [stockQuotes, cryptoQuotesUSD] = await Promise.all([
+                    fetchYahooQuotes(stockSymbols),
+                    fetchCryptoQuotes(cryptoSymbols)
+                ]);
+
+                let updatedCount = 0;
+                setAssets(prev => {
+                    let hasChange = false;
+                    const next = prev.map(item => {
+                        let nextPrice = null;
+                        if (item.category === 'INVEST' && ['股票', '基金'].includes(item.subtype) && item.symbol) {
+                            const normalized = stockSymbolMap[item.id];
+                            const quotePrice = stockQuotes[normalized?.toUpperCase()];
+                            if (typeof quotePrice === 'number' && quotePrice > 0) nextPrice = quotePrice;
+                        }
+                        if (item.category === 'INVEST' && item.subtype === '加密貨幣' && item.symbol) {
+                            const symbol = item.symbol.trim().toUpperCase();
+                            const usdPrice = cryptoQuotesUSD[symbol];
+                            if (typeof usdPrice === 'number' && usdPrice > 0) {
+                                nextPrice = usdPrice * ((DEFAULT_RATES[item.currency] || 1) / DEFAULT_RATES.USD);
+                            }
+                        }
+
+                        if (typeof nextPrice === 'number' && Math.abs(nextPrice - item.currentPrice) > 0.000001) {
+                            hasChange = true;
+                            updatedCount += 1;
+                            return { ...item, currentPrice: Number(nextPrice.toFixed(6)) };
+                        }
+                        return item;
+                    });
+                    return hasChange ? next : prev;
+                });
+
+                const stamp = new Date();
+                setLastPriceUpdate(stamp);
+                setIsUpdatingPrice(false);
+                setPriceStatus(updatedCount > 0 ? `已更新 ${updatedCount} 筆行情` : '行情已是最新或資料源暫不可用');
+            };
+
+            const isValidAssetRecord = (item) => {
+                if (!item || typeof item !== 'object') return false;
+                const hasCategory = typeof item.category === 'string' && CATEGORIES[item.category];
+                const hasSubtype = typeof item.subtype === 'string';
+                const hasCurrency = typeof item.currency === 'string' && CURRENCIES.includes(item.currency);
+                const quantity = Number(item.quantity);
+                const costBasis = Number(item.costBasis);
+                const currentPrice = Number(item.currentPrice);
+                return Boolean(
+                    typeof item.id === 'string' && item.id &&
+                    typeof item.account === 'string' &&
+                    typeof item.name === 'string' &&
+                    hasCategory &&
+                    hasSubtype &&
+                    hasCurrency &&
+                    Number.isFinite(quantity) &&
+                    Number.isFinite(costBasis) &&
+                    Number.isFinite(currentPrice)
+                );
+            };
+
+            const handleExportData = () => {
+                try {
+                    const payload = {
+                        version: 1,
+                        exportedAt: new Date().toISOString(),
+                        data: {
+                            assets,
+                            displayCurrency,
+                            monthlySnapshots
+                        }
+                    };
+                    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
+                    const url = URL.createObjectURL(blob);
+                    const fileName = `asset-tracker-backup-${new Date().toISOString().slice(0, 10)}.json`;
+                    const anchor = document.createElement('a');
+                    anchor.href = url;
+                    anchor.download = fileName;
+                    document.body.appendChild(anchor);
+                    anchor.click();
+                    anchor.remove();
+                    URL.revokeObjectURL(url);
+                    setPriceStatus('資料已成功匯出');
+                } catch (error) {
+                    setPriceStatus('匯出失敗，請稍後再試');
+                }
+            };
+
+            const openImportPicker = () => {
+                importInputRef.current?.click();
+            };
+
+            const handleImportData = async (event) => {
+                const file = event.target.files?.[0];
+                if (!file) return;
+
+                try {
+                    const text = await file.text();
+                    const parsed = JSON.parse(text);
+                    const imported = parsed?.data || parsed;
+                    const nextAssets = Array.isArray(imported?.assets) ? imported.assets : null;
+                    const nextDisplayCurrency = typeof imported?.displayCurrency === 'string' ? imported.displayCurrency : null;
+                    const nextMonthlySnapshots = imported?.monthlySnapshots && typeof imported.monthlySnapshots === 'object'
+                        ? imported.monthlySnapshots
+                        : null;
+
+                    if (!nextAssets || !nextAssets.every(isValidAssetRecord)) {
+                        throw new Error('invalid assets format');
+                    }
+
+                    if (!nextDisplayCurrency || !CURRENCIES.includes(nextDisplayCurrency)) {
+                        throw new Error('invalid display currency');
+                    }
+
+                    const safeSnapshots = nextMonthlySnapshots && !Array.isArray(nextMonthlySnapshots) ? nextMonthlySnapshots : {};
+
+                    setAssets(nextAssets.map(item => ({
+                        ...item,
+                        quantity: Number(item.quantity),
+                        costBasis: Number(item.costBasis),
+                        currentPrice: Number(item.currentPrice),
+                        symbol: (item.symbol || '').toString().toUpperCase().trim()
+                    })));
+                    setDisplayCurrency(nextDisplayCurrency);
+                    setMonthlySnapshots(safeSnapshots);
+                    localStorage.setItem(STORAGE_KEYS.monthlySnapshots, JSON.stringify(safeSnapshots));
+                    setPriceStatus(`匯入成功：${nextAssets.length} 筆資產資料`);
+                } catch (error) {
+                    setPriceStatus('匯入失敗：檔案格式不正確');
+                } finally {
+                    event.target.value = '';
+                }
+            };
+
+            useEffect(() => {
+                updateMarketPrices(false);
+                const timer = setInterval(() => updateMarketPrices(false), 5 * 60 * 1000);
+                return () => clearInterval(timer);
+            }, []);
+
+            const openEdit = (asset) => {
+                setEditingId(asset.id);
+                setFormData({
+                    ...asset,
+                    premiumAmount: asset.premiumAmount ?? '',
+                    premiumFrequency: asset.premiumFrequency ?? 'monthly',
+                    premiumPaidCount: asset.premiumPaidCount ?? '',
+                    propertyPrice: asset.propertyPrice ?? '',
+                    ltvRatio: asset.ltvRatio ?? '',
+                    annualInterestRate: asset.annualInterestRate ?? '',
+                    mortgageYears: asset.mortgageYears ?? '',
+                    paidPeriods: asset.paidPeriods ?? '',
+                    loanPrincipal: asset.loanPrincipal ?? '',
+                    loanYears: asset.loanYears ?? '',
+                    loanPaidPeriods: asset.loanPaidPeriods ?? '',
+                    loanAnnualInterestRate: asset.loanAnnualInterestRate ?? '',
+                    creditCardBalance: asset.creditCardBalance ?? '',
+                    creditCardMinPayment: asset.creditCardMinPayment ?? '',
+                    creditCardDueDate: asset.creditCardDueDate ?? '',
+                    creditCardAnnualRate: asset.creditCardAnnualRate ?? '',
+                    payableAmount: asset.payableAmount ?? '',
+                    payableDueDate: asset.payableDueDate ?? '',
+                    payableInstallments: asset.payableInstallments ?? '',
+                    otherOutstanding: asset.otherOutstanding ?? '',
+                    otherAnnualRate: asset.otherAnnualRate ?? '',
+                    otherDueDate: asset.otherDueDate ?? '',
+                    receivableAmount: asset.receivableAmount ?? '',
+                    receivableDueDate: asset.receivableDueDate ?? '',
+                    receivableInstallments: asset.receivableInstallments ?? '',
+                    receivableParty: asset.receivableParty ?? '',
+                    fixedPurchasePrice: asset.fixedPurchasePrice ?? '',
+                    fixedCurrentValue: asset.fixedCurrentValue ?? '',
+                    fixedPurchaseDate: asset.fixedPurchaseDate ?? '',
+                    fixedNote: asset.fixedNote ?? ''
+                });
+                setIsModalOpen(true);
+            };
+
+            const handleDelete = (id) => {
+                if (confirm('確定要刪除此資產嗎？')) {
+                    setAssets(assets.filter(a => a.id !== id));
+                    setIsModalOpen(false);
+                }
+            };
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                const baseCurrency = formData.currency || 'HKD';
+                const resolvedName = isLiquidForm
+                    ? ((editingId && (formData.name || '').trim()) || `${baseCurrency} ${formData.subtype}`)
+                    : (formData.name || '').trim();
+                const needsSymbol = isCryptoForm || isStockForm || isFundForm;
+
+                let quantity = parseFloat(formData.quantity || 0);
+                let costBasis = parseFloat(formData.costBasis || 0);
+                let currentPrice = editingId ? parseFloat(formData.currentPrice || formData.costBasis || 0) : costBasis;
+
+                if (isLiquidForm) {
+                    quantity = parseFloat(formData.quantity || 0);
+                    costBasis = 1;
+                    currentPrice = 1;
+                }
+
+                if (needsPremium) {
+                    const totalPremium = (Number(formData.premiumAmount) || 0) * (Number(formData.premiumPaidCount) || 0);
+                    quantity = 1;
+                    costBasis = totalPremium;
+                    currentPrice = totalPremium;
+                }
+
+                let mortgagePayload = {};
+                if (isMortgageForm) {
+                    if (!mortgageMetrics) {
+                        alert('請輸入有效的房貸資料（樓價、按揭成數、年息、還款年限）');
+                        return;
+                    }
+                    quantity = 1;
+                    costBasis = mortgageMetrics.loanAmount;
+                    currentPrice = mortgageMetrics.outstandingPrincipal;
+                    mortgagePayload = {
+                        propertyPrice: mortgageMetrics.propertyPrice,
+                        ltvRatio: mortgageMetrics.ltvRatio,
+                        annualInterestRate: mortgageMetrics.annualInterestRate,
+                        mortgageYears: mortgageMetrics.mortgageYears,
+                        paidPeriods: mortgageMetrics.paidPeriods,
+                        totalPeriods: mortgageMetrics.totalPeriods,
+                        remainingPeriods: mortgageMetrics.remainingPeriods,
+                        downPayment: mortgageMetrics.downPayment,
+                        loanAmount: mortgageMetrics.loanAmount,
+                        totalInterest: mortgageMetrics.totalInterest,
+                        monthlyPayment: mortgageMetrics.monthlyPayment,
+                        outstandingPrincipal: mortgageMetrics.outstandingPrincipal
+                    };
+                }
+
+                let loanPayload = {};
+                if (isLoanForm) {
+                    if (!loanMetrics) {
+                        alert('請輸入有效的貸款資料（貸款本金、年息、還款年限）');
+                        return;
+                    }
+                    quantity = 1;
+                    costBasis = loanMetrics.loanPrincipal;
+                    currentPrice = loanMetrics.outstandingPrincipal;
+                    loanPayload = {
+                        loanPrincipal: loanMetrics.loanPrincipal,
+                        loanAnnualInterestRate: loanMetrics.annualInterestRate,
+                        loanYears: loanMetrics.loanYears,
+                        loanPaidPeriods: loanMetrics.paidPeriods,
+                        loanTotalPeriods: loanMetrics.totalPeriods,
+                        loanRemainingPeriods: loanMetrics.remainingPeriods,
+                        loanTotalInterest: loanMetrics.totalInterest,
+                        loanMonthlyPayment: loanMetrics.monthlyPayment,
+                        loanOutstandingPrincipal: loanMetrics.outstandingPrincipal
+                    };
+                }
+
+                let creditCardPayload = {};
+                if (isCreditCardForm) {
+                    const balance = Number(formData.creditCardBalance) || 0;
+                    if (balance <= 0) {
+                        alert('請輸入信用卡本期結欠');
+                        return;
+                    }
+                    quantity = 1;
+                    costBasis = balance;
+                    currentPrice = balance;
+                    creditCardPayload = {
+                        creditCardBalance: balance,
+                        creditCardMinPayment: Number(formData.creditCardMinPayment) || 0,
+                        creditCardDueDate: formData.creditCardDueDate || '',
+                        creditCardAnnualRate: Number(formData.creditCardAnnualRate) || 0
+                    };
+                }
+
+                let payablePayload = {};
+                if (isPayableForm) {
+                    const amount = Number(formData.payableAmount) || 0;
+                    if (amount <= 0) {
+                        alert('請輸入應付款金額');
+                        return;
+                    }
+                    quantity = 1;
+                    costBasis = amount;
+                    currentPrice = amount;
+                    payablePayload = {
+                        payableAmount: amount,
+                        payableDueDate: formData.payableDueDate || '',
+                        payableInstallments: Number(formData.payableInstallments) || 0
+                    };
+                }
+
+                let otherLiabilityPayload = {};
+                if (isOtherLiabilityForm) {
+                    const outstanding = Number(formData.otherOutstanding) || 0;
+                    if (outstanding <= 0) {
+                        alert('請輸入未償金額');
+                        return;
+                    }
+                    quantity = 1;
+                    costBasis = outstanding;
+                    currentPrice = outstanding;
+                    otherLiabilityPayload = {
+                        otherOutstanding: outstanding,
+                        otherAnnualRate: Number(formData.otherAnnualRate) || 0,
+                        otherDueDate: formData.otherDueDate || ''
+                    };
+                }
+
+                let receivablePayload = {};
+                if (isReceivableForm) {
+                    const amount = Number(formData.receivableAmount) || 0;
+                    if (amount <= 0) {
+                        alert('請輸入應收金額');
+                        return;
+                    }
+                    quantity = 1;
+                    costBasis = amount;
+                    currentPrice = amount;
+                    receivablePayload = {
+                        receivableAmount: amount,
+                        receivableDueDate: formData.receivableDueDate || '',
+                        receivableInstallments: Number(formData.receivableInstallments) || 0,
+                        receivableParty: (formData.receivableParty || '').trim()
+                    };
+                }
+
+                let fixedPayload = {};
+                if (isFixedForm) {
+                    const purchasePrice = Number(formData.fixedPurchasePrice) || 0;
+                    const currentValue = Number(formData.fixedCurrentValue) || 0;
+                    if (purchasePrice <= 0 || currentValue <= 0) {
+                        alert('請輸入固定資產的購入成本與目前估值');
+                        return;
+                    }
+                    quantity = 1;
+                    costBasis = purchasePrice;
+                    currentPrice = currentValue;
+                    fixedPayload = {
+                        fixedPurchasePrice: purchasePrice,
+                        fixedCurrentValue: currentValue,
+                        fixedPurchaseDate: formData.fixedPurchaseDate || '',
+                        fixedNote: (formData.fixedNote || '').trim()
+                    };
+                }
+
+                const data = {
+                    ...formData,
+                    name: resolvedName,
+                    symbol: needsSymbol ? (formData.symbol || '').toUpperCase().trim() : '',
+                    quantity,
+                    costBasis,
+                    currentPrice,
+                    currency: baseCurrency,
+                    ...mortgagePayload,
+                    ...loanPayload,
+                    ...creditCardPayload,
+                    ...payablePayload,
+                    ...otherLiabilityPayload,
+                    ...receivablePayload,
+                    ...fixedPayload
+                };
+
+                if (editingId) {
+                    setAssets(assets.map(a => a.id === editingId ? { ...data, id: editingId } : a));
+                } else {
+                    setAssets([...assets, { ...data, id: Date.now().toString() }]);
+                }
+
+                setIsModalOpen(false);
+                setEditingId(null);
+                setFormData({
+                    account: '',
+                    name: '',
+                    category: 'LIQUID',
+                    subtype: '現金',
+                    symbol: '',
+                    quantity: '',
+                    costBasis: '',
+                    currency: 'HKD',
+                    premiumAmount: '',
+                    premiumFrequency: 'monthly',
+                    premiumPaidCount: '',
+                    propertyPrice: '',
+                    ltvRatio: '',
+                    annualInterestRate: '',
+                    mortgageYears: '',
+                    paidPeriods: '',
+                    loanPrincipal: '',
+                    loanYears: '',
+                    loanPaidPeriods: '',
+                    loanAnnualInterestRate: '',
+                    creditCardBalance: '',
+                    creditCardMinPayment: '',
+                    creditCardDueDate: '',
+                    creditCardAnnualRate: '',
+                    payableAmount: '',
+                    payableDueDate: '',
+                    payableInstallments: '',
+                    otherOutstanding: '',
+                    otherAnnualRate: '',
+                    otherDueDate: '',
+                    receivableAmount: '',
+                    receivableDueDate: '',
+                    receivableInstallments: '',
+                    receivableParty: '',
+                    fixedPurchasePrice: '',
+                    fixedCurrentValue: '',
+                    fixedPurchaseDate: '',
+                    fixedNote: ''
+                });
+            };
+
+            const netWorthTier = getNetWorthTier(totals.netWorthHKD);
+
+            return (
+                <div className="max-w-6xl mx-auto p-4 md:p-8">
+                    <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                        <div className="space-y-1">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white">
+                                    <i data-lucide="layout-dashboard" className="w-6 h-6"></i>
+                                </div>
+                                <h1 className="text-2xl font-black text-slate-800 tracking-tight">個人資產負債管理</h1>
+                            </div>
+                            <p className="text-xs text-slate-500 font-bold">流動資金、投資、固定資產、應收款、負債五大類別一站管理</p>
+                        </div>
+                        <div className="flex items-center gap-2 w-full md:w-auto flex-wrap">
+                            <input
+                                ref={importInputRef}
+                                type="file"
+                                accept="application/json,.json"
+                                className="hidden"
+                                onChange={handleImportData}
+                            />
+                            <div className="w-full flex items-center gap-2 md:hidden">
+                                <button
+                                    onClick={() => { setEditingId(null); setIsModalOpen(true); }}
+                                    className="flex-1 bg-slate-900 text-white px-5 py-2 rounded-lg font-bold text-sm hover:bg-slate-800 transition-all shadow-md flex items-center gap-2 justify-center"
+                                >
+                                    <i data-lucide="plus-circle" className="w-4 h-4"></i> 新增資產
+                                </button>
+                                <div className="relative">
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowSettings(prev => !prev)}
+                                        className="bg-white border border-slate-200 rounded-lg px-3 py-2 font-black text-sm shadow-sm"
+                                    >
+                                        <i data-lucide="settings" className="w-4 h-4"></i>
+                                    </button>
+                                    {showSettings && (
+                                        <div className="absolute right-0 mt-2 w-64 bg-white border border-slate-100 rounded-xl shadow-lg p-3 space-y-2 z-20">
+                                            <div className="text-[10px] text-slate-400 font-black uppercase tracking-widest">顯示幣種</div>
+                                            <select
+                                                value={displayCurrency}
+                                                onChange={e => setDisplayCurrency(e.target.value)}
+                                                className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 font-bold text-sm shadow-sm outline-none"
+                                            >
+                                                {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+                                            </select>
+                                            <button
+                                                onClick={() => { handleExportData(); setShowSettings(false); }}
+                                                className="w-full bg-emerald-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-emerald-500 transition-all"
+                                            >
+                                                匯出資料
+                                            </button>
+                                            <button
+                                                onClick={() => { openImportPicker(); setShowSettings(false); }}
+                                                className="w-full bg-amber-500 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-amber-400 transition-all"
+                                            >
+                                                匯入資料
+                                            </button>
+                                            <button
+                                                onClick={() => { updateMarketPrices(true); setShowSettings(false); }}
+                                                disabled={isUpdatingPrice}
+                                                className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-blue-500 transition-all disabled:opacity-60"
+                                            >
+                                                {isUpdatingPrice ? '更新中...' : '更新股價/幣價'}
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="hidden md:flex items-center gap-2 flex-wrap">
+                                <select value={displayCurrency} onChange={e => setDisplayCurrency(e.target.value)} className="bg-white border border-slate-200 rounded-lg px-3 py-2 font-bold text-sm shadow-sm outline-none">
+                                    {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+                                </select>
+                                <button onClick={handleExportData} className="bg-emerald-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-emerald-500 transition-all shadow-md">
+                                    匯出資料
+                                </button>
+                                <button onClick={openImportPicker} className="bg-amber-500 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-amber-400 transition-all shadow-md">
+                                    匯入資料
+                                </button>
+                                <button onClick={() => updateMarketPrices(true)} disabled={isUpdatingPrice} className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-blue-500 transition-all shadow-md disabled:opacity-60">
+                                    {isUpdatingPrice ? '更新中...' : '更新股價/幣價'}
+                                </button>
+                                <button onClick={() => { setEditingId(null); setIsModalOpen(true); }} className="bg-slate-900 text-white px-5 py-2 rounded-lg font-bold text-sm hover:bg-slate-800 transition-all shadow-md flex items-center gap-2">
+                                    <i data-lucide="plus-circle" className="w-4 h-4"></i> 新增資產
+                                </button>
+                            </div>
+                        </div>
+                    </header>
+
+                    <div className="mb-8 text-xs text-slate-500 font-bold flex flex-wrap gap-x-4 gap-y-1">
+                        <span>{priceStatus || '行情將每 5 分鐘自動更新一次'}</span>
+                        <span>{lastPriceUpdate ? `最後更新：${lastPriceUpdate.toLocaleString()}` : '尚未更新行情'}</span>
+                    </div>
+
+                    <section className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm mb-8">
+                        <div className="text-slate-800 font-black mb-4">資產總覽與配比</div>
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            <div className="space-y-4">
+                                <div className="bg-indigo-600 p-5 rounded-2xl text-white shadow-lg">
+                                    <div className="text-indigo-200 text-[10px] font-black uppercase tracking-widest mb-1">淨資產 ({displayCurrency})</div>
+                                    <div className="text-3xl font-black tracking-tighter">{formatAmount(totals.netWorth)}</div>
+                                    <div className="text-xs font-black text-indigo-100 mt-2">{netWorthTier.emoji} {netWorthTier.label}</div>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3">
+                                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                                        <div className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">總資產</div>
+                                        <div className="text-xl font-black text-slate-800">{formatAmount(totals.assets)}</div>
+                                    </div>
+                                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                                        <div className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">總負債</div>
+                                        <div className="text-xl font-black text-rose-500">{formatAmount(totals.liabilities)}</div>
+                                        <div className="text-[10px] font-black text-slate-400 mt-1">負債比 {totals.debtRatio.toFixed(1)}%</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="lg:col-span-2 grid grid-cols-1 xl:grid-cols-2 gap-6 items-center">
+                                <details className="rounded-xl bg-slate-50/60 p-3 sm:p-0 sm:bg-transparent" open>
+                                    <summary className="sm:hidden text-xs font-black text-slate-600 cursor-pointer list-none">分類配比</summary>
+                                    <div className="space-y-3 mt-3 sm:mt-0">
+                                        {assetMix.rows.map(item => (
+                                            <button
+                                                type="button"
+                                                key={item.categoryKey}
+                                                onClick={() => setSelectedMixCategory(item.categoryKey)}
+                                                className={`w-full text-left rounded-xl p-2 transition-all ${selectedMixCategory === item.categoryKey ? 'bg-slate-50 ring-1 ring-slate-200' : 'hover:bg-slate-50/70'}`}
+                                            >
+                                                <div className="flex justify-between text-xs font-black text-slate-500 mb-1">
+                                                    <span>{item.label}</span>
+                                                    <span>{item.ratio.toFixed(1)}% · {formatAmount(item.amount)} {displayCurrency}</span>
+                                                </div>
+                                                <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+                                                    <div className={`h-full ${item.bg}`} style={{ width: `${item.ratio}%` }}></div>
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </details>
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-center">
+                                        <div className="w-44 h-44 sm:w-52 sm:h-52 rounded-full relative" style={{ background: detailMix.gradient }}>
+                                            <div className="absolute inset-8 bg-white rounded-full border border-slate-100 flex items-center justify-center">
+                                                <div className="text-center">
+                                                    <div className="text-[10px] text-slate-400 font-black uppercase tracking-widest">{detailMix.categoryLabel}</div>
+                                                    <div className="text-sm font-black text-slate-700">細項佔比</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <details className="rounded-xl bg-slate-50/60 p-3 sm:p-0 sm:bg-transparent" open>
+                                        <summary className="sm:hidden text-xs font-black text-slate-600 cursor-pointer list-none">細項佔比</summary>
+                                        <div className="space-y-2 mt-3 sm:mt-0">
+                                            {detailMix.rows.length ? detailMix.rows.map(row => (
+                                                <div key={row.label} className="flex items-center justify-between text-xs font-black text-slate-500">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: row.color }}></span>
+                                                        <span>{row.label}</span>
+                                                    </div>
+                                                    <span>{row.ratio.toFixed(1)}% · {formatAmount(row.amount)} {displayCurrency}</span>
+                                                </div>
+                                            )) : (
+                                                <p className="text-sm text-slate-400 font-bold text-center">此分類尚無可計算細項</p>
+                                            )}
+                                        </div>
+                                    </details>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm mb-8">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                            <div className="text-slate-800 font-black">資產帳戶管理</div>
+                            <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2">
+                                <select
+                                    value={selectedStatsCategory}
+                                    onChange={e => {
+                                        setSelectedStatsCategory(e.target.value);
+                                        setSelectedStatsAccount('');
+                                        setSelectedStatsSegmentKey('');
+                                    }}
+                                    className="bg-white border border-slate-200 rounded-lg px-3 py-2 font-bold text-sm shadow-sm outline-none w-full sm:w-auto"
+                                >
+                                    {CATEGORY_KEYS.map(categoryKey => <option key={categoryKey} value={categoryKey}>{CATEGORIES[categoryKey].label}</option>)}
+                                </select>
+                                <select
+                                    value={statsBreakdownMode}
+                                    onChange={e => {
+                                        setStatsBreakdownMode(e.target.value);
+                                        setSelectedStatsSegmentKey('');
+                                    }}
+                                    className="bg-white border border-slate-200 rounded-lg px-3 py-2 font-bold text-sm shadow-sm outline-none w-full sm:w-auto"
+                                >
+                                    <option value="ACCOUNT">按帳戶佔比</option>
+                                    <option value="ITEM">按帳戶內細項</option>
+                                </select>
+                                {statsBreakdownMode === 'ITEM' && (
+                                    <select
+                                        value={accountStats.currentAccount}
+                                        onChange={e => {
+                                            setSelectedStatsAccount(e.target.value);
+                                            setSelectedStatsSegmentKey('');
+                                        }}
+                                        className="bg-white border border-slate-200 rounded-lg px-3 py-2 font-bold text-sm shadow-sm outline-none w-full sm:w-auto"
+                                    >
+                                        {accountStats.accountNames.length ? (
+                                            accountStats.accountNames.map(account => <option key={account} value={account}>{account}</option>)
+                                        ) : (
+                                            <option value="">尚無帳戶</option>
+                                        )}
+                                    </select>
+                                )}
+                            </div>
+                        </div>
+
+                        {!accountStats.accountNames.length ? (
+                            <p className="text-sm text-slate-400 font-bold">目前此類別沒有可統計資料</p>
+                        ) : (
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+                                <div className="flex justify-center">
+                                    <svg viewBox="0 0 260 260" className="w-48 h-48 sm:w-56 sm:h-56">
+                                        {accountStats.segments.length === 1 ? (
+                                            <circle
+                                                cx="130"
+                                                cy="130"
+                                                r="110"
+                                                fill={accountStats.segments[0].color}
+                                                stroke="#ffffff"
+                                                strokeWidth="2"
+                                                className="cursor-pointer"
+                                                onClick={() => setSelectedStatsSegmentKey(accountStats.segments[0].key)}
+                                            />
+                                        ) : (
+                                            accountStats.segments.map(segment => (
+                                                <path
+                                                    key={segment.key}
+                                                    d={describeArc(130, 130, 110, segment.startAngle, segment.endAngle)}
+                                                    fill={segment.color}
+                                                    stroke="#ffffff"
+                                                    strokeWidth="2"
+                                                    className="cursor-pointer"
+                                                    opacity={accountStats.selectedItem?.key === segment.key ? 1 : 0.8}
+                                                    onClick={() => setSelectedStatsSegmentKey(segment.key)}
+                                                />
+                                            ))
+                                        )}
+                                        <circle cx="130" cy="130" r="62" fill="#ffffff" />
+                                        <text x="130" y="116" textAnchor="middle" className="fill-slate-400" style={{ fontSize: '10px', fontWeight: 800 }}>
+                                            {accountStats.selectedItem ? accountStats.selectedItem.label : (statsBreakdownMode === 'ACCOUNT' ? CATEGORIES[selectedStatsCategory].label : accountStats.currentAccount)}
+                                        </text>
+                                        <text x="130" y="136" textAnchor="middle" className="fill-slate-700" style={{ fontSize: '13px', fontWeight: 900 }}>
+                                            {accountStats.selectedItem ? `${formatAmount(accountStats.selectedItem.valueDisplay)} ${displayCurrency}` : `${formatAmount(accountStats.total)} ${displayCurrency}`}
+                                        </text>
+                                        <text x="130" y="154" textAnchor="middle" className="fill-slate-400" style={{ fontSize: '10px', fontWeight: 800 }}>
+                                            {accountStats.selectedItem ? `${accountStats.selectedItem.ratio.toFixed(1)}%` : '點擊區塊查看佔比'}
+                                        </text>
+                                    </svg>
+                                </div>
+
+                                <div className="lg:col-span-2 space-y-3">
+                                    <div className="space-y-2">
+                                        {accountStats.segments.map(segment => (
+                                            <button
+                                                key={segment.key}
+                                                type="button"
+                                                onClick={() => setSelectedStatsSegmentKey(segment.key)}
+                                                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-left border ${accountStats.selectedItem?.key === segment.key ? 'border-indigo-200 bg-indigo-50/60' : 'border-slate-100 bg-white'}`}
+                                            >
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                    <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: segment.color }}></span>
+                                                    <span className="text-sm font-bold text-slate-700 truncate">{segment.label}</span>
+                                                    <span className="text-[10px] text-slate-400 font-black">{segment.symbol ? `(${segment.symbol})` : ''}</span>
+                                                </div>
+                                                <div className="text-xs font-black text-slate-500 whitespace-nowrap text-right">
+                                                    <div>{formatAmount(segment.valueDisplay)} {displayCurrency}</div>
+                                                    <div>{segment.ratio.toFixed(1)}%</div>
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    {accountStats.selectedItem && (
+                                        <details className="rounded-xl border border-slate-100 bg-slate-50/60 p-4" open>
+                                            <summary className="md:hidden text-xs text-slate-500 font-black cursor-pointer list-none">已選擇項目細節</summary>
+                                            <div className="mt-3 md:mt-0">
+                                                <div className="text-xs text-slate-400 font-black mb-2">已選擇項目</div>
+                                                <div className="text-base font-black text-slate-800 mb-1">{accountStats.selectedItem.label}</div>
+                                                <div className="text-xs text-slate-500 font-bold mb-2">
+                                                    {statsBreakdownMode === 'ACCOUNT' ? `帳戶資產項目：${accountStats.selectedItem.members?.length || 0} 筆` : (accountStats.selectedItem.subtype || CATEGORIES[selectedStatsCategory].label)}
+                                                    {accountStats.selectedItem.symbol ? ` · ${accountStats.selectedItem.symbol}` : ''}
+                                                </div>
+                                                <div className="text-sm font-bold text-slate-700">名稱：{accountStats.selectedItem.label}</div>
+                                                <div className="text-sm font-bold text-slate-700">金額：{formatAmount(accountStats.selectedItem.valueDisplay)} {displayCurrency}</div>
+                                                <div className="text-sm font-bold text-slate-700">百分比：{accountStats.selectedItem.ratio.toFixed(2)}%</div>
+                                            </div>
+                                        </details>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </section>
+
+                    <div className="mb-6 flex md:flex-wrap items-center gap-2 overflow-x-auto -mx-2 px-2">
+                        <button
+                            onClick={() => setSelectedCategories(CATEGORY_KEYS)}
+                            className={`px-4 py-1.5 rounded-full text-xs font-black transition-all whitespace-nowrap shrink-0 ${selectedCategories.length === CATEGORY_KEYS.length ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-slate-500 hover:bg-slate-50 border border-slate-100'}`}
+                        >
+                            全部項目
+                        </button>
+                        {CATEGORY_KEYS.map(categoryKey => (
+                            <button
+                                key={categoryKey}
+                                onClick={() => toggleCategory(categoryKey)}
+                                className={`px-4 py-1.5 rounded-full text-xs font-black transition-all whitespace-nowrap shrink-0 ${selectedCategories.includes(categoryKey) ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-slate-500 hover:bg-slate-50 border border-slate-100'}`}
+                            >
+                                {CATEGORIES[categoryKey].label}
+                            </button>
+                        ))}
+                        <select
+                            value={sortMode}
+                            onChange={e => setSortMode(e.target.value)}
+                            className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 font-bold text-xs shadow-sm outline-none shrink-0"
+                        >
+                            <option value="AMOUNT_DESC">按金額排序（大到小）</option>
+                            <option value="NAME_ASC">按名稱排序（A-Z）</option>
+                        </select>
+                        <select
+                            value={viewMode}
+                            onChange={e => setViewMode(e.target.value)}
+                            className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 font-bold text-xs shadow-sm outline-none shrink-0"
+                        >
+                            <option value="DETAIL">詳細模式</option>
+                            <option value="SUMMARY">匯總模式</option>
+                        </select>
+                    </div>
+
+                    {viewMode === 'SUMMARY' ? (
+                        <div className="space-y-6">
+                            {groupedAssets.map(({ categoryKey: catKey, accounts }) => {
+                                const categoryTotalHKD = accounts.reduce((sum, account) => {
+                                    const accountTotal = account.items.reduce((itemSum, item) => itemSum + toHKD(item.quantity * item.currentPrice, item.currency), 0);
+                                    return sum + accountTotal;
+                                }, 0);
+                                const categoryTotalDisplay = fromHKD(categoryTotalHKD, displayCurrency);
+                                const isLiabilityCategory = Boolean(CATEGORIES[catKey].isNegative);
+
+                                return (
+                                    <section key={catKey} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                                        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <div className={`w-1.5 h-6 rounded-full ${CATEGORIES[catKey].color.replace('text', 'bg')}`}></div>
+                                                <h2 className="text-base font-black text-slate-800">{CATEGORIES[catKey].label}</h2>
+                                            </div>
+                                            <div className={`text-sm font-black ${isLiabilityCategory ? 'text-rose-500' : 'text-slate-700'}`}>
+                                                {isLiabilityCategory ? '-' : ''}{formatAmount(Math.abs(categoryTotalDisplay))} {displayCurrency}
+                                            </div>
+                                        </div>
+                                        <div className="divide-y divide-slate-100">
+                                            {accounts.map(({ accountName, items }) => {
+                                                const accountTotalHKD = items.reduce((sum, item) => sum + toHKD(item.quantity * item.currentPrice, item.currency), 0);
+                                                const accountTotalDisplay = fromHKD(accountTotalHKD, displayCurrency);
+                                                return (
+                                                    <div key={accountName} className="px-6 py-3 flex items-center justify-between">
+                                                        <div className="text-sm font-bold text-slate-700">{accountName}</div>
+                                                        <div className={`text-sm font-black ${isLiabilityCategory ? 'text-rose-500' : 'text-slate-700'}`}>
+                                                            {isLiabilityCategory ? '-' : ''}{formatAmount(Math.abs(accountTotalDisplay))} {displayCurrency}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </section>
+                                );
+                            })}
+                        </div>
+                    ) : (
+                        <div className="space-y-10">
+                            {groupedAssets.map(({ categoryKey: catKey, accounts }) => (
+                                <div key={catKey} className="space-y-4">
+                                    <div className="flex items-center gap-2 px-2">
+                                        <div className={`w-1.5 h-6 rounded-full ${CATEGORIES[catKey].color.replace('text', 'bg')}`}></div>
+                                        <h2 className="text-lg font-black text-slate-800">{CATEGORIES[catKey].label}</h2>
+                                    </div>
+
+                                    {accounts.map(({ accountName, items }) => {
+                                        const accountTotalHKD = items.reduce((sum, item) => sum + toHKD(item.quantity * item.currentPrice, item.currency), 0);
+                                        const accountTotalDisplay = fromHKD(accountTotalHKD, displayCurrency);
+                                        const isLiabilityCategory = Boolean(CATEGORIES[catKey].isNegative);
+                                        const isInvestCategory = catKey === 'INVEST';
+                                        const isLiquidCategory = catKey === 'LIQUID';
+                                        const isInsuranceCategory = catKey === 'INSURANCE';
+                                        const isReceivableCategory = catKey === 'RECEIVABLE';
+                                        const isFixedCategory = catKey === 'FIXED';
+                                        const accountKey = `${catKey}::${accountName}`;
+                                        const isExpanded = expandedAccounts[accountKey] ?? true;
+
+                                        return (
+                                        <div key={accountName} className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm">
+                                            <button
+                                                type="button"
+                                                onClick={() => toggleAccountExpand(catKey, accountName)}
+                                                className="w-full bg-slate-50/50 px-6 py-3 border-b border-slate-100 flex items-center justify-between gap-3 text-left"
+                                            >
+                                                <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest">{accountName}</h3>
+                                                <div className="text-right flex items-center gap-3">
+                                                    <div>
+                                                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">帳戶匯總</div>
+                                                    <div className={`text-sm font-black ${isLiabilityCategory ? 'text-rose-500' : 'text-slate-700'}`}>
+                                                        {isLiabilityCategory ? '-' : ''}{formatAmount(Math.abs(accountTotalDisplay))} {displayCurrency}
+                                                    </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            {isExpanded && (
+                                            <>
+                                                <div className="md:hidden px-4 pt-4 pb-4 space-y-3">
+                                                    {items.map(item => {
+                                                        const mktValOrig = item.quantity * item.currentPrice;
+                                                        const mktValDisplay = fromHKD(toHKD(mktValOrig, item.currency), displayCurrency);
+                                                        const isMortgageLiability = isLiabilityCategory && item.subtype === '房貸';
+                                                        const isLoanLiability = isLiabilityCategory && item.subtype === '貸款';
+                                                        const isCreditCardLiability = isLiabilityCategory && item.subtype === '信用卡';
+                                                        const isPayableLiability = isLiabilityCategory && item.subtype === '應付款';
+                                                        const isOtherLiability = isLiabilityCategory && item.subtype === '其他負債';
+                                                        const isReceivableItem = isReceivableCategory;
+                                                        const isFixedItem = isFixedCategory;
+                                                        const amountPrefix = isLiabilityCategory ? '-' : '';
+                                                        const highlightClass = isLiabilityCategory ? 'text-rose-500' : 'text-slate-800';
+
+                                                        return (
+                                                            <div key={item.id} onClick={() => openEdit(item)} className="rounded-xl border border-slate-100 bg-white shadow-sm p-4 space-y-2">
+                                                                <div className="flex items-start justify-between gap-3">
+                                                                    <div>
+                                                                        <div className="font-black text-slate-800">{item.name}</div>
+                                                                        <div className="text-[10px] text-slate-400 font-bold">{CATEGORIES[item.category].label} / {item.subtype}</div>
+                                                                    </div>
+                                                                    <div className={`text-base font-black ${highlightClass}`}>
+                                                                        {amountPrefix}{formatAmount(mktValDisplay)} {displayCurrency}
+                                                                    </div>
+                                                                </div>
+                                                                {isInsuranceCategory && (
+                                                                    <div className="text-xs text-slate-500 font-bold">
+                                                                        保費 {formatAmount(item.premiumAmount || 0)} {item.currency} · 已繳 {Number(item.premiumPaidCount || 0)} 期
+                                                                    </div>
+                                                                )}
+                                                                {isMortgageLiability && (
+                                                                    <div className="text-xs text-slate-500 font-bold">
+                                                                        每月還款 {formatAmount(item.monthlyPayment || 0)} {item.currency} · 已還 {Number(item.paidPeriods || 0)} 期
+                                                                    </div>
+                                                                )}
+                                                                {isLoanLiability && (
+                                                                    <div className="text-xs text-slate-500 font-bold">
+                                                                        每月還款 {formatAmount(item.loanMonthlyPayment || 0)} {item.currency} · 已還 {Number(item.loanPaidPeriods || 0)} 期
+                                                                    </div>
+                                                                )}
+                                                                {isCreditCardLiability && (
+                                                                    <div className="text-xs text-slate-500 font-bold">
+                                                                        最低還款 {formatAmount(item.creditCardMinPayment || 0)} {item.currency} · 到期 {item.creditCardDueDate || '未設定'}
+                                                                    </div>
+                                                                )}
+                                                                {isPayableLiability && (
+                                                                    <div className="text-xs text-slate-500 font-bold">
+                                                                        到期 {item.payableDueDate || '未設定'} · {Number(item.payableInstallments || 0) ? `分期 ${item.payableInstallments} 期` : '一次性'}
+                                                                    </div>
+                                                                )}
+                                                                {isOtherLiability && (
+                                                                    <div className="text-xs text-slate-500 font-bold">
+                                                                        年息 {Number(item.otherAnnualRate || 0).toFixed(2)}% · 到期 {item.otherDueDate || '未設定'}
+                                                                    </div>
+                                                                )}
+                                                                {isReceivableItem && (
+                                                                    <div className="text-xs text-slate-500 font-bold">
+                                                                        到期 {item.receivableDueDate || '未設定'} · {item.receivableParty ? `對象 ${item.receivableParty}` : '未填對象'}
+                                                                    </div>
+                                                                )}
+                                                                {isFixedItem && (
+                                                                    <div className="text-xs text-slate-500 font-bold">
+                                                                        購入 {item.fixedPurchaseDate || '未設定'} · {item.fixedNote ? item.fixedNote : '未填備註'}
+                                                                    </div>
+                                                                )}
+                                                                {isLiquidCategory && (
+                                                                    <div className="text-xs text-slate-500 font-bold flex items-center gap-2">
+                                                                        <span>餘額 {formatAmount(item.quantity)}</span>
+                                                                        <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600">{item.currency}</span>
+                                                                    </div>
+                                                                )}
+                                                                {isInvestCategory && (() => {
+                                                                    const costValOrig = item.quantity * item.costBasis;
+                                                                    const profitOrig = mktValOrig - costValOrig;
+                                                                    const profitDisplay = fromHKD(toHKD(profitOrig, item.currency), displayCurrency);
+                                                                    const perf = costValOrig > 0 ? (profitOrig / costValOrig) * 100 : 0;
+
+                                                                    return (
+                                                                        <div className="space-y-1 text-xs font-bold">
+                                                                            <div className="text-slate-500">市值 {formatAmount(mktValDisplay)} {displayCurrency} · 數量 {formatAmount(item.quantity)} {item.symbol ? `(${item.symbol})` : ''}</div>
+                                                                            <div className="text-slate-500">現價 {formatAmount(item.currentPrice)} · 成本 {formatAmount(item.costBasis)} {item.currency}</div>
+                                                                            <div className={`${profitOrig >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                                                                <div className="font-black text-sm">持倉盈虧 {profitOrig >= 0 ? '+' : ''}{formatAmount(profitDisplay)} {displayCurrency}</div>
+                                                                                <div className="font-bold text-xs">績效 {perf >= 0 ? '+' : ''}{perf.toFixed(2)}%</div>
+                                                                            </div>
+                                                                        </div>
+                                                                    );
+                                                                })()}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                                <div className="hidden md:block overflow-x-auto -mx-4 sm:mx-0">
+                                                    <div className="px-4 sm:px-0">
+                                                        <div className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-2 md:hidden">左右滑動查看完整欄位</div>
+                                                <table className={`w-full text-left ${isInvestCategory ? 'min-w-[780px]' : isInsuranceCategory ? 'min-w-[700px]' : 'min-w-[620px]'}`}>
+                                                    {isLiquidCategory && (
+                                                        <colgroup>
+                                                            <col style={{ width: '60%' }} />
+                                                            <col style={{ width: '20%' }} />
+                                                            <col style={{ width: '20%' }} />
+                                                        </colgroup>
+                                                    )}
+                                                    {isInsuranceCategory && (
+                                                        <colgroup>
+                                                            <col style={{ width: '40%' }} />
+                                                            <col style={{ width: '20%' }} />
+                                                            <col style={{ width: '20%' }} />
+                                                            <col style={{ width: '20%' }} />
+                                                        </colgroup>
+                                                    )}
+                                                    {isInvestCategory && (
+                                                        <colgroup>
+                                                            <col style={{ width: '30%' }} />
+                                                            <col style={{ width: '20%' }} />
+                                                            <col style={{ width: '15%' }} />
+                                                            <col style={{ width: '20%' }} />
+                                                            <col style={{ width: '15%' }} />
+                                                        </colgroup>
+                                                    )}
+                                                    <thead className="text-[10px] font-black text-slate-400 uppercase tracking-tighter bg-slate-50/30">
+                                                        <tr>
+                                                            <th className="px-6 py-3">名稱 / 細項</th>
+                                                            <th className="px-6 py-3 text-right">{isInsuranceCategory ? '保費設定' : isLiquidCategory ? '數量 / 幣別' : isLiabilityCategory ? '金額 / 期數' : isReceivableCategory ? '應收金額 / 期數' : isFixedCategory ? '估值 / 成本' : '市值 / 數量'}</th>
+                                                            <th className="px-6 py-3 text-right">{isInsuranceCategory ? '已繳期數' : isLiquidCategory ? '餘額' : isLiabilityCategory ? '利率 / 到期' : isReceivableCategory ? '到期 / 對象' : isFixedCategory ? '購入日 / 備註' : '現價 / 成本'}</th>
+                                                            {isInsuranceCategory && <th className="px-6 py-3 text-right">保單價值</th>}
+                                                            {isInvestCategory && <th className="px-6 py-3 text-right">持倉盈虧</th>}
+                                                            {isInvestCategory && <th className="px-6 py-3 text-right">績效</th>}
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-slate-50">
+                                                        {items.map(item => {
+                                                            const mktValOrig = item.quantity * item.currentPrice;
+                                                            const costValOrig = item.quantity * item.costBasis;
+                                                            const profitOrig = mktValOrig - costValOrig;
+                                                            const mktValDisplay = fromHKD(toHKD(mktValOrig, item.currency), displayCurrency);
+                                                            const profitDisplay = fromHKD(toHKD(profitOrig, item.currency), displayCurrency);
+                                                            const perf = costValOrig > 0 ? (profitOrig / costValOrig) * 100 : 0;
+                                                            const premiumAmount = Number(item.premiumAmount || 0);
+                                                            const premiumPaidCount = Number(item.premiumPaidCount || 0);
+                                                            const hasPremiumPlan = premiumAmount > 0 && premiumPaidCount >= 0;
+                                                            const premiumTotalOrig = premiumAmount * premiumPaidCount;
+                                                            const premiumTotalDisplay = fromHKD(toHKD(premiumTotalOrig, item.currency), displayCurrency);
+                                                            const isMortgageLiability = isLiabilityCategory && item.subtype === '房貸';
+                                                            const isLoanLiability = isLiabilityCategory && item.subtype === '貸款';
+                                                            const isCreditCardLiability = isLiabilityCategory && item.subtype === '信用卡';
+                                                            const isPayableLiability = isLiabilityCategory && item.subtype === '應付款';
+                                                            const isOtherLiability = isLiabilityCategory && item.subtype === '其他負債';
+                                                            const isReceivableItem = isReceivableCategory;
+                                                            const isFixedItem = isFixedCategory;
+                                                            const mortgageDownPaymentDisplay = fromHKD(toHKD(Number(item.downPayment || 0), item.currency), displayCurrency);
+                                                            const mortgageLoanDisplay = fromHKD(toHKD(Number(item.loanAmount || costValOrig), item.currency), displayCurrency);
+                                                            const mortgageInterestDisplay = fromHKD(toHKD(Number(item.totalInterest || 0), item.currency), displayCurrency);
+                                                            const mortgageMonthlyDisplay = fromHKD(toHKD(Number(item.monthlyPayment || 0), item.currency), displayCurrency);
+                                                            const mortgageOutstandingDisplay = fromHKD(toHKD(Number(item.outstandingPrincipal || mktValOrig), item.currency), displayCurrency);
+                                                            const mortgageAnnualRate = Number(item.annualInterestRate || 0);
+                                                            const mortgagePaidPeriods = Number(item.paidPeriods || 0);
+                                                            const mortgageTotalPeriods = Number(item.totalPeriods || 0);
+                                                            const mortgageRemainingPeriods = Number(item.remainingPeriods || Math.max(0, mortgageTotalPeriods - mortgagePaidPeriods));
+                                                            const loanMonthlyDisplay = fromHKD(toHKD(Number(item.loanMonthlyPayment || 0), item.currency), displayCurrency);
+                                                            const loanOutstandingDisplay = fromHKD(toHKD(Number(item.loanOutstandingPrincipal || 0), item.currency), displayCurrency);
+                                                            const loanTotalInterestDisplay = fromHKD(toHKD(Number(item.loanTotalInterest || 0), item.currency), displayCurrency);
+                                                            const loanAnnualRate = Number(item.loanAnnualInterestRate || 0);
+                                                            const loanPaidPeriods = Number(item.loanPaidPeriods || 0);
+                                                            const loanTotalPeriods = Number(item.loanTotalPeriods || 0);
+                                                            const loanRemainingPeriods = Number(item.loanRemainingPeriods || Math.max(0, loanTotalPeriods - loanPaidPeriods));
+                                                            const creditCardBalanceDisplay = fromHKD(toHKD(Number(item.creditCardBalance || 0), item.currency), displayCurrency);
+                                                            const creditCardMinPaymentDisplay = fromHKD(toHKD(Number(item.creditCardMinPayment || 0), item.currency), displayCurrency);
+                                                            const creditCardAnnualRate = Number(item.creditCardAnnualRate || 0);
+                                                            const payableAmountDisplay = fromHKD(toHKD(Number(item.payableAmount || 0), item.currency), displayCurrency);
+                                                            const payableInstallments = Number(item.payableInstallments || 0);
+                                                            const otherOutstandingDisplay = fromHKD(toHKD(Number(item.otherOutstanding || 0), item.currency), displayCurrency);
+                                                            const otherAnnualRate = Number(item.otherAnnualRate || 0);
+                                                            const receivableAmountDisplay = fromHKD(toHKD(Number(item.receivableAmount || mktValOrig), item.currency), displayCurrency);
+                                                            const receivableInstallments = Number(item.receivableInstallments || 0);
+                                                            const fixedPurchaseDisplay = fromHKD(toHKD(Number(item.fixedPurchasePrice || costValOrig), item.currency), displayCurrency);
+                                                            const fixedCurrentDisplay = fromHKD(toHKD(Number(item.fixedCurrentValue || mktValOrig), item.currency), displayCurrency);
+                                                            const isPerfPositive = perf > 0;
+                                                            const isPerfNegative = perf < 0;
+                                                            const perfClass = isPerfPositive
+                                                                ? 'text-emerald-700 bg-emerald-50 ring-emerald-100'
+                                                                : isPerfNegative
+                                                                    ? 'text-rose-700 bg-rose-50 ring-rose-100'
+                                                                    : 'text-slate-600 bg-slate-100 ring-slate-200';
+                                                            const perfIcon = isPerfPositive ? '↗' : isPerfNegative ? '↘' : '•';
+
+                                                            return (
+                                                                <tr key={item.id} onClick={() => openEdit(item)} className="hover:bg-indigo-50/30 cursor-pointer transition-colors group">
+                                                                    <td className="px-6 py-4">
+                                                                        <div className="font-bold text-slate-800">{item.name}</div>
+                                                                        <div className="text-[10px] text-slate-400 font-medium">{CATEGORIES[item.category].label} / {item.subtype}</div>
+                                                                        {isMortgageLiability && (
+                                                                            <div className="text-[10px] text-slate-500 font-medium mt-1">
+                                                                                首期 {formatAmount(mortgageDownPaymentDisplay)} {displayCurrency} · 貸款 {formatAmount(mortgageLoanDisplay)} {displayCurrency} · 利息 {formatAmount(mortgageInterestDisplay)} {displayCurrency}
+                                                                            </div>
+                                                                        )}
+                                                                        {isLoanLiability && (
+                                                                            <div className="text-[10px] text-slate-500 font-medium mt-1">
+                                                                                未償本金 {formatAmount(loanOutstandingDisplay)} {displayCurrency} · 利息 {formatAmount(loanTotalInterestDisplay)} {displayCurrency}
+                                                                            </div>
+                                                                        )}
+                                                                        {isReceivableItem && (
+                                                                            <div className="text-[10px] text-slate-500 font-medium mt-1">
+                                                                                {item.receivableParty ? `對象 ${item.receivableParty}` : '未填對象'}
+                                                                            </div>
+                                                                        )}
+                                                                        {isFixedItem && item.fixedNote && (
+                                                                            <div className="text-[10px] text-slate-500 font-medium mt-1">
+                                                                                {item.fixedNote}
+                                                                            </div>
+                                                                        )}
+                                                                    </td>
+                                                                    <td className="px-6 py-4 text-right">
+                                                                        {isInsuranceCategory ? (
+                                                                            hasPremiumPlan ? (
+                                                                                <div className="font-bold text-slate-700">
+                                                                                    {formatAmount(premiumAmount)} {item.currency}
+                                                                                    <div className="text-[10px] text-slate-400">/{item.premiumFrequency === 'yearly' ? '每年' : '每月'}</div>
+                                                                                </div>
+                                                                            ) : (
+                                                                                <div className="font-bold text-slate-400">--</div>
+                                                                            )
+                                                                        ) : isLiquidCategory ? (
+                                                                            <div className="flex items-center justify-end gap-2">
+                                                                                <span className="font-bold text-slate-800 tabular-nums text-right">{formatAmount(item.quantity)}</span>
+                                                                                <span className="text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-full bg-emerald-50 text-emerald-600 w-12 text-center">{item.currency}</span>
+                                                                            </div>
+                                                                        ) : isMortgageLiability ? (
+                                                                            <>
+                                                                                <div className="font-bold text-slate-800">{formatAmount(mortgageMonthlyDisplay)} <span className="text-[9px] text-slate-400">{displayCurrency}</span></div>
+                                                                                <div className="text-[10px] text-slate-400">{formatAmount(Number(item.monthlyPayment || 0))} {item.currency} · 共 {mortgageTotalPeriods} 期</div>
+                                                                            </>
+                                                                        ) : isLoanLiability ? (
+                                                                            <>
+                                                                                <div className="font-bold text-slate-800">{formatAmount(loanMonthlyDisplay)} <span className="text-[9px] text-slate-400">{displayCurrency}</span></div>
+                                                                                <div className="text-[10px] text-slate-400">{formatAmount(Number(item.loanMonthlyPayment || 0))} {item.currency} · 共 {loanTotalPeriods} 期</div>
+                                                                            </>
+                                                                        ) : isCreditCardLiability ? (
+                                                                            <>
+                                                                                <div className="font-bold text-slate-800">{formatAmount(creditCardBalanceDisplay)} <span className="text-[9px] text-slate-400">{displayCurrency}</span></div>
+                                                                                <div className="text-[10px] text-slate-400">最低還款 {formatAmount(creditCardMinPaymentDisplay)} {displayCurrency}</div>
+                                                                            </>
+                                                                        ) : isPayableLiability ? (
+                                                                            <>
+                                                                                <div className="font-bold text-slate-800">{formatAmount(payableAmountDisplay)} <span className="text-[9px] text-slate-400">{displayCurrency}</span></div>
+                                                                                <div className="text-[10px] text-slate-400">{payableInstallments ? `分期 ${payableInstallments} 期` : '一次性'}</div>
+                                                                            </>
+                                                                        ) : isOtherLiability ? (
+                                                                            <>
+                                                                                <div className="font-bold text-slate-800">{formatAmount(otherOutstandingDisplay)} <span className="text-[9px] text-slate-400">{displayCurrency}</span></div>
+                                                                                <div className="text-[10px] text-slate-400">{item.otherDueDate ? `到期 ${item.otherDueDate}` : '未設定到期日'}</div>
+                                                                            </>
+                                                                        ) : isReceivableItem ? (
+                                                                            <>
+                                                                                <div className="font-bold text-slate-800">{formatAmount(receivableAmountDisplay)} <span className="text-[9px] text-slate-400">{displayCurrency}</span></div>
+                                                                                <div className="text-[10px] text-slate-400">{receivableInstallments ? `分期 ${receivableInstallments} 期` : '一次性'}</div>
+                                                                            </>
+                                                                        ) : isFixedItem ? (
+                                                                            <>
+                                                                                <div className="font-bold text-slate-800">{formatAmount(fixedCurrentDisplay)} <span className="text-[9px] text-slate-400">{displayCurrency}</span></div>
+                                                                                <div className="text-[10px] text-slate-400">成本 {formatAmount(fixedPurchaseDisplay)} {displayCurrency}</div>
+                                                                            </>
+                                                                        ) : (
+                                                                            <>
+                                                                                <div className="font-bold text-slate-800">{formatAmount(mktValDisplay)} <span className="text-[9px] text-slate-400">{displayCurrency}</span></div>
+                                                                                <div className="text-[10px] text-slate-400">{item.quantity.toLocaleString()} {item.symbol ? `(${item.symbol})` : ''}</div>
+                                                                            </>
+                                                                        )}
+                                                                    </td>
+                                                                    <td className="px-6 py-4 text-right">
+                                                                        {isInsuranceCategory ? (
+                                                                            hasPremiumPlan ? (
+                                                                                <div className="font-medium text-slate-700">{premiumPaidCount.toLocaleString()} 期</div>
+                                                                            ) : (
+                                                                                <div className="font-medium text-slate-400">--</div>
+                                                                            )
+                                                                        ) : isLiquidCategory ? (
+                                                                            <div className="font-medium text-slate-700">{formatAmount(mktValDisplay)} <span className="text-[9px]">{displayCurrency}</span></div>
+                                                                        ) : isMortgageLiability ? (
+                                                                            <>
+                                                                                <div className="font-medium text-slate-700">年息 {mortgageAnnualRate.toFixed(2)}%</div>
+                                                                                <div className="text-[10px] text-slate-400">已還 {mortgagePaidPeriods} 期 · 尚餘 {mortgageRemainingPeriods} 期</div>
+                                                                                <div className="text-[10px] text-slate-400">未償本金 {formatAmount(mortgageOutstandingDisplay)} {displayCurrency}</div>
+                                                                            </>
+                                                                        ) : isLoanLiability ? (
+                                                                            <>
+                                                                                <div className="font-medium text-slate-700">年息 {loanAnnualRate.toFixed(2)}%</div>
+                                                                                <div className="text-[10px] text-slate-400">已還 {loanPaidPeriods} 期 · 尚餘 {loanRemainingPeriods} 期</div>
+                                                                                <div className="text-[10px] text-slate-400">未償本金 {formatAmount(loanOutstandingDisplay)} {displayCurrency}</div>
+                                                                            </>
+                                                                        ) : isCreditCardLiability ? (
+                                                                            <>
+                                                                                <div className="font-medium text-slate-700">年息 {creditCardAnnualRate.toFixed(2)}%</div>
+                                                                                <div className="text-[10px] text-slate-400">到期 {item.creditCardDueDate || '未設定'}</div>
+                                                                            </>
+                                                                        ) : isPayableLiability ? (
+                                                                            <>
+                                                                                <div className="font-medium text-slate-700">到期 {item.payableDueDate || '未設定'}</div>
+                                                                                {payableInstallments ? (
+                                                                                    <div className="text-[10px] text-slate-400">每期約 {formatAmount(payableAmountDisplay / payableInstallments)} {displayCurrency}</div>
+                                                                                ) : (
+                                                                                    <div className="text-[10px] text-slate-400">一次性支付</div>
+                                                                                )}
+                                                                            </>
+                                                                        ) : isOtherLiability ? (
+                                                                            <>
+                                                                                <div className="font-medium text-slate-700">年息 {otherAnnualRate.toFixed(2)}%</div>
+                                                                                <div className="text-[10px] text-slate-400">到期 {item.otherDueDate || '未設定'}</div>
+                                                                            </>
+                                                                        ) : isReceivableItem ? (
+                                                                            <>
+                                                                                <div className="font-medium text-slate-700">到期 {item.receivableDueDate || '未設定'}</div>
+                                                                                <div className="text-[10px] text-slate-400">{item.receivableParty ? `對象 ${item.receivableParty}` : '未填對象'}</div>
+                                                                            </>
+                                                                        ) : isFixedItem ? (
+                                                                            <>
+                                                                                <div className="font-medium text-slate-700">購入 {item.fixedPurchaseDate || '未設定'}</div>
+                                                                                <div className="text-[10px] text-slate-400">{item.fixedNote ? `備註 ${item.fixedNote}` : '未填備註'}</div>
+                                                                            </>
+                                                                        ) : (
+                                                                            <>
+                                                                                <div className="font-medium text-slate-700">{formatAmount(item.currentPrice)}</div>
+                                                                                <div className="text-[10px] text-slate-400">{formatAmount(item.costBasis)} <span className="text-[9px]">{item.currency}</span></div>
+                                                                            </>
+                                                                        )}
+                                                                    </td>
+                                                                    {isInsuranceCategory && (
+                                                                        <td className="px-6 py-4 text-right">
+                                                                            {hasPremiumPlan ? (
+                                                                                <>
+                                                                                    <div className="font-bold text-slate-800">{formatAmount(premiumTotalDisplay)} <span className="text-[9px] text-slate-400">{displayCurrency}</span></div>
+                                                                                    <div className="text-[10px] text-slate-400">{formatAmount(premiumTotalOrig)} {item.currency}</div>
+                                                                                </>
+                                                                            ) : (
+                                                                                <>
+                                                                                    <div className="font-bold text-slate-800">{formatAmount(mktValDisplay)} <span className="text-[9px] text-slate-400">{displayCurrency}</span></div>
+                                                                                    <div className="text-[10px] text-slate-400">{formatAmount(mktValOrig)} {item.currency}</div>
+                                                                                </>
+                                                                            )}
+                                                                        </td>
+                                                                    )}
+                                                                    {isInvestCategory && (
+                                                                        <td className="px-6 py-4 text-right">
+                                                                            <>
+                                                                                <div className={`font-bold ${profitOrig >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                                                                    {profitOrig >= 0 ? '+' : ''}{formatAmount(profitOrig)} {item.currency}
+                                                                                </div>
+                                                                                <div className="text-[10px] text-slate-400">
+                                                                                    約 {formatAmount(profitDisplay)} {displayCurrency}
+                                                                                </div>
+                                                                            </>
+                                                                        </td>
+                                                                    )}
+                                                                    {isInvestCategory && (
+                                                                        <td className="px-6 py-4 text-right">
+                                                                            <div className={`inline-flex items-center gap-1.5 text-xs font-black px-2.5 py-1.5 rounded-full ring-1 ${perfClass}`}>
+                                                                                <span className="text-[11px] leading-none">{perfIcon}</span>
+                                                                                <span>{perf >= 0 ? '+' : ''}{perf.toFixed(2)}%</span>
+                                                                            </div>
+                                                                        </td>
+                                                                    )}
+                                                                </tr>
+                                                            );
+                                                        })}
+                                                    </tbody>
+                                                </table>
+                                                </div>
+                                            </div>
+                                            </>
+                                            )}
+                                        </div>
+                                    )})}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {isModalOpen && (
+                        <div className="fixed inset-0 z-50 flex items-stretch md:items-center justify-center p-0 md:p-4 modal-overlay">
+                            <div className="bg-white w-full h-full md:h-auto md:max-w-xl md:rounded-3xl shadow-2xl overflow-hidden">
+                                <div className="px-5 md:px-8 py-4 md:py-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10">
+                                    <h3 className="font-black text-xl text-slate-800">{editingId ? '編輯資產' : '新增資產'}</h3>
+                                    <button onClick={() => setIsModalOpen(false)} className="text-slate-400"><i data-lucide="x"></i></button>
+                                </div>
+                                <form onSubmit={handleSubmit} className="p-5 md:p-8 space-y-4 h-[calc(100vh-96px)] md:h-auto md:max-h-[75vh] overflow-y-auto custom-scrollbar">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                                        <div className={`space-y-1 ${(isLiquidForm && !editingId) ? 'col-span-2' : ''}`}>
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">帳戶 / 機構</label>
+                                            <input required type="text" placeholder="例如：富途、中銀、大豐" className="w-full p-3 bg-slate-50 rounded-xl font-bold outline-none ring-2 ring-transparent focus:ring-indigo-100" value={formData.account} onChange={e => setFormData({ ...formData, account: e.target.value })} />
+                                            {isLiquidForm && !editingId && <div className="text-[10px] text-slate-400 font-bold">名稱將依幣種與細項自動產生</div>}
+                                        </div>
+                                        {(!isLiquidForm || editingId) && (
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">資產名稱{isLiquidForm && editingId ? ' (選填)' : ''}</label>
+                                                <input
+                                                    required={!isLiquidForm}
+                                                    type="text"
+                                                    placeholder={isLiquidForm && editingId ? '留空則自動以幣種/細項命名' : '例如：AAPL、儲蓄帳戶'}
+                                                    className="w-full p-3 bg-slate-50 rounded-xl font-bold outline-none ring-2 ring-transparent focus:ring-indigo-100"
+                                                    value={formData.name}
+                                                    onChange={e => setFormData({ ...formData, name: e.target.value })}
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">類別</label>
+                                            <select
+                                                className="w-full p-3 bg-slate-50 rounded-xl font-bold outline-none"
+                                                value={formData.category}
+                                                onChange={e => {
+                                                    const nextCategory = e.target.value;
+                                                    setFormData({
+                                                        ...formData,
+                                                        category: nextCategory,
+                                                        subtype: CATEGORIES[nextCategory].subtypes[0],
+                                                        symbol: '',
+                                                        quantity: '',
+                                                        costBasis: '',
+                                                        premiumAmount: '',
+                                                        premiumPaidCount: '',
+                                                        premiumFrequency: 'monthly',
+                                                        propertyPrice: '',
+                                                        ltvRatio: '',
+                                                        annualInterestRate: '',
+                                                        mortgageYears: '',
+                                                        paidPeriods: '',
+                                                        loanPrincipal: '',
+                                                        loanYears: '',
+                                                        loanPaidPeriods: '',
+                                                        loanAnnualInterestRate: '',
+                                                        creditCardBalance: '',
+                                                        creditCardMinPayment: '',
+                                                        creditCardDueDate: '',
+                                                        creditCardAnnualRate: '',
+                                                        payableAmount: '',
+                                                        payableDueDate: '',
+                                                        payableInstallments: '',
+                                                        otherOutstanding: '',
+                                                        otherAnnualRate: '',
+                                                        otherDueDate: '',
+                                                        receivableAmount: '',
+                                                        receivableDueDate: '',
+                                                        receivableInstallments: '',
+                                                        receivableParty: '',
+                                                        fixedPurchasePrice: '',
+                                                        fixedCurrentValue: '',
+                                                        fixedPurchaseDate: '',
+                                                        fixedNote: ''
+                                                    });
+                                                }}
+                                            >
+                                                {Object.entries(CATEGORIES).map(([key, value]) => <option key={key} value={key}>{value.label}</option>)}
+                                            </select>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">細項</label>
+                                            <select
+                                                className="w-full p-3 bg-slate-50 rounded-xl font-bold outline-none"
+                                                value={formData.subtype}
+                                                onChange={e => {
+                                                    const nextSubtype = e.target.value;
+                                                    setFormData({
+                                                        ...formData,
+                                                        subtype: nextSubtype,
+                                                        symbol: '',
+                                                        premiumAmount: '',
+                                                        premiumPaidCount: '',
+                                                        premiumFrequency: 'monthly',
+                                                        propertyPrice: '',
+                                                        ltvRatio: '',
+                                                        annualInterestRate: '',
+                                                        mortgageYears: '',
+                                                        paidPeriods: '',
+                                                        loanPrincipal: '',
+                                                        loanYears: '',
+                                                        loanPaidPeriods: '',
+                                                        loanAnnualInterestRate: '',
+                                                        creditCardBalance: '',
+                                                        creditCardMinPayment: '',
+                                                        creditCardDueDate: '',
+                                                        creditCardAnnualRate: '',
+                                                        payableAmount: '',
+                                                        payableDueDate: '',
+                                                        payableInstallments: '',
+                                                        otherOutstanding: '',
+                                                        otherAnnualRate: '',
+                                                        otherDueDate: '',
+                                                        receivableAmount: '',
+                                                        receivableDueDate: '',
+                                                        receivableInstallments: '',
+                                                        receivableParty: '',
+                                                        fixedPurchasePrice: '',
+                                                        fixedCurrentValue: '',
+                                                        fixedPurchaseDate: '',
+                                                        fixedNote: ''
+                                                    });
+                                                }}
+                                            >
+                                                {CATEGORIES[formData.category].subtypes.map(subtype => <option key={subtype} value={subtype}>{subtype}</option>)}
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    {!needsPremium && !isMortgageForm && !isLiabilityForm && !isReceivableForm && !isFixedForm && (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{isLiquidForm ? '金額' : '數量'}</label>
+                                                <input required type="number" step="any" className="w-full p-3 bg-slate-50 rounded-xl font-bold outline-none" value={formData.quantity} onChange={e => setFormData({ ...formData, quantity: e.target.value })} />
+                                            </div>
+                                            {!isLiquidForm && (
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">成本單價</label>
+                                                    <input required type="number" step="any" className="w-full p-3 bg-slate-50 rounded-xl font-bold outline-none" value={formData.costBasis} onChange={e => setFormData({ ...formData, costBasis: e.target.value })} />
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {isMortgageForm && (
+                                        <div className="space-y-4">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">樓價</label>
+                                                    <input required type="number" step="any" min="0" className="w-full p-3 bg-slate-50 rounded-xl font-bold outline-none" value={formData.propertyPrice} onChange={e => setFormData({ ...formData, propertyPrice: e.target.value })} />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">按揭成數 (%)</label>
+                                                    <input required type="number" step="any" min="0" max="100" className="w-full p-3 bg-slate-50 rounded-xl font-bold outline-none" value={formData.ltvRatio} onChange={e => setFormData({ ...formData, ltvRatio: e.target.value })} />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">年息 (%)</label>
+                                                    <input required type="number" step="any" min="0" className="w-full p-3 bg-slate-50 rounded-xl font-bold outline-none" value={formData.annualInterestRate} onChange={e => setFormData({ ...formData, annualInterestRate: e.target.value })} />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">還款年限 (年)</label>
+                                                    <input required type="number" step="1" min="1" className="w-full p-3 bg-slate-50 rounded-xl font-bold outline-none" value={formData.mortgageYears} onChange={e => setFormData({ ...formData, mortgageYears: e.target.value })} />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">已還款期數 (1個月=1期)</label>
+                                                    <input required type="number" step="1" min="0" className="w-full p-3 bg-slate-50 rounded-xl font-bold outline-none" value={formData.paidPeriods} onChange={e => setFormData({ ...formData, paidPeriods: e.target.value })} />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">總期數</label>
+                                                    <div className="w-full p-3 bg-slate-50 rounded-xl font-black text-slate-700">{mortgageMetrics ? `${mortgageMetrics.totalPeriods} 期` : '--'}</div>
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">首期</label>
+                                                    <div className="w-full p-3 bg-slate-50 rounded-xl font-black text-slate-700">{mortgageMetrics ? `${formatAmount(mortgageMetrics.downPayment)} ${formData.currency}` : '--'}</div>
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">貸款</label>
+                                                    <div className="w-full p-3 bg-slate-50 rounded-xl font-black text-slate-700">{mortgageMetrics ? `${formatAmount(mortgageMetrics.loanAmount)} ${formData.currency}` : '--'}</div>
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">利息</label>
+                                                    <div className="w-full p-3 bg-slate-50 rounded-xl font-black text-slate-700">{mortgageMetrics ? `${formatAmount(mortgageMetrics.totalInterest)} ${formData.currency}` : '--'}</div>
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">每月還款</label>
+                                                    <div className="w-full p-3 bg-slate-50 rounded-xl font-black text-slate-700">{mortgageMetrics ? `${formatAmount(mortgageMetrics.monthlyPayment)} ${formData.currency}` : '--'}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {isLoanForm && (
+                                        <div className="space-y-4">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">貸款本金</label>
+                                                    <input required type="number" step="any" min="0" className="w-full p-3 bg-slate-50 rounded-xl font-bold outline-none" value={formData.loanPrincipal} onChange={e => setFormData({ ...formData, loanPrincipal: e.target.value })} />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">年息 (%)</label>
+                                                    <input required type="number" step="any" min="0" className="w-full p-3 bg-slate-50 rounded-xl font-bold outline-none" value={formData.loanAnnualInterestRate} onChange={e => setFormData({ ...formData, loanAnnualInterestRate: e.target.value })} />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">還款年限 (年)</label>
+                                                    <input required type="number" step="1" min="1" className="w-full p-3 bg-slate-50 rounded-xl font-bold outline-none" value={formData.loanYears} onChange={e => setFormData({ ...formData, loanYears: e.target.value })} />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">已還款期數 (1個月=1期)</label>
+                                                    <input required type="number" step="1" min="0" className="w-full p-3 bg-slate-50 rounded-xl font-bold outline-none" value={formData.loanPaidPeriods} onChange={e => setFormData({ ...formData, loanPaidPeriods: e.target.value })} />
+                                                </div>
+                                            </div>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">每月還款</label>
+                                                    <div className="w-full p-3 bg-slate-50 rounded-xl font-black text-slate-700">{loanMetrics ? `${formatAmount(loanMetrics.monthlyPayment)} ${formData.currency}` : '--'}</div>
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">未償本金</label>
+                                                    <div className="w-full p-3 bg-slate-50 rounded-xl font-black text-slate-700">{loanMetrics ? `${formatAmount(loanMetrics.outstandingPrincipal)} ${formData.currency}` : '--'}</div>
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">總利息</label>
+                                                    <div className="w-full p-3 bg-slate-50 rounded-xl font-black text-slate-700">{loanMetrics ? `${formatAmount(loanMetrics.totalInterest)} ${formData.currency}` : '--'}</div>
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">總期數</label>
+                                                    <div className="w-full p-3 bg-slate-50 rounded-xl font-black text-slate-700">{loanMetrics ? `${loanMetrics.totalPeriods} 期` : '--'}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {isCreditCardForm && (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">本期結欠</label>
+                                                <input required type="number" step="any" min="0" className="w-full p-3 bg-slate-50 rounded-xl font-bold outline-none" value={formData.creditCardBalance} onChange={e => setFormData({ ...formData, creditCardBalance: e.target.value })} />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">最低還款</label>
+                                                <input type="number" step="any" min="0" className="w-full p-3 bg-slate-50 rounded-xl font-bold outline-none" value={formData.creditCardMinPayment} onChange={e => setFormData({ ...formData, creditCardMinPayment: e.target.value })} />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">到期日</label>
+                                                <input type="date" className="w-full p-3 bg-slate-50 rounded-xl font-bold outline-none" value={formData.creditCardDueDate} onChange={e => setFormData({ ...formData, creditCardDueDate: e.target.value })} />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">年息 (%)</label>
+                                                <input type="number" step="any" min="0" className="w-full p-3 bg-slate-50 rounded-xl font-bold outline-none" value={formData.creditCardAnnualRate} onChange={e => setFormData({ ...formData, creditCardAnnualRate: e.target.value })} />
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {isPayableForm && (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">應付款金額</label>
+                                                <input required type="number" step="any" min="0" className="w-full p-3 bg-slate-50 rounded-xl font-bold outline-none" value={formData.payableAmount} onChange={e => setFormData({ ...formData, payableAmount: e.target.value })} />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">到期日</label>
+                                                <input type="date" className="w-full p-3 bg-slate-50 rounded-xl font-bold outline-none" value={formData.payableDueDate} onChange={e => setFormData({ ...formData, payableDueDate: e.target.value })} />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">分期期數 (選填)</label>
+                                                <input type="number" step="1" min="0" className="w-full p-3 bg-slate-50 rounded-xl font-bold outline-none" value={formData.payableInstallments} onChange={e => setFormData({ ...formData, payableInstallments: e.target.value })} />
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {isOtherLiabilityForm && (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">未償金額</label>
+                                                <input required type="number" step="any" min="0" className="w-full p-3 bg-slate-50 rounded-xl font-bold outline-none" value={formData.otherOutstanding} onChange={e => setFormData({ ...formData, otherOutstanding: e.target.value })} />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">年息 (%)</label>
+                                                <input type="number" step="any" min="0" className="w-full p-3 bg-slate-50 rounded-xl font-bold outline-none" value={formData.otherAnnualRate} onChange={e => setFormData({ ...formData, otherAnnualRate: e.target.value })} />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">到期日</label>
+                                                <input type="date" className="w-full p-3 bg-slate-50 rounded-xl font-bold outline-none" value={formData.otherDueDate} onChange={e => setFormData({ ...formData, otherDueDate: e.target.value })} />
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {isReceivableForm && (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">應收金額</label>
+                                                <input required type="number" step="any" min="0" className="w-full p-3 bg-slate-50 rounded-xl font-bold outline-none" value={formData.receivableAmount} onChange={e => setFormData({ ...formData, receivableAmount: e.target.value })} />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">到期日</label>
+                                                <input type="date" className="w-full p-3 bg-slate-50 rounded-xl font-bold outline-none" value={formData.receivableDueDate} onChange={e => setFormData({ ...formData, receivableDueDate: e.target.value })} />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">分期期數 (選填)</label>
+                                                <input type="number" step="1" min="0" className="w-full p-3 bg-slate-50 rounded-xl font-bold outline-none" value={formData.receivableInstallments} onChange={e => setFormData({ ...formData, receivableInstallments: e.target.value })} />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">對象 / 公司</label>
+                                                <input type="text" placeholder="例如：某公司 / 某人" className="w-full p-3 bg-slate-50 rounded-xl font-bold outline-none" value={formData.receivableParty} onChange={e => setFormData({ ...formData, receivableParty: e.target.value })} />
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {isFixedForm && (
+                                        <div className="space-y-4">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">購入成本</label>
+                                                    <input required type="number" step="any" min="0" className="w-full p-3 bg-slate-50 rounded-xl font-bold outline-none" value={formData.fixedPurchasePrice} onChange={e => setFormData({ ...formData, fixedPurchasePrice: e.target.value })} />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">目前估值</label>
+                                                    <input required type="number" step="any" min="0" className="w-full p-3 bg-slate-50 rounded-xl font-bold outline-none" value={formData.fixedCurrentValue} onChange={e => setFormData({ ...formData, fixedCurrentValue: e.target.value })} />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">購入日期</label>
+                                                    <input type="date" className="w-full p-3 bg-slate-50 rounded-xl font-bold outline-none" value={formData.fixedPurchaseDate} onChange={e => setFormData({ ...formData, fixedPurchaseDate: e.target.value })} />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">備註</label>
+                                                    <input type="text" placeholder="例如：地址、車牌或備註" className="w-full p-3 bg-slate-50 rounded-xl font-bold outline-none" value={formData.fixedNote} onChange={e => setFormData({ ...formData, fixedNote: e.target.value })} />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {needsPremium && (
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">每期保費</label>
+                                                <input required type="number" step="any" className="w-full p-3 bg-slate-50 rounded-xl font-bold outline-none" value={formData.premiumAmount} onChange={e => setFormData({ ...formData, premiumAmount: e.target.value })} />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">繳費週期</label>
+                                                <select className="w-full p-3 bg-slate-50 rounded-xl font-bold outline-none" value={formData.premiumFrequency} onChange={e => setFormData({ ...formData, premiumFrequency: e.target.value })}>
+                                                    <option value="monthly">每月</option>
+                                                    <option value="yearly">每年</option>
+                                                </select>
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">已繳期數</label>
+                                                <input required type="number" step="1" min="0" className="w-full p-3 bg-slate-50 rounded-xl font-bold outline-none" value={formData.premiumPaidCount} onChange={e => setFormData({ ...formData, premiumPaidCount: e.target.value })} />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">已繳總保費</label>
+                                                <div className="w-full p-3 bg-slate-50 rounded-xl font-black text-slate-700">{formatAmount(premiumTotal)} {formData.currency}</div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">計價幣種</label>
+                                            <select className="w-full p-3 bg-slate-50 rounded-xl font-bold outline-none" value={formData.currency} onChange={e => setFormData({ ...formData, currency: e.target.value })}>
+                                                {CURRENCIES.map(currency => <option key={currency} value={currency}>{currency}</option>)}
+                                            </select>
+                                        </div>
+                                        {(isInvestForm && (isCryptoForm || isStockForm || isFundForm)) && (
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                                                    {isCryptoForm ? '幣種代號 (必填)' : isFundForm ? '基金代號 (必填)' : '股票代號 (必填)'}
+                                                </label>
+                                                <input
+                                                    required
+                                                    type="text"
+                                                    placeholder={isCryptoForm ? 'BTC, ETH' : isFundForm ? 'VOO, 0050' : '2330, AAPL'}
+                                                    className="w-full p-3 bg-slate-50 rounded-xl font-bold outline-none"
+                                                    value={formData.symbol}
+                                                    onChange={e => setFormData({ ...formData, symbol: e.target.value.toUpperCase() })}
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {editingId && !isLiquidForm && !needsPremium && !isMortgageForm && !isLiabilityForm && !isReceivableForm && !isFixedForm && (
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-black text-indigo-500 uppercase tracking-widest ml-1">當前現價 (手動修正)</label>
+                                            <input type="number" step="any" className="w-full p-3 bg-indigo-50/50 rounded-xl font-bold outline-none ring-2 ring-indigo-100" value={formData.currentPrice} onChange={e => setFormData({ ...formData, currentPrice: e.target.value })} />
+                                        </div>
+                                    )}
+
+                                    <div className="flex gap-3 pt-4">
+                                        {editingId && (
+                                            <button type="button" onClick={() => handleDelete(editingId)} className="flex-1 bg-rose-50 text-rose-600 py-4 rounded-xl font-black hover:bg-rose-100 transition-all">
+                                                刪除資產
+                                            </button>
+                                        )}
+                                        <button type="submit" className="flex-[2] bg-slate-900 text-white py-4 rounded-xl font-black hover:bg-indigo-600 transition-all shadow-lg shadow-indigo-100">
+                                            {editingId ? '確認修改' : '儲存資產'}
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    )}
+
+                    <footer className="mt-20 text-center text-slate-300 text-[10px] font-bold uppercase tracking-[0.3em] pb-10">
+                        Percento Style Personal Asset Tracker
+                    </footer>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
