@@ -13,6 +13,8 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
     <!-- Lucide 圖標 -->
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
         body { 
@@ -42,7 +44,9 @@
         const STORAGE_KEYS = {
             assets: 'assetTracker.assets.v2',
             displayCurrency: 'assetTracker.displayCurrency.v2',
-            monthlySnapshots: 'assetTracker.monthlySnapshots.v2'
+            monthlySnapshots: 'assetTracker.monthlySnapshots.v2',
+            currencyRates: 'assetTracker.currencyRates.v1',
+            currencyRatesUpdatedAt: 'assetTracker.currencyRatesUpdatedAt.v1'
         };
         const FIREBASE_CONFIG = window.__FIREBASE_CONFIG__ || {
             apiKey: 'AIzaSyBBXQq6K6dBZCL4t8ieyH_QB2TmAW4b8P0',
@@ -70,7 +74,7 @@
 
         const CATEGORIES = {
             LIQUID: { label: '流動資金', color: 'text-emerald-500', bgColor: 'bg-emerald-50', icon: 'wallet', subtypes: ['現金', '電子錢包', '金融卡', '其他'] },
-            INVEST: { label: '投資', color: 'text-blue-500', bgColor: 'bg-blue-50', icon: 'trending-up', subtypes: ['基金', '股票', '加密貨幣', '銀行理財', '其他投資'] },
+            INVEST: { label: '投資', color: 'text-blue-500', bgColor: 'bg-blue-50', icon: 'trending-up', subtypes: ['基金', '股票', '加密貨幣', '銀行理財', '定期存款', '其他投資'] },
             INSURANCE: { label: '保險', color: 'text-cyan-500', bgColor: 'bg-cyan-50', icon: 'shield', subtypes: ['投資/投資相連', '人壽/累積財富', '健康'] },
             FIXED: { label: '固定資產', color: 'text-amber-500', bgColor: 'bg-amber-50', icon: 'home', subtypes: ['房產', '汽車', '其他固定資產'] },
             RECEIVABLE: { label: '應收款', color: 'text-indigo-500', bgColor: 'bg-indigo-50', icon: 'hand-coins', subtypes: ['個人借款', '公司應收', '退稅/補貼', '保證金', '租金', '其他應收'] },
@@ -119,8 +123,19 @@
             }
         };
 
-        const toHKD = (amount, currency) => amount / (DEFAULT_RATES[currency] || 1);
-        const fromHKD = (amountHKD, currency) => amountHKD * (DEFAULT_RATES[currency] || 1);
+        const sanitizeCurrencyRates = (rates) => {
+            const next = { ...DEFAULT_RATES };
+            if (!rates || typeof rates !== 'object') return next;
+            CURRENCIES.forEach(currency => {
+                const value = Number(rates[currency]);
+                if (Number.isFinite(value) && value > 0) next[currency] = value;
+            });
+            next.HKD = 1;
+            return next;
+        };
+
+        const toHKD = (amount, currency, rates = DEFAULT_RATES) => amount / (rates[currency] || 1);
+        const fromHKD = (amountHKD, currency, rates = DEFAULT_RATES) => amountHKD * (rates[currency] || 1);
         const formatAmount = (value) => {
             const numeric = Number(value) || 0;
             return numeric.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -242,6 +257,25 @@
             };
         };
 
+        const calculateFixedDepositMetrics = ({ principal, annualInterestRate, months }) => {
+            const principalValue = Number(principal) || 0;
+            const annualRate = Number(annualInterestRate) || 0;
+            const termMonths = Number(months) || 0;
+
+            if (principalValue <= 0 || termMonths <= 0 || annualRate < 0) return null;
+
+            const maturityAmount = principalValue * (1 + (annualRate / 100) * (termMonths / 12));
+            const interestAmount = maturityAmount - principalValue;
+
+            return {
+                principal: principalValue,
+                annualInterestRate: annualRate,
+                months: termMonths,
+                maturityAmount,
+                interestAmount
+            };
+        };
+
         const normalizeYahooSymbol = (symbol) => {
             const clean = (symbol || '').trim().toUpperCase();
             if (/^\d{4,6}$/.test(clean)) return `${clean}.TW`;
@@ -277,6 +311,93 @@
             } finally {
                 clearTimeout(timeout);
             }
+        }
+
+        async function ensureJsPdfReady() {
+            if (window.jspdf?.jsPDF) return window.jspdf.jsPDF;
+
+            const existing = document.getElementById('jspdf-runtime-loader');
+            if (!existing) {
+                await new Promise((resolve, reject) => {
+                    const script = document.createElement('script');
+                    script.id = 'jspdf-runtime-loader';
+                    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+                    script.onload = resolve;
+                    script.onerror = () => reject(new Error('jspdf load failed'));
+                    document.head.appendChild(script);
+                });
+            } else {
+                await new Promise((resolve, reject) => {
+                    if (window.jspdf?.jsPDF) {
+                        resolve();
+                        return;
+                    }
+                    existing.addEventListener('load', resolve, { once: true });
+                    existing.addEventListener('error', () => reject(new Error('jspdf load failed')), { once: true });
+                });
+            }
+
+            if (!window.jspdf?.jsPDF) throw new Error('jspdf unavailable');
+            return window.jspdf.jsPDF;
+        }
+
+        async function ensureHtml2CanvasReady() {
+            if (window.html2canvas) return window.html2canvas;
+
+            const existing = document.getElementById('html2canvas-runtime-loader');
+            if (!existing) {
+                await new Promise((resolve, reject) => {
+                    const script = document.createElement('script');
+                    script.id = 'html2canvas-runtime-loader';
+                    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+                    script.onload = resolve;
+                    script.onerror = () => reject(new Error('html2canvas load failed'));
+                    document.head.appendChild(script);
+                });
+            } else {
+                await new Promise((resolve, reject) => {
+                    if (window.html2canvas) {
+                        resolve();
+                        return;
+                    }
+                    existing.addEventListener('load', resolve, { once: true });
+                    existing.addEventListener('error', () => reject(new Error('html2canvas load failed')), { once: true });
+                });
+            }
+
+            if (!window.html2canvas) throw new Error('html2canvas unavailable');
+            return window.html2canvas;
+        }
+
+        async function fetchLatestCurrencyRates() {
+            const sources = [
+                'https://open.er-api.com/v6/latest/HKD',
+                `https://api.allorigins.win/raw?url=${encodeURIComponent('https://open.er-api.com/v6/latest/HKD')}`
+            ];
+
+            for (const source of sources) {
+                try {
+                    const data = await fetchJSONWithTimeout(source);
+                    const rawRates = data?.rates;
+                    if (!rawRates || typeof rawRates !== 'object') continue;
+
+                    const mapped = {};
+                    CURRENCIES.forEach(currency => {
+                        if (currency === 'HKD') {
+                            mapped.HKD = 1;
+                            return;
+                        }
+                        const value = Number(rawRates[currency]);
+                        if (Number.isFinite(value) && value > 0) mapped[currency] = value;
+                    });
+
+                    const merged = sanitizeCurrencyRates(mapped);
+                    const hasEnough = CURRENCIES.every(currency => Number.isFinite(merged[currency]) && merged[currency] > 0);
+                    if (hasEnough) return merged;
+                } catch (error) {}
+            }
+
+            throw new Error('fx source unavailable');
         }
 
         const parseYahooQuoteResponse = (data) => {
@@ -424,6 +545,11 @@
             const [assets, setAssets] = useState(() => parseStorage(STORAGE_KEYS.assets, seedAssets));
             const [displayCurrency, setDisplayCurrency] = useState(() => parseStorage(STORAGE_KEYS.displayCurrency, 'HKD'));
             const [monthlySnapshots, setMonthlySnapshots] = useState(() => parseStorage(STORAGE_KEYS.monthlySnapshots, {}));
+            const [currencyRates, setCurrencyRates] = useState(() => sanitizeCurrencyRates(parseStorage(STORAGE_KEYS.currencyRates, DEFAULT_RATES)));
+            const [lastRateUpdate, setLastRateUpdate] = useState(() => {
+                const saved = Number(parseStorage(STORAGE_KEYS.currencyRatesUpdatedAt, 0));
+                return Number.isFinite(saved) && saved > 0 ? new Date(saved) : null;
+            });
             const [authUser, setAuthUser] = useState(null);
             const [isAuthLoading, setIsAuthLoading] = useState(isCloudEnabled);
             const [isCloudSyncing, setIsCloudSyncing] = useState(false);
@@ -435,6 +561,8 @@
             const [sortMode, setSortMode] = useState('AMOUNT_DESC');
             const [viewMode, setViewMode] = useState('DETAIL');
             const [isUpdatingPrice, setIsUpdatingPrice] = useState(false);
+            const [isUpdatingRates, setIsUpdatingRates] = useState(false);
+            const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
             const [priceStatus, setPriceStatus] = useState('');
             const [lastPriceUpdate, setLastPriceUpdate] = useState(null);
             const [showSettings, setShowSettings] = useState(false);
@@ -483,7 +611,11 @@
                 fixedPurchasePrice: '',
                 fixedCurrentValue: '',
                 fixedPurchaseDate: '',
-                fixedNote: ''
+                fixedNote: '',
+                fixedDepositPrincipal: '',
+                fixedDepositAnnualRate: '',
+                fixedDepositMonths: '',
+                fixedDepositStartDate: ''
             });
             const importInputRef = useRef(null);
             const cloudHydratedRef = useRef(false);
@@ -494,6 +626,7 @@
             const isCryptoForm = isInvestForm && formData.subtype === '加密貨幣';
             const isStockForm = isInvestForm && formData.subtype === '股票';
             const isFundForm = isInvestForm && formData.subtype === '基金';
+            const isFixedDepositForm = isInvestForm && formData.subtype === '定期存款';
             const isInsuranceForm = formData.category === 'INSURANCE';
             const isLiabilityForm = formData.category === 'LIABILITY';
             const isReceivableForm = formData.category === 'RECEIVABLE';
@@ -512,6 +645,11 @@
                 loanYears: formData.loanYears,
                 paidPeriods: formData.loanPaidPeriods
             }) : null;
+            const fixedDepositMetrics = isFixedDepositForm ? calculateFixedDepositMetrics({
+                principal: formData.fixedDepositPrincipal,
+                annualInterestRate: formData.fixedDepositAnnualRate,
+                months: formData.fixedDepositMonths
+            }) : null;
 
             const assetsRef = useRef(assets);
             useEffect(() => { assetsRef.current = assets; }, [assets]);
@@ -520,6 +658,9 @@
             const monthlySnapshotsRef = useRef(monthlySnapshots);
             useEffect(() => { monthlySnapshotsRef.current = monthlySnapshots; }, [monthlySnapshots]);
 
+            const toHKD = (amount, currency) => amount / (currencyRates[currency] || 1);
+            const fromHKD = (amountHKD, currency) => amountHKD * (currencyRates[currency] || 1);
+
             useEffect(() => {
                 localStorage.setItem(STORAGE_KEYS.assets, JSON.stringify(assets));
             }, [assets]);
@@ -527,6 +668,15 @@
             useEffect(() => {
                 localStorage.setItem(STORAGE_KEYS.displayCurrency, JSON.stringify(displayCurrency));
             }, [displayCurrency]);
+
+            useEffect(() => {
+                localStorage.setItem(STORAGE_KEYS.currencyRates, JSON.stringify(currencyRates));
+            }, [currencyRates]);
+
+            useEffect(() => {
+                const stamp = lastRateUpdate instanceof Date ? lastRateUpdate.getTime() : 0;
+                localStorage.setItem(STORAGE_KEYS.currencyRatesUpdatedAt, JSON.stringify(stamp));
+            }, [lastRateUpdate]);
 
             useEffect(() => {
                 if (window.lucide) window.lucide.createIcons();
@@ -569,7 +719,7 @@
                     liabilities: fromHKD(liabilitiesHKD, displayCurrency),
                     netWorth: fromHKD(assetsHKD - liabilitiesHKD, displayCurrency)
                 };
-            }, [assets, displayCurrency]);
+            }, [assets, displayCurrency, currencyRates]);
 
             useEffect(() => {
                 const monthKey = new Date().toISOString().slice(0, 7);
@@ -645,7 +795,7 @@
                             accounts: sortedAccounts
                         };
                     });
-            }, [assets, selectedCategories, sortMode]);
+            }, [assets, selectedCategories, sortMode, currencyRates]);
 
             const toggleCategory = (categoryKey) => {
                 setSelectedCategories(prev => {
@@ -763,7 +913,7 @@
                     rows,
                     gradient: segments.length ? `conic-gradient(${segments.join(', ')})` : 'conic-gradient(#E2E8F0 0% 100%)'
                 };
-            }, [assets, selectedMixCategory, displayCurrency]);
+            }, [assets, selectedMixCategory, displayCurrency, currencyRates]);
 
             const accountStats = useMemo(() => {
                 const category = selectedStatsCategory;
@@ -857,7 +1007,23 @@
                     selectedItem,
                     mode: statsBreakdownMode
                 };
-            }, [assets, displayCurrency, selectedStatsCategory, selectedStatsAccount, selectedStatsSegmentKey, statsBreakdownMode]);
+            }, [assets, displayCurrency, selectedStatsCategory, selectedStatsAccount, selectedStatsSegmentKey, statsBreakdownMode, currencyRates]);
+
+            const refreshCurrencyRates = async (showToast = true) => {
+                setIsUpdatingRates(true);
+                if (showToast) setPriceStatus('更新匯率中...');
+                try {
+                    const nextRates = await fetchLatestCurrencyRates();
+                    setCurrencyRates(nextRates);
+                    const stamp = new Date();
+                    setLastRateUpdate(stamp);
+                    if (showToast) setPriceStatus('已更新最新匯率');
+                } catch (error) {
+                    if (showToast) setPriceStatus('匯率更新失敗，已使用目前匯率');
+                } finally {
+                    setIsUpdatingRates(false);
+                }
+            };
 
             useEffect(() => {
                 if (!CATEGORY_KEYS.includes(selectedStatsCategory)) {
@@ -921,7 +1087,7 @@
                             const symbol = item.symbol.trim().toUpperCase();
                             const usdPrice = cryptoQuotesUSD[symbol];
                             if (typeof usdPrice === 'number' && usdPrice > 0) {
-                                nextPrice = usdPrice * ((DEFAULT_RATES[item.currency] || 1) / DEFAULT_RATES.USD);
+                                nextPrice = usdPrice * ((currencyRates[item.currency] || 1) / (currencyRates.USD || DEFAULT_RATES.USD));
                             }
                         }
 
@@ -1144,6 +1310,294 @@
                 importInputRef.current?.click();
             };
 
+            const handleShareApp = async () => {
+                if (isGeneratingPdf) {
+                    setPriceStatus('PDF 仍在產生中，請稍候...');
+                    return;
+                }
+                let reportRoot = null;
+                let watchdogTimer = null;
+                try {
+                    setIsGeneratingPdf(true);
+                    setPriceStatus('正在準備 PDF...');
+
+                    watchdogTimer = setTimeout(() => {
+                        setIsGeneratingPdf(false);
+                        setPriceStatus('PDF 產生逾時，請再試一次');
+                    }, 20000);
+
+                    const jsPDF = await ensureJsPdfReady();
+                    const html2canvas = await ensureHtml2CanvasReady();
+                    setPriceStatus('正在轉換內容為 PDF...');
+
+                    reportRoot = document.createElement('div');
+                    reportRoot.style.position = 'fixed';
+                    reportRoot.style.left = '0';
+                    reportRoot.style.top = '0';
+                    reportRoot.style.width = '1024px';
+                    reportRoot.style.background = '#ffffff';
+                    reportRoot.style.color = '#0f172a';
+                    reportRoot.style.padding = '24px';
+                    reportRoot.style.fontFamily = "'Noto Sans TC', sans-serif";
+                    reportRoot.style.opacity = '1';
+                    reportRoot.style.pointerEvents = 'none';
+                    reportRoot.style.zIndex = '99999';
+
+                    const title = document.createElement('h1');
+                    title.textContent = '個人資產分享報表';
+                    title.style.fontSize = '24px';
+                    title.style.fontWeight = '800';
+                    title.style.margin = '0 0 8px 0';
+                    reportRoot.appendChild(title);
+
+                    const meta = document.createElement('div');
+                    meta.textContent = `產生時間：${new Date().toLocaleString()} ｜ 顯示幣種：${displayCurrency}`;
+                    meta.style.fontSize = '12px';
+                    meta.style.color = '#475569';
+                    meta.style.marginBottom = '16px';
+                    reportRoot.appendChild(meta);
+
+                    const summaryWrap = document.createElement('div');
+                    summaryWrap.style.display = 'flex';
+                    summaryWrap.style.gap = '18px';
+                    summaryWrap.style.alignItems = 'flex-start';
+                    summaryWrap.style.marginBottom = '14px';
+
+                    const summary = document.createElement('div');
+                    summary.style.flex = '1';
+                    summary.style.fontSize = '12px';
+                    summary.style.lineHeight = '1.7';
+                    summary.innerHTML = [
+                        `總資產：${formatAmount(totals.assets)} ${displayCurrency}`,
+                        `總負債：${formatAmount(totals.liabilities)} ${displayCurrency}`,
+                        `淨資產：${formatAmount(totals.netWorth)} ${displayCurrency}`,
+                        `負債比：${totals.debtRatio.toFixed(2)}%`,
+                        `資產筆數：${assets.length} 筆`
+                    ].map(line => `<div>${line}</div>`).join('');
+                    summaryWrap.appendChild(summary);
+
+                    const chartCard = document.createElement('div');
+                    chartCard.style.width = '300px';
+                    chartCard.style.padding = '10px';
+                    chartCard.style.border = '1px solid #e2e8f0';
+                    chartCard.style.borderRadius = '10px';
+                    chartCard.style.background = '#f8fafc';
+
+                    const chartTitle = document.createElement('div');
+                    chartTitle.textContent = '資產配比';
+                    chartTitle.style.fontSize = '12px';
+                    chartTitle.style.fontWeight = '700';
+                    chartTitle.style.marginBottom = '8px';
+                    chartCard.appendChild(chartTitle);
+
+                    const chartWrap = document.createElement('div');
+                    chartWrap.style.display = 'flex';
+                    chartWrap.style.alignItems = 'center';
+                    chartWrap.style.gap = '10px';
+
+                    const donut = document.createElement('div');
+                    donut.style.width = '96px';
+                    donut.style.height = '96px';
+                    donut.style.borderRadius = '999px';
+                    donut.style.flexShrink = '0';
+                    donut.style.position = 'relative';
+                    donut.style.background = assetMix.gradient;
+                    const donutHole = document.createElement('div');
+                    donutHole.style.position = 'absolute';
+                    donutHole.style.inset = '22px';
+                    donutHole.style.borderRadius = '999px';
+                    donutHole.style.background = '#ffffff';
+                    donut.appendChild(donutHole);
+                    chartWrap.appendChild(donut);
+
+                    const legend = document.createElement('div');
+                    legend.style.flex = '1';
+                    legend.style.display = 'grid';
+                    legend.style.gap = '4px';
+                    assetMix.rows
+                        .filter(row => row.ratio > 0)
+                        .slice(0, 6)
+                        .forEach(row => {
+                            const item = document.createElement('div');
+                            item.style.display = 'flex';
+                            item.style.alignItems = 'center';
+                            item.style.justifyContent = 'space-between';
+                            item.style.fontSize = '10px';
+
+                            const left = document.createElement('div');
+                            left.style.display = 'flex';
+                            left.style.alignItems = 'center';
+                            left.style.gap = '5px';
+                            const dot = document.createElement('span');
+                            dot.style.width = '8px';
+                            dot.style.height = '8px';
+                            dot.style.borderRadius = '999px';
+                            dot.style.background = row.hex;
+                            const label = document.createElement('span');
+                            label.textContent = row.label;
+                            left.appendChild(dot);
+                            left.appendChild(label);
+
+                            const value = document.createElement('span');
+                            value.textContent = `${row.ratio.toFixed(1)}%`;
+
+                            item.appendChild(left);
+                            item.appendChild(value);
+                            legend.appendChild(item);
+                        });
+
+                    chartWrap.appendChild(legend);
+                    chartCard.appendChild(chartWrap);
+                    summaryWrap.appendChild(chartCard);
+                    reportRoot.appendChild(summaryWrap);
+
+                    const createSectionTitle = (text) => {
+                        const el = document.createElement('h2');
+                        el.textContent = text;
+                        el.style.fontSize = '14px';
+                        el.style.fontWeight = '700';
+                        el.style.margin = '16px 0 8px 0';
+                        return el;
+                    };
+
+                    const createTable = (headers) => {
+                        const tableEl = document.createElement('table');
+                        tableEl.style.width = '100%';
+                        tableEl.style.borderCollapse = 'collapse';
+                        tableEl.style.fontSize = '11px';
+
+                        const headerRow = document.createElement('tr');
+                        headers.forEach(text => {
+                            const th = document.createElement('th');
+                            th.textContent = text;
+                            th.style.border = '1px solid #cbd5e1';
+                            th.style.background = '#f1f5f9';
+                            th.style.padding = '6px 8px';
+                            th.style.textAlign = ['#', '筆數', '項目數', '總市值', '市值'].includes(text) ? 'right' : 'left';
+                            headerRow.appendChild(th);
+                        });
+                        tableEl.appendChild(headerRow);
+                        return tableEl;
+                    };
+
+                    reportRoot.appendChild(createSectionTitle('按帳戶匯總'));
+                    const accountSummaryTable = createTable(['類別', '帳戶', '筆數', '總市值']);
+                    groupedAssets.forEach(group => {
+                        group.accounts.forEach(account => {
+                            const row = document.createElement('tr');
+                            const valueDisplay = fromHKD(account.accountTotalHKD, displayCurrency);
+                            const cells = [
+                                CATEGORIES[group.categoryKey]?.label || group.categoryKey,
+                                account.accountName,
+                                String(account.items.length),
+                                `${formatAmount(valueDisplay)} ${displayCurrency}`
+                            ];
+                            cells.forEach((value, idx) => {
+                                const td = document.createElement('td');
+                                td.textContent = value;
+                                td.style.border = '1px solid #cbd5e1';
+                                td.style.padding = '6px 8px';
+                                td.style.textAlign = idx >= 2 ? 'right' : 'left';
+                                row.appendChild(td);
+                            });
+                            accountSummaryTable.appendChild(row);
+                        });
+                    });
+                    reportRoot.appendChild(accountSummaryTable);
+
+                    reportRoot.appendChild(createSectionTitle('資產明細'));
+
+                    const table = document.createElement('table');
+                    table.style.width = '100%';
+                    table.style.borderCollapse = 'collapse';
+                    table.style.fontSize = '11px';
+
+                    const headRow = document.createElement('tr');
+                    ['#', '類別', '細項', '帳戶', '名稱', '幣種', '市值'].forEach(text => {
+                        const th = document.createElement('th');
+                        th.textContent = text;
+                        th.style.border = '1px solid #cbd5e1';
+                        th.style.background = '#f1f5f9';
+                        th.style.padding = '6px 8px';
+                        th.style.textAlign = ['#', '市值'].includes(text) ? 'right' : 'left';
+                        headRow.appendChild(th);
+                    });
+                    table.appendChild(headRow);
+
+                    assets.forEach((item, index) => {
+                        const row = document.createElement('tr');
+                        const marketValueOrig = Number(item.quantity || 0) * Number(item.currentPrice || 0);
+                        const marketValueDisplay = fromHKD(toHKD(marketValueOrig, item.currency), displayCurrency);
+                        const cells = [
+                            String(index + 1),
+                            CATEGORIES[item.category]?.label || item.category,
+                            item.subtype || '',
+                            item.account || '',
+                            item.name || '',
+                            item.currency || '',
+                            `${formatAmount(marketValueDisplay)} ${displayCurrency}`
+                        ];
+                        cells.forEach((value, i) => {
+                            const td = document.createElement('td');
+                            td.textContent = value;
+                            td.style.border = '1px solid #cbd5e1';
+                            td.style.padding = '6px 8px';
+                            td.style.textAlign = (i === 0 || i === 6) ? 'right' : 'left';
+                            row.appendChild(td);
+                        });
+                        table.appendChild(row);
+                    });
+
+                    reportRoot.appendChild(table);
+                    document.body.appendChild(reportRoot);
+
+                    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+                    const canvas = await html2canvas(reportRoot, {
+                        scale: 2,
+                        useCORS: true,
+                        backgroundColor: '#ffffff'
+                    });
+
+                    const imgData = canvas.toDataURL('image/jpeg', 0.98);
+                    const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+                    const pageWidth = doc.internal.pageSize.getWidth();
+                    const pageHeight = doc.internal.pageSize.getHeight();
+                    const margin = 8;
+                    const contentWidth = pageWidth - margin * 2;
+                    const contentHeight = pageHeight - margin * 2;
+                    const imageHeight = (canvas.height * contentWidth) / canvas.width;
+
+                    let rendered = 0;
+                    while (rendered < imageHeight) {
+                        if (rendered > 0) doc.addPage();
+                        const y = margin - rendered;
+                        doc.addImage(imgData, 'JPEG', margin, y, contentWidth, imageHeight, undefined, 'FAST');
+                        rendered += contentHeight;
+                    }
+
+                    const fileName = `asset-report-${new Date().toISOString().slice(0, 10)}.pdf`;
+                    const pdfBlob = doc.output('blob');
+                    const downloadUrl = URL.createObjectURL(pdfBlob);
+                    const anchor = document.createElement('a');
+                    anchor.href = downloadUrl;
+                    anchor.download = fileName;
+                    document.body.appendChild(anchor);
+                    anchor.click();
+                    anchor.remove();
+                    URL.revokeObjectURL(downloadUrl);
+
+                    setPriceStatus('PDF 已成功下載');
+                } catch (error) {
+                    setPriceStatus(`分享 PDF 失敗：${error?.message || '請稍後再試'}`);
+                } finally {
+                    if (watchdogTimer) clearTimeout(watchdogTimer);
+                    setIsGeneratingPdf(false);
+                    if (reportRoot && reportRoot.parentNode) {
+                        reportRoot.parentNode.removeChild(reportRoot);
+                    }
+                }
+            };
+
             const handleImportData = async (event) => {
                 const file = event.target.files?.[0];
                 if (!file) return;
@@ -1215,8 +1669,13 @@
 
             useEffect(() => {
                 updateMarketPrices(false);
+                refreshCurrencyRates(false);
                 const timer = setInterval(() => updateMarketPrices(false), 5 * 60 * 1000);
-                return () => clearInterval(timer);
+                const rateTimer = setInterval(() => refreshCurrencyRates(false), 30 * 60 * 1000);
+                return () => {
+                    clearInterval(timer);
+                    clearInterval(rateTimer);
+                };
             }, []);
 
             const openEdit = (asset) => {
@@ -1252,7 +1711,11 @@
                     fixedPurchasePrice: asset.fixedPurchasePrice ?? '',
                     fixedCurrentValue: asset.fixedCurrentValue ?? '',
                     fixedPurchaseDate: asset.fixedPurchaseDate ?? '',
-                    fixedNote: asset.fixedNote ?? ''
+                    fixedNote: asset.fixedNote ?? '',
+                    fixedDepositPrincipal: asset.fixedDepositPrincipal ?? '',
+                    fixedDepositAnnualRate: asset.fixedDepositAnnualRate ?? '',
+                    fixedDepositMonths: asset.fixedDepositMonths ?? '',
+                    fixedDepositStartDate: asset.fixedDepositStartDate ?? ''
                 });
                 setIsModalOpen(true);
             };
@@ -1280,6 +1743,25 @@
                     quantity = parseFloat(formData.quantity || 0);
                     costBasis = 1;
                     currentPrice = 1;
+                }
+
+                let fixedDepositPayload = {};
+                if (isFixedDepositForm) {
+                    if (!fixedDepositMetrics) {
+                        alert('請輸入有效的定期存款資料（本金、年利率、期數）');
+                        return;
+                    }
+                    quantity = 1;
+                    costBasis = fixedDepositMetrics.principal;
+                    currentPrice = fixedDepositMetrics.maturityAmount;
+                    fixedDepositPayload = {
+                        fixedDepositPrincipal: fixedDepositMetrics.principal,
+                        fixedDepositAnnualRate: fixedDepositMetrics.annualInterestRate,
+                        fixedDepositMonths: fixedDepositMetrics.months,
+                        fixedDepositStartDate: formData.fixedDepositStartDate || '',
+                        fixedDepositInterestAmount: fixedDepositMetrics.interestAmount,
+                        fixedDepositMaturityAmount: fixedDepositMetrics.maturityAmount
+                    };
                 }
 
                 if (needsPremium) {
@@ -1433,6 +1915,7 @@
                     costBasis,
                     currentPrice,
                     currency: baseCurrency,
+                    ...fixedDepositPayload,
                     ...mortgagePayload,
                     ...loanPayload,
                     ...creditCardPayload,
@@ -1488,7 +1971,11 @@
                     fixedPurchasePrice: '',
                     fixedCurrentValue: '',
                     fixedPurchaseDate: '',
-                    fixedNote: ''
+                    fixedNote: '',
+                    fixedDepositPrincipal: '',
+                    fixedDepositAnnualRate: '',
+                    fixedDepositMonths: '',
+                    fixedDepositStartDate: ''
                 });
             };
 
@@ -1579,6 +2066,20 @@
                                             >
                                                 {isUpdatingPrice ? '更新中...' : '更新股價/幣價'}
                                             </button>
+                                            <button
+                                                onClick={() => { refreshCurrencyRates(true); setShowSettings(false); }}
+                                                disabled={isUpdatingRates}
+                                                className="w-full bg-cyan-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-cyan-500 transition-all disabled:opacity-60"
+                                            >
+                                                {isUpdatingRates ? '更新中...' : '更新匯率'}
+                                            </button>
+                                            <button
+                                                onClick={() => { handleShareApp(); setShowSettings(false); }}
+                                                disabled={isGeneratingPdf}
+                                                className="w-full bg-violet-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-violet-500 transition-all disabled:opacity-60"
+                                            >
+                                                {isGeneratingPdf ? 'PDF 產生中...' : '分享資產（PDF）'}
+                                            </button>
                                         </div>
                                     )}
                                 </div>
@@ -1602,6 +2103,12 @@
                                 <button onClick={() => updateMarketPrices(true)} disabled={isUpdatingPrice} className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-blue-500 transition-all shadow-md disabled:opacity-60">
                                     {isUpdatingPrice ? '更新中...' : '更新股價/幣價'}
                                 </button>
+                                <button onClick={() => refreshCurrencyRates(true)} disabled={isUpdatingRates} className="bg-cyan-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-cyan-500 transition-all shadow-md disabled:opacity-60">
+                                    {isUpdatingRates ? '更新中...' : '更新匯率'}
+                                </button>
+                                <button onClick={handleShareApp} disabled={isGeneratingPdf} className="bg-violet-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-violet-500 transition-all shadow-md flex items-center gap-2 disabled:opacity-60">
+                                    <i data-lucide="share-2" className="w-4 h-4"></i> {isGeneratingPdf ? 'PDF 產生中...' : '分享資產（PDF）'}
+                                </button>
                                 <button onClick={() => { setEditingId(null); setIsModalOpen(true); }} className="bg-slate-900 text-white px-5 py-2 rounded-lg font-bold text-sm hover:bg-slate-800 transition-all shadow-md flex items-center gap-2">
                                     <i data-lucide="plus-circle" className="w-4 h-4"></i> 新增資產
                                 </button>
@@ -1612,6 +2119,7 @@
                     <div className="mb-8 text-xs text-slate-500 font-bold flex flex-wrap gap-x-4 gap-y-1">
                         <span>{priceStatus || '行情將每 5 分鐘自動更新一次'}</span>
                         <span>{lastPriceUpdate ? `最後更新：${lastPriceUpdate.toLocaleString()}` : '尚未更新行情'}</span>
+                        <span>{lastRateUpdate ? `匯率更新：${lastRateUpdate.toLocaleString()}` : '匯率使用預設值'}</span>
                         <span>{isCloudSyncing ? '雲端同步中...' : cloudStatus}</span>
                     </div>
 
@@ -2012,11 +2520,18 @@
                                                                     const profitOrig = mktValOrig - costValOrig;
                                                                     const profitDisplay = fromHKD(toHKD(profitOrig, item.currency), displayCurrency);
                                                                     const perf = costValOrig > 0 ? (profitOrig / costValOrig) * 100 : 0;
+                                                                    const isFixedDepositItem = item.subtype === '定期存款';
+                                                                    const fixedDepositMonths = Number(item.fixedDepositMonths || 0);
+                                                                    const fixedDepositRate = Number(item.fixedDepositAnnualRate || 0);
+                                                                    const fixedDepositStartDate = item.fixedDepositStartDate || '';
 
                                                                     return (
                                                                         <div className="space-y-1 text-xs font-bold">
                                                                             <div className="text-slate-500">市值 {formatAmount(mktValDisplay)} {displayCurrency} · 數量 {formatAmount(item.quantity)} {item.symbol ? `(${item.symbol})` : ''}</div>
                                                                             <div className="text-slate-500">現價 {formatAmount(item.currentPrice)} · 成本 {formatAmount(item.costBasis)} {item.currency}</div>
+                                                                            {isFixedDepositItem && (
+                                                                                <div className="text-slate-500">定期 {fixedDepositMonths || '--'} 個月 · 年利率 {fixedDepositRate.toFixed(2)}% {fixedDepositStartDate ? `· 起存 ${fixedDepositStartDate}` : ''}</div>
+                                                                            )}
                                                                             <div className={`${profitOrig >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                                                                                 <div className="font-black text-sm">持倉盈虧 {profitOrig >= 0 ? '+' : ''}{formatAmount(profitDisplay)} {displayCurrency}</div>
                                                                                 <div className="font-bold text-xs">績效 {perf >= 0 ? '+' : ''}{perf.toFixed(2)}%</div>
@@ -2386,7 +2901,11 @@
                                                         fixedPurchasePrice: '',
                                                         fixedCurrentValue: '',
                                                         fixedPurchaseDate: '',
-                                                        fixedNote: ''
+                                                        fixedNote: '',
+                                                        fixedDepositPrincipal: '',
+                                                        fixedDepositAnnualRate: '',
+                                                        fixedDepositMonths: '',
+                                                        fixedDepositStartDate: ''
                                                     });
                                                 }}
                                             >
@@ -2433,7 +2952,11 @@
                                                         fixedPurchasePrice: '',
                                                         fixedCurrentValue: '',
                                                         fixedPurchaseDate: '',
-                                                        fixedNote: ''
+                                                        fixedNote: '',
+                                                        fixedDepositPrincipal: '',
+                                                        fixedDepositAnnualRate: '',
+                                                        fixedDepositMonths: '',
+                                                        fixedDepositStartDate: ''
                                                     });
                                                 }}
                                             >
@@ -2442,7 +2965,7 @@
                                         </div>
                                     </div>
 
-                                    {!needsPremium && !isMortgageForm && !isLiabilityForm && !isReceivableForm && !isFixedForm && (
+                                    {!needsPremium && !isMortgageForm && !isLiabilityForm && !isReceivableForm && !isFixedForm && !isFixedDepositForm && (
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                                             <div className="space-y-1">
                                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{isLiquidForm ? '金額' : '數量'}</label>
@@ -2454,6 +2977,40 @@
                                                     <input required type="number" step="any" className="w-full p-3 bg-slate-50 rounded-xl font-bold outline-none" value={formData.costBasis} onChange={e => setFormData({ ...formData, costBasis: e.target.value })} />
                                                 </div>
                                             )}
+                                        </div>
+                                    )}
+
+                                    {isFixedDepositForm && (
+                                        <div className="space-y-4">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">本金</label>
+                                                    <input required type="number" step="any" min="0" className="w-full p-3 bg-slate-50 rounded-xl font-bold outline-none" value={formData.fixedDepositPrincipal} onChange={e => setFormData({ ...formData, fixedDepositPrincipal: e.target.value })} />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">年利率 (%)</label>
+                                                    <input required type="number" step="any" min="0" className="w-full p-3 bg-slate-50 rounded-xl font-bold outline-none" value={formData.fixedDepositAnnualRate} onChange={e => setFormData({ ...formData, fixedDepositAnnualRate: e.target.value })} />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">存期 (月)</label>
+                                                    <input required type="number" step="1" min="1" className="w-full p-3 bg-slate-50 rounded-xl font-bold outline-none" value={formData.fixedDepositMonths} onChange={e => setFormData({ ...formData, fixedDepositMonths: e.target.value })} />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">起存日 (選填)</label>
+                                                    <input type="date" className="w-full p-3 bg-slate-50 rounded-xl font-bold outline-none" value={formData.fixedDepositStartDate} onChange={e => setFormData({ ...formData, fixedDepositStartDate: e.target.value })} />
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">預估利息</label>
+                                                    <div className="w-full p-3 bg-slate-50 rounded-xl font-black text-slate-700">{fixedDepositMetrics ? `${formatAmount(fixedDepositMetrics.interestAmount)} ${formData.currency}` : '--'}</div>
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">到期本利和</label>
+                                                    <div className="w-full p-3 bg-slate-50 rounded-xl font-black text-slate-700">{fixedDepositMetrics ? `${formatAmount(fixedDepositMetrics.maturityAmount)} ${formData.currency}` : '--'}</div>
+                                                </div>
+                                            </div>
                                         </div>
                                     )}
 
@@ -2695,7 +3252,7 @@
                                         )}
                                     </div>
 
-                                    {editingId && !isLiquidForm && !needsPremium && !isMortgageForm && !isLiabilityForm && !isReceivableForm && !isFixedForm && (
+                                    {editingId && !isLiquidForm && !needsPremium && !isMortgageForm && !isLiabilityForm && !isReceivableForm && !isFixedForm && !isFixedDepositForm && (
                                         <div className="space-y-1">
                                             <label className="text-[10px] font-black text-indigo-500 uppercase tracking-widest ml-1">當前現價 (手動修正)</label>
                                             <input type="number" step="any" className="w-full p-3 bg-indigo-50/50 rounded-xl font-bold outline-none ring-2 ring-indigo-100" value={formData.currentPrice} onChange={e => setFormData({ ...formData, currentPrice: e.target.value })} />
