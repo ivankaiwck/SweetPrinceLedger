@@ -35,14 +35,13 @@
         recentCurrencies: 'assetTracker.recentCurrencies.v1'
     };
     const FIREBASE_CONFIG = window.__FIREBASE_CONFIG__ || {
-        apiKey: 'AIzaSyBBXQq6K6dBZCL4t8ieyH_QB2TmAW4b8P0',
-        authDomain: 'sweetprinceledger-3acb9.firebaseapp.com',
-        databaseURL: 'https://sweetprinceledger-3acb9-default-rtdb.asia-southeast1.firebasedatabase.app',
-        projectId: 'sweetprinceledger-3acb9',
-        storageBucket: 'sweetprinceledger-3acb9.firebasestorage.app',
-        messagingSenderId: '197674917932',
-        appId: '1:197674917932:web:6aaa35121062d4b3f4b189',
-        measurementId: 'G-R0BJT35WPE'
+        apiKey: 'AIzaSyCsaa7V2NmhAORpGXCvHSJXjafmhNfRheA',
+        authDomain: 'sweetprinceledger-c2f4e.firebaseapp.com',
+        projectId: 'sweetprinceledger-c2f4e',
+        storageBucket: 'sweetprinceledger-c2f4e.firebasestorage.app',
+        messagingSenderId: '362796789773',
+        appId: '1:362796789773:web:89a700c484c9aff33f6544',
+        measurementId: 'G-L734D22S0L'
     };
     const CLOUD_COLLECTION = 'assetTrackerUsers';
     const hasFirebaseConfig = ['apiKey', 'authDomain', 'projectId', 'appId'].every(key => Boolean((FIREBASE_CONFIG[key] || '').trim()));

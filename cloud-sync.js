@@ -130,6 +130,18 @@
             if (typeof onStatus !== 'function') return;
             onStatus(buildStatusMessage(zh, en, ja));
         };
+        const isRedirectUriMismatchError = (error) => {
+            const code = String(error?.code || '').toLowerCase();
+            const message = String(error?.message || '').toLowerCase();
+            return code.includes('redirect_uri_mismatch') || message.includes('redirect_uri_mismatch');
+        };
+        const setRedirectUriMismatchStatus = () => {
+            setStatus(
+                'Google 登入設定錯誤（redirect_uri_mismatch）。請到 Google Cloud OAuth Client 加入授權導頁 URI：\nhttps://sweetprinceledger-3acb9.firebaseapp.com/__/auth/handler\n並確認 Firebase Auth 已授權網域 ivankaiwck.github.io。',
+                'Google sign-in configuration error (redirect_uri_mismatch). Add this Authorized redirect URI in Google Cloud OAuth Client:\nhttps://sweetprinceledger-3acb9.firebaseapp.com/__/auth/handler\nAlso make sure ivankaiwck.github.io is listed in Firebase Auth authorized domains.',
+                'Google ログイン設定エラー（redirect_uri_mismatch）です。Google Cloud の OAuth Client に次のリダイレクトURIを追加してください：\nhttps://sweetprinceledger-3acb9.firebaseapp.com/__/auth/handler\nあわせて Firebase Auth の承認済みドメインに ivankaiwck.github.io があることを確認してください。'
+            );
+        };
         if (!isCloudEnabled) {
             setStatus(
                 '尚未設定 Firebase，請先在 index.html 填入 Firebase 設定',
@@ -144,6 +156,10 @@
             await firebaseAuth.signInWithPopup(provider);
         } catch (error) {
             const code = error?.code || '';
+            if (isRedirectUriMismatchError(error)) {
+                setRedirectUriMismatchStatus();
+                return;
+            }
             if (code === 'auth/popup-blocked' || code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
                 try {
                     const provider = new firebase.auth.GoogleAuthProvider();
@@ -151,6 +167,10 @@
                     await firebaseAuth.signInWithRedirect(provider);
                     return;
                 } catch (redirectError) {
+                    if (isRedirectUriMismatchError(redirectError)) {
+                        setRedirectUriMismatchStatus();
+                        return;
+                    }
                     const redirectCode = redirectError?.code || 'unknown';
                     setStatus(
                         `Google 登入失敗（${redirectCode}）`,

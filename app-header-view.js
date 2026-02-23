@@ -1,4 +1,11 @@
 (() => {
+    const {
+        AppHeaderStatusView
+    } = window.APP_HEADER_STATUS_VIEW || {};
+    if (!AppHeaderStatusView) {
+        throw new Error('app-header-status-view.js is missing or incomplete.');
+    }
+
     const AppHeaderView = ({
         pageText,
         tByLang,
@@ -195,12 +202,15 @@
                 </div>
             </header>
 
-            <div className="mb-8 text-xs theme-text-sub font-bold flex flex-wrap gap-x-4 gap-y-1">
-                <span>{priceStatus || pageText.marketAutoUpdate}</span>
-                <span>{lastPriceUpdate ? `${pageText.lastUpdated}：${formatDateTime(lastPriceUpdate)}` : pageText.noPriceYet}</span>
-                <span>{lastRateUpdate ? `${pageText.rateUpdated}：${formatDateTime(lastRateUpdate)}` : pageText.fxDefault}</span>
-                <span>{isCloudSyncing ? pageText.cloudSyncing : cloudStatus}</span>
-            </div>
+            <AppHeaderStatusView
+                priceStatus={priceStatus}
+                pageText={pageText}
+                lastPriceUpdate={lastPriceUpdate}
+                formatDateTime={formatDateTime}
+                lastRateUpdate={lastRateUpdate}
+                isCloudSyncing={isCloudSyncing}
+                cloudStatus={cloudStatus}
+            />
         </>
     );
 
