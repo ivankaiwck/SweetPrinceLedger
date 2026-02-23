@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>資產管理系統</title>
+    <title>SweetPrinceLedger - 王子甜甜帳</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
@@ -19,7 +19,7 @@
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
         body { 
             font-family: 'Noto Sans TC', 'Segoe UI Emoji', 'Noto Color Emoji', 'Apple Color Emoji', sans-serif; 
-            background-color: #F8FAFC; 
+            background-color: #FDF2F8; 
             color: #1E293B;
         }
         .percento-card {
@@ -31,6 +31,21 @@
         .modal-overlay { background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(8px); }
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 10px; }
+        @keyframes princeFloat {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-8px); }
+        }
+        @keyframes princeSparkle {
+            0%, 100% { opacity: 0.5; transform: scale(0.9); }
+            50% { opacity: 1; transform: scale(1.08); }
+        }
+        @keyframes princeTalk {
+            0% { transform: translateY(6px); opacity: 0; }
+            100% { transform: translateY(0); opacity: 1; }
+        }
+        .prince-float { animation: princeFloat 3.2s ease-in-out infinite; }
+        .prince-sparkle { animation: princeSparkle 1.8s ease-in-out infinite; }
+        .prince-talk { animation: princeTalk .35s ease-out; }
     </style>
 </head>
 <body>
@@ -50,7 +65,8 @@
             cashflowEntries: 'assetTracker.cashflowEntries.v1',
             cashflowAppliedOccurrenceKeys: 'assetTracker.cashflowAppliedOccurrenceKeys.v1',
             cashflowLastAutoApplyDate: 'assetTracker.cashflowLastAutoApplyDate.v1',
-            cashflowAppliedPostings: 'assetTracker.cashflowAppliedPostings.v1'
+            cashflowAppliedPostings: 'assetTracker.cashflowAppliedPostings.v1',
+            pageLanguage: 'assetTracker.pageLanguage.v1'
         };
         const FIREBASE_CONFIG = window.__FIREBASE_CONFIG__ || {
             apiKey: 'AIzaSyBBXQq6K6dBZCL4t8ieyH_QB2TmAW4b8P0',
@@ -151,7 +167,194 @@
             return options[0] || '費用-其他';
         };
         const ONE_DAY_MS = 24 * 60 * 60 * 1000;
-
+        const PAGE_LANGUAGE_OPTIONS = [
+            { value: 'zh-Hant', label: '繁體中文' },
+            { value: 'en-US', label: 'English' },
+            { value: 'ja-JP', label: '日本語' }
+        ];
+        const UI_TEXT = {
+            'zh-Hant': {
+                subtitle: '流動資金、投資、固定資產、應收款、負債五大類別一站管理，陪你每天記帳守護財富王國。 ✨💖',
+                idleTitle: 'Q版公仔閒暇口號',
+                advanced: '進階功能',
+                cloudAccount: '雲端帳號',
+                displayCurrency: '顯示幣種',
+                pageLanguage: '頁面語言',
+                addAsset: '新增資產',
+                resetData: '重設資料',
+                loginLoading: '帳號讀取中...',
+                login: 'Google 登入',
+                logout: 'Google 登出',
+                exportData: '匯出資料',
+                importData: '匯入資料',
+                updatePrice: '更新股價/幣價',
+                updating: '更新中...',
+                updateFx: '更新匯率',
+                sharePdf: '分享資產（PDF）',
+                generatingPdf: 'PDF 產生中...',
+                marketAutoUpdate: '行情將每 5 分鐘自動更新一次',
+                lastUpdated: '最後更新',
+                noPriceYet: '尚未更新行情',
+                rateUpdated: '匯率更新',
+                fxDefault: '匯率使用預設值',
+                cloudSyncing: '雲端同步中...',
+                overviewTitle: '資產總覽與配比',
+                netWorth: '淨資產',
+                totalAssets: '總資產',
+                totalLiabilities: '總負債',
+                debtRatio: '負債比',
+                categoryMix: '分類配比',
+                detailMix: '細項佔比',
+                noDetailItems: '此分類尚無可計算細項',
+                tabAssetAccount: '資產帳戶管理',
+                tabCashflow: '現金流記帳與收益月曆',
+                cashflowDesc: '可設定固定收入/支出規則（收租、兼職、餐費等），並查看每天、每月、每年流水。',
+                prevMonth: '上月',
+                nextMonth: '下月'
+            },
+            'en-US': {
+                subtitle: 'Manage liquidity, investments, fixed assets, receivables, and liabilities in one place. ✨💖',
+                idleTitle: 'Chibi Prince Idle Motto',
+                advanced: 'Advanced',
+                cloudAccount: 'Cloud Account',
+                displayCurrency: 'Display Currency',
+                pageLanguage: 'Page Language',
+                addAsset: 'Add Asset',
+                resetData: 'Reset Data',
+                loginLoading: 'Loading account...',
+                login: 'Google Sign in',
+                logout: 'Google Sign out',
+                exportData: 'Export Data',
+                importData: 'Import Data',
+                updatePrice: 'Update Prices',
+                updating: 'Updating...',
+                updateFx: 'Update FX',
+                sharePdf: 'Share Asset (PDF)',
+                generatingPdf: 'Generating PDF...',
+                marketAutoUpdate: 'Market prices auto-refresh every 5 minutes',
+                lastUpdated: 'Last Update',
+                noPriceYet: 'No market update yet',
+                rateUpdated: 'FX Updated',
+                fxDefault: 'Using default FX rates',
+                cloudSyncing: 'Cloud syncing...',
+                overviewTitle: 'Asset Overview & Allocation',
+                netWorth: 'Net Worth',
+                totalAssets: 'Total Assets',
+                totalLiabilities: 'Total Liabilities',
+                debtRatio: 'Debt Ratio',
+                categoryMix: 'Category Mix',
+                detailMix: 'Detail Mix',
+                noDetailItems: 'No detail items in this category yet',
+                tabAssetAccount: 'Asset Account Management',
+                tabCashflow: 'Cashflow & Earnings Calendar',
+                cashflowDesc: 'Set recurring income/expense rules and review daily, monthly, and yearly flows.',
+                prevMonth: 'Prev',
+                nextMonth: 'Next'
+            },
+            'ja-JP': {
+                subtitle: '流動資金・投資・固定資産・未収金・負債をまとめて管理。毎日の記帳を王子がサポートします。 ✨💖',
+                idleTitle: 'ちび王子のひとこと',
+                advanced: '詳細設定',
+                cloudAccount: 'クラウドアカウント',
+                displayCurrency: '表示通貨',
+                pageLanguage: 'ページ言語',
+                addAsset: '資産を追加',
+                resetData: 'データをリセット',
+                loginLoading: 'アカウント読込中...',
+                login: 'Google ログイン',
+                logout: 'Google ログアウト',
+                exportData: 'データをエクスポート',
+                importData: 'データをインポート',
+                updatePrice: '価格を更新',
+                updating: '更新中...',
+                updateFx: '為替を更新',
+                sharePdf: 'PDFで共有',
+                generatingPdf: 'PDF作成中...',
+                marketAutoUpdate: '相場は5分ごとに自動更新されます',
+                lastUpdated: '最終更新',
+                noPriceYet: '相場はまだ更新されていません',
+                rateUpdated: '為替更新',
+                fxDefault: '既定の為替レートを使用中',
+                cloudSyncing: 'クラウド同期中...',
+                overviewTitle: '資産サマリーと配分',
+                netWorth: '純資産',
+                totalAssets: '総資産',
+                totalLiabilities: '総負債',
+                debtRatio: '負債比率',
+                categoryMix: 'カテゴリ配分',
+                detailMix: '内訳配分',
+                noDetailItems: 'このカテゴリに集計できる内訳がありません',
+                tabAssetAccount: '資産口座管理',
+                tabCashflow: 'キャッシュフローと収益カレンダー',
+                cashflowDesc: '固定の収入/支出ルールを設定し、日次・月次・年次の流れを確認できます。',
+                prevMonth: '前月',
+                nextMonth: '翌月'
+            }
+        };
+        const HEADER_SLOGANS = {
+            'zh-Hant': [
+                '👑 王子來幫你守護財富王國啦～',
+                '💰 在小王子的魔法下，錢錢每天都變多♡',
+                '🪄 你的財富，由王子親自打理！',
+                '✨ 今天也把每一筆收支，變成王國的力量。',
+                '🌟 穩穩記帳，慢慢富有，王子會一直陪你。',
+                '🏰 王國帳本更新中：你離目標又更近一步。',
+                '💖 小步累積，也能走到皇冠級資產。',
+                '📘 先記錄、再優化，王子的財富術生效中。'
+            ],
+            'en-US': [
+                '👑 The Prince is guarding your wealth kingdom!',
+                '💰 Under his magic, your money grows day by day.',
+                '🪄 Your fortune is managed by the Prince himself!',
+                '✨ Every record today becomes tomorrow’s power.',
+                '🌟 Track steadily, grow steadily.',
+                '🏰 Your kingdom ledger is getting stronger.',
+                '💖 Tiny steps can still build royal wealth.',
+                '📘 Log first, optimize next.'
+            ],
+            'ja-JP': [
+                '👑 王子があなたの財産王国を守ります！',
+                '💰 王子の魔法で、お金は毎日育っていく。',
+                '🪄 あなたの資産は王子が直々に管理！',
+                '✨ 今日の記録が明日の力になる。',
+                '🌟 コツコツ記帳、着実に成長。',
+                '🏰 王国の家計簿、今日も更新中。',
+                '💖 小さな積み重ねが大きな資産へ。',
+                '📘 記録して、整えて、前に進もう。'
+            ]
+        };
+        const IDLE_HINT_LINES = {
+            'zh-Hant': [
+                '👑 王子巡邏中：今天也要讓財富王國更穩！',
+                '✨ 小提醒：固定現金流規則可自動入帳到流動資金。',
+                '💖 每次記帳，都是王國升級的一步。',
+                '🪄 先記錄再分析，王子會幫你看清資金走向。',
+                '📅 用收益月曆回看每月淨流，最容易看出節奏。',
+                '🏦 有閒置現金時，記得安排儲蓄或定存策略。',
+                '📈 投資部位可定期更新價格，判斷是否偏離配置。',
+                '🧾 建立分類習慣，王子才能給你更準確的提示。'
+            ],
+            'en-US': [
+                '👑 Patrol mode: let’s keep your kingdom stable today.',
+                '✨ Reminder: recurring cashflow can auto-post to liquid assets.',
+                '💖 Every entry is one step closer to growth.',
+                '🪄 Record first, analyze next.',
+                '📅 Check monthly net flow from the calendar view.',
+                '🏦 Put idle cash to work with savings plans.',
+                '📈 Refresh market prices to track allocation drift.',
+                '🧾 Better categories = smarter guidance.'
+            ],
+            'ja-JP': [
+                '👑 巡回中：今日も王国の資産を安定させよう。',
+                '✨ 固定キャッシュフローは自動入金に使えます。',
+                '💖 記帳の一歩が資産形成の一歩。',
+                '🪄 まず記録、次に分析。',
+                '📅 カレンダーで月次の純キャッシュを確認。',
+                '🏦 余剰資金は計画的に活用しましょう。',
+                '📈 価格更新で配分のズレを把握。',
+                '🧾 分類を整えるほど精度が上がります。'
+            ]
+        };
         const polarToCartesian = (centerX, centerY, radius, angleInDegrees) => {
             const angleInRadians = (angleInDegrees - 90) * Math.PI / 180;
             return {
@@ -199,20 +402,20 @@
 
         const getNetWorthTier = (netWorthHKD) => {
               const value = Number(netWorthHKD) || 0;
-              if (value < 0) return { emoji: '⚠️', label: '負資產' };
-              if (value < 100000) return { emoji: '🌱', label: '基層 / 下層階層' };
-              if (value < 300000) return { emoji: '🍀', label: '初入社會 / 剛起步' };
-              if (value < 780000) return { emoji: '🌿', label: '小康 / 穩定發展' };
-              if (value < 1000000) return { emoji: '🧭', label: '大眾富裕 / 上層工人階級' };
-              if (value < 2000000) return { emoji: '🚗', label: '新晉中產' };
-              if (value < 5000000) return { emoji: '🏡', label: '中產階級' };
-              if (value < 8000000) return { emoji: '🏙️', label: '中上階層' };
-              if (value < 10000000) return { emoji: '💠', label: '富裕階層 / 中上階層' };
-              if (value < 20000000) return { emoji: '💼', label: '準高淨值人士' };
-              if (value < 50000000) return { emoji: '💎', label: '高淨值富豪' };
-              if (value < 100000000) return { emoji: '🏰', label: '超高淨值人士' };
-              if (value < 500000000) return { emoji: '👑', label: '超級富豪階層' };
-              return { emoji: '🌏', label: '頂級富豪 / 世界級' };
+              if (value < 0) return { emoji: '⚠️', label: '負資產 - 迷路學徒' };
+              if (value < 100000) return { emoji: '🌱', label: '基層 / 下層階層 - 勤勉新兵' };
+              if (value < 300000) return { emoji: '🍀', label: '初入社會 / 剛起步 - 見習騎士' };
+              if (value < 780000) return { emoji: '🌿', label: '小康 / 穩定發展 - 城鎮管家' };
+              if (value < 1000000) return { emoji: '🧭', label: '大眾富裕 / 上層工人階級 - 王國工匠' };
+              if (value < 2000000) return { emoji: '🚗', label: '新晉中產 - 銀徽騎士' };
+              if (value < 5000000) return { emoji: '🏡', label: '中產階級 - 金徽騎士' };
+              if (value < 8000000) return { emoji: '🏙️', label: '中上階層 - 侯爵管家' };
+              if (value < 10000000) return { emoji: '💠', label: '富裕階層 / 中上階層 - 王室策士' };
+              if (value < 20000000) return { emoji: '💼', label: '準高淨值人士 - 伯爵理財官' };
+              if (value < 50000000) return { emoji: '💎', label: '高淨值富豪 - 公爵財政官' };
+              if (value < 100000000) return { emoji: '🏰', label: '超高淨值人士 - 王城守護者' };
+              if (value < 500000000) return { emoji: '👑', label: '超級富豪階層 - 皇冠領主' };
+              return { emoji: '🌏', label: '頂級富豪 / 世界級 - 星海君主' };
         };
 
         const calculateMortgageMetrics = ({ propertyPrice, ltvRatio, annualInterestRate, mortgageYears, paidPeriods }) => {
@@ -776,6 +979,12 @@
             const [priceStatus, setPriceStatus] = useState('');
             const [lastPriceUpdate, setLastPriceUpdate] = useState(null);
             const [showSettings, setShowSettings] = useState(false);
+            const [pageLanguage, setPageLanguage] = useState(() => {
+                const saved = parseStorage(STORAGE_KEYS.pageLanguage, 'zh-Hant');
+                return PAGE_LANGUAGE_OPTIONS.some(item => item.value === saved) ? saved : 'zh-Hant';
+            });
+            const [headerSloganIndex, setHeaderSloganIndex] = useState(0);
+            const [princeIdleIndex, setPrinceIdleIndex] = useState(0);
             const [selectedMixCategory, setSelectedMixCategory] = useState('INVEST');
             const [expandedAccounts, setExpandedAccounts] = useState({});
             const [selectedStatsCategory, setSelectedStatsCategory] = useState('INVEST');
@@ -934,6 +1143,10 @@
             }, [lastRateUpdate]);
 
             useEffect(() => {
+                localStorage.setItem(STORAGE_KEYS.pageLanguage, JSON.stringify(pageLanguage));
+            }, [pageLanguage]);
+
+            useEffect(() => {
                 if (window.lucide) window.lucide.createIcons();
             }, [assets, isModalOpen, selectedCategories, sortMode, isUpdatingPrice]);
 
@@ -942,6 +1155,64 @@
                     if (cloudSaveTimerRef.current) clearTimeout(cloudSaveTimerRef.current);
                 };
             }, []);
+
+            const pageText = useMemo(() => UI_TEXT[pageLanguage] || UI_TEXT['zh-Hant'], [pageLanguage]);
+            const headerSlogans = useMemo(() => HEADER_SLOGANS[pageLanguage] || HEADER_SLOGANS['zh-Hant'], [pageLanguage]);
+            const idleHintLines = useMemo(() => IDLE_HINT_LINES[pageLanguage] || IDLE_HINT_LINES['zh-Hant'], [pageLanguage]);
+            const currentHeaderSlogan = headerSlogans[headerSloganIndex % Math.max(headerSlogans.length, 1)] || '';
+            const currentIdleHint = idleHintLines[princeIdleIndex % Math.max(idleHintLines.length, 1)] || '';
+
+            useEffect(() => {
+                document.documentElement.lang = pageLanguage;
+            }, [pageLanguage]);
+
+            useEffect(() => {
+                setHeaderSloganIndex(0);
+                setPrinceIdleIndex(0);
+            }, [pageLanguage]);
+
+            useEffect(() => {
+                const timer = setInterval(() => {
+                    setHeaderSloganIndex(prev => (prev + 1) % Math.max(headerSlogans.length, 1));
+                }, 5000);
+                return () => clearInterval(timer);
+            }, [headerSlogans]);
+
+            useEffect(() => {
+                const timer = setInterval(() => {
+                    setPrinceIdleIndex(prev => (prev + 1) % Math.max(idleHintLines.length, 1));
+                }, 8000);
+                return () => clearInterval(timer);
+            }, [idleHintLines]);
+
+            const princeHintMessage = useMemo(() => {
+                if (isGeneratingPdf) {
+                    return pageLanguage === 'en-US' ? '📜 The Prince is preparing your PDF report...' : (pageLanguage === 'ja-JP' ? '📜 王子がPDFレポートを作成中です…' : '📜 王子正在整理你的 PDF 報表，請稍候～');
+                }
+                if (isUpdatingPrice) {
+                    return pageLanguage === 'en-US' ? '📈 Fetching latest market prices.' : (pageLanguage === 'ja-JP' ? '📈 最新の価格を取得中です。' : '📈 王子正在召喚最新股價與幣價。');
+                }
+                if (isUpdatingRates) {
+                    return pageLanguage === 'en-US' ? '💱 Updating exchange rates.' : (pageLanguage === 'ja-JP' ? '💱 為替レートを更新中です。' : '💱 王子正在更新匯率魔法。');
+                }
+                if (isCloudSyncing) {
+                    return pageLanguage === 'en-US' ? '☁️ Syncing data to cloud now.' : (pageLanguage === 'ja-JP' ? '☁️ クラウドへ同期中です。' : '☁️ 王子正在把資料同步到雲端。');
+                }
+                if (isModalOpen) {
+                    return pageLanguage === 'en-US' ? '📝 Fill the form and save the asset.' : (pageLanguage === 'ja-JP' ? '📝 フォーム入力後に保存してください。' : '📝 在表單填好資料後按「儲存資產」就完成囉！');
+                }
+                if (editingCashflowId) {
+                    return pageLanguage === 'en-US' ? '🔧 You are editing a rule. Remember to save.' : (pageLanguage === 'ja-JP' ? '🔧 ルール編集中です。保存を忘れずに。' : '🔧 你正在編輯規則，記得確認儲存。');
+                }
+                if (showSettings) {
+                    return pageLanguage === 'en-US' ? '⚙️ Settings opened. You can import/export and update data.' : (pageLanguage === 'ja-JP' ? '⚙️ 設定を開きました。インポート/エクスポート可能です。' : '⚙️ 設定選單已開啟，可匯入匯出與更新資料。');
+                }
+                if (financeSectionTab === 'CASHFLOW') {
+                    return pageLanguage === 'en-US' ? '📅 Use cashflow rules for auto posting.' : (pageLanguage === 'ja-JP' ? '📅 固定ルールで自動記帳できます。' : '📅 在現金流分頁可設定固定規則與自動入帳。');
+                }
+                if (priceStatus) return `📣 ${priceStatus}`;
+                return currentIdleHint;
+            }, [isGeneratingPdf, isUpdatingPrice, isUpdatingRates, isCloudSyncing, isModalOpen, editingCashflowId, showSettings, financeSectionTab, priceStatus, currentIdleHint, pageLanguage]);
 
             const totals = useMemo(() => {
                 let assetsHKD = 0;
@@ -2868,17 +3139,25 @@
 
             return (
                 <div className="max-w-6xl mx-auto p-4 md:p-8">
-                    <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-                        <div className="space-y-1">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white">
-                                    <i data-lucide="layout-dashboard" className="w-6 h-6"></i>
+                    <header className="mb-6">
+                        <div className="rounded-2xl border border-pink-100 bg-gradient-to-r from-pink-50 via-sky-50 to-amber-50 p-4 md:p-5 shadow-sm">
+                            <div className="flex items-start gap-3">
+                                <div className="w-11 h-11 bg-gradient-to-br from-amber-300 via-pink-300 to-sky-300 rounded-xl flex items-center justify-center text-white shadow-sm">
+                                    <i data-lucide="crown" className="w-6 h-6"></i>
                                 </div>
-                                <h1 className="text-2xl font-black text-slate-800 tracking-tight">個人資產負債管理</h1>
+                                <div className="min-w-0 flex-1">
+                                    <h1 className="text-2xl font-black text-slate-800 tracking-tight">SweetPrinceLedger - 王子甜甜帳</h1>
+                                    <p className="text-xs text-slate-500 font-bold mt-1">{pageText.subtitle}</p>
+                                </div>
                             </div>
-                            <p className="text-xs text-slate-500 font-bold">流動資金、投資、固定資產、應收款、負債五大類別一站管理</p>
-                        </div>
-                        <div className="flex items-center gap-2 w-full md:w-auto flex-wrap">
+
+                            <div className="mt-3 rounded-xl bg-white/80 border border-pink-100 px-3 py-3 flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-pink-200 via-amber-200 to-sky-200 flex items-center justify-center text-lg prince-float">🤴🏻</div>
+                                <div className="min-w-0">
+                                    <div className="text-xs font-black text-slate-600 prince-talk">{currentHeaderSlogan}</div>
+                                </div>
+                            </div>
+
                             <input
                                 ref={importInputRef}
                                 type="file"
@@ -2886,30 +3165,34 @@
                                 className="hidden"
                                 onChange={handleImportData}
                             />
-                            <div className="w-full flex items-center gap-2 md:hidden">
-                                <button
-                                    onClick={() => { setEditingId(null); setIsModalOpen(true); }}
-                                    className="flex-1 bg-slate-900 text-white px-5 py-2 rounded-lg font-bold text-sm hover:bg-slate-800 transition-all shadow-md flex items-center gap-2 justify-center"
-                                >
-                                    <i data-lucide="plus-circle" className="w-4 h-4"></i> 新增資產
+                            <div className="mt-4 pt-3 border-t border-white/70 flex flex-wrap items-center gap-2">
+                                <select value={displayCurrency} onChange={e => setDisplayCurrency(e.target.value)} className="bg-white border border-slate-200 rounded-lg px-3 py-2 font-bold text-sm shadow-sm outline-none">
+                                    {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+                                </select>
+
+                                <button onClick={() => { setEditingId(null); setIsModalOpen(true); }} className="bg-slate-900 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-slate-800 transition-all shadow-md flex items-center gap-2">
+                                    <i data-lucide="plus-circle" className="w-4 h-4"></i> {pageText.addAsset}
                                 </button>
+
                                 <button
                                     onClick={resetToSeed}
-                                    className="flex-none bg-rose-500 text-white px-3 py-2 rounded-lg font-bold text-sm hover:bg-rose-400 transition-all shadow-md"
+                                    className="bg-rose-500 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-rose-400 transition-all shadow-md"
                                 >
-                                    重設範例資料
+                                    {pageText.resetData}
                                 </button>
-                                <div className="relative">
+
+                                <div className="relative ml-auto">
                                     <button
                                         type="button"
                                         onClick={() => setShowSettings(prev => !prev)}
-                                        className="bg-white border border-slate-200 rounded-lg px-3 py-2 font-black text-sm shadow-sm"
+                                        className="bg-white border border-slate-200 rounded-lg px-3 py-2 font-black text-sm shadow-sm flex items-center gap-2"
                                     >
                                         <i data-lucide="settings" className="w-4 h-4"></i>
+                                        {pageText.advanced}
                                     </button>
                                     {showSettings && (
                                         <div className="absolute right-0 mt-2 w-64 bg-white border border-slate-100 rounded-xl shadow-lg p-3 space-y-2 z-20">
-                                            <div className="text-[10px] text-slate-400 font-black uppercase tracking-widest">雲端帳號</div>
+                                            <div className="text-[10px] text-slate-400 font-black uppercase tracking-widest">{pageText.cloudAccount}</div>
                                             <div className="text-xs font-bold text-slate-600 bg-slate-50 rounded-lg px-2 py-1">
                                                 {authUser ? (authUser.email || '已登入 Google') : '未登入 Google'}
                                             </div>
@@ -2922,9 +3205,9 @@
                                                 disabled={isAuthLoading || isCloudSyncing}
                                                 className="w-full bg-slate-900 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-slate-800 transition-all disabled:opacity-60"
                                             >
-                                                {isAuthLoading ? '帳號讀取中...' : authUser ? 'Google 登出' : 'Google 登入'}
+                                                {isAuthLoading ? pageText.loginLoading : authUser ? pageText.logout : pageText.login}
                                             </button>
-                                            <div className="text-[10px] text-slate-400 font-black uppercase tracking-widest">顯示幣種</div>
+                                            <div className="text-[10px] text-slate-400 font-black uppercase tracking-widest">{pageText.displayCurrency}</div>
                                             <select
                                                 value={displayCurrency}
                                                 onChange={e => setDisplayCurrency(e.target.value)}
@@ -2932,153 +3215,86 @@
                                             >
                                                 {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
                                             </select>
+                                            <div className="text-[10px] text-slate-400 font-black uppercase tracking-widest">{pageText.pageLanguage}</div>
+                                            <select
+                                                value={pageLanguage}
+                                                onChange={e => setPageLanguage(e.target.value)}
+                                                className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 font-bold text-sm shadow-sm outline-none"
+                                            >
+                                                {PAGE_LANGUAGE_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                                            </select>
                                             <button
                                                 onClick={() => { handleExportData(); setShowSettings(false); }}
                                                 className="w-full bg-emerald-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-emerald-500 transition-all"
                                             >
-                                                匯出資料
+                                                {pageText.exportData}
                                             </button>
                                             <button
                                                 onClick={() => { openImportPicker(); setShowSettings(false); }}
                                                 className="w-full bg-amber-500 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-amber-400 transition-all"
                                             >
-                                                匯入資料
+                                                {pageText.importData}
                                             </button>
                                             <button
                                                 onClick={() => { updateMarketPrices(true); setShowSettings(false); }}
                                                 disabled={isUpdatingPrice}
                                                 className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-blue-500 transition-all disabled:opacity-60"
                                             >
-                                                {isUpdatingPrice ? '更新中...' : '更新股價/幣價'}
+                                                {isUpdatingPrice ? pageText.updating : pageText.updatePrice}
                                             </button>
                                             <button
                                                 onClick={() => { refreshCurrencyRates(true); setShowSettings(false); }}
                                                 disabled={isUpdatingRates}
                                                 className="w-full bg-cyan-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-cyan-500 transition-all disabled:opacity-60"
                                             >
-                                                {isUpdatingRates ? '更新中...' : '更新匯率'}
+                                                {isUpdatingRates ? pageText.updating : pageText.updateFx}
                                             </button>
                                             <button
                                                 onClick={() => { handleShareApp(); setShowSettings(false); }}
                                                 disabled={isGeneratingPdf}
                                                 className="w-full bg-violet-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-violet-500 transition-all disabled:opacity-60"
                                             >
-                                                {isGeneratingPdf ? 'PDF 產生中...' : '分享資產（PDF）'}
+                                                {isGeneratingPdf ? pageText.generatingPdf : pageText.sharePdf}
                                             </button>
                                         </div>
                                     )}
                                 </div>
-                            </div>
-                            <div className="hidden md:flex items-center gap-2 flex-wrap">
-                                <select value={displayCurrency} onChange={e => setDisplayCurrency(e.target.value)} className="bg-white border border-slate-200 rounded-lg px-3 py-2 font-bold text-sm shadow-sm outline-none">
-                                    {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
-                                </select>
-                                <div className="relative">
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowSettings(prev => !prev)}
-                                        className="bg-white border border-slate-200 rounded-lg px-3 py-2 font-black text-sm shadow-sm"
-                                    >
-                                        <i data-lucide="settings" className="w-4 h-4"></i>
-                                    </button>
-                                    {showSettings && (
-                                        <div className="absolute right-0 mt-2 w-64 bg-white border border-slate-100 rounded-xl shadow-lg p-3 space-y-2 z-20">
-                                            <div className="text-[10px] text-slate-400 font-black uppercase tracking-widest">雲端帳號</div>
-                                            <div className="text-xs font-bold text-slate-600 bg-slate-50 rounded-lg px-2 py-1">
-                                                {authUser ? (authUser.email || '已登入 Google') : '未登入 Google'}
-                                            </div>
-                                            <button
-                                                onClick={() => {
-                                                    if (authUser) handleGoogleLogout();
-                                                    else handleGoogleLogin();
-                                                    setShowSettings(false);
-                                                }}
-                                                disabled={isAuthLoading || isCloudSyncing}
-                                                className="w-full bg-slate-900 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-slate-800 transition-all disabled:opacity-60"
-                                            >
-                                                {isAuthLoading ? '帳號讀取中...' : authUser ? 'Google 登出' : 'Google 登入'}
-                                            </button>
-                                            <button
-                                                onClick={() => { handleExportData(); setShowSettings(false); }}
-                                                className="w-full bg-emerald-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-emerald-500 transition-all"
-                                            >
-                                                匯出資料
-                                            </button>
-                                            <button
-                                                onClick={() => { openImportPicker(); setShowSettings(false); }}
-                                                className="w-full bg-amber-500 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-amber-400 transition-all"
-                                            >
-                                                匯入資料
-                                            </button>
-                                            <button
-                                                onClick={() => { updateMarketPrices(true); setShowSettings(false); }}
-                                                disabled={isUpdatingPrice}
-                                                className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-blue-500 transition-all disabled:opacity-60"
-                                            >
-                                                {isUpdatingPrice ? '更新中...' : '更新股價/幣價'}
-                                            </button>
-                                            <button
-                                                onClick={() => { refreshCurrencyRates(true); setShowSettings(false); }}
-                                                disabled={isUpdatingRates}
-                                                className="w-full bg-cyan-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-cyan-500 transition-all disabled:opacity-60"
-                                            >
-                                                {isUpdatingRates ? '更新中...' : '更新匯率'}
-                                            </button>
-                                            <button
-                                                onClick={() => { handleShareApp(); setShowSettings(false); }}
-                                                disabled={isGeneratingPdf}
-                                                className="w-full bg-violet-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-violet-500 transition-all disabled:opacity-60"
-                                            >
-                                                {isGeneratingPdf ? 'PDF 產生中...' : '分享資產（PDF）'}
-                                            </button>
-                                            <button
-                                                onClick={() => { resetToSeed(); setShowSettings(false); }}
-                                                className="w-full bg-rose-500 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-rose-400 transition-all"
-                                            >
-                                                重設資料
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
-                                <button onClick={() => { setEditingId(null); setIsModalOpen(true); }} className="bg-slate-900 text-white px-5 py-2 rounded-lg font-bold text-sm hover:bg-slate-800 transition-all shadow-md flex items-center gap-2">
-                                    <i data-lucide="plus-circle" className="w-4 h-4"></i> 新增資產
-                                </button>
                             </div>
                         </div>
                     </header>
 
                     <div className="mb-8 text-xs text-slate-500 font-bold flex flex-wrap gap-x-4 gap-y-1">
-                        <span>{priceStatus || '行情將每 5 分鐘自動更新一次'}</span>
-                        <span>{lastPriceUpdate ? `最後更新：${lastPriceUpdate.toLocaleString()}` : '尚未更新行情'}</span>
-                        <span>{lastRateUpdate ? `匯率更新：${lastRateUpdate.toLocaleString()}` : '匯率使用預設值'}</span>
-                        <span>{isCloudSyncing ? '雲端同步中...' : cloudStatus}</span>
+                        <span>{priceStatus || pageText.marketAutoUpdate}</span>
+                        <span>{lastPriceUpdate ? `${pageText.lastUpdated}：${lastPriceUpdate.toLocaleString()}` : pageText.noPriceYet}</span>
+                        <span>{lastRateUpdate ? `${pageText.rateUpdated}：${lastRateUpdate.toLocaleString()}` : pageText.fxDefault}</span>
+                        <span>{isCloudSyncing ? pageText.cloudSyncing : cloudStatus}</span>
                     </div>
 
                     <section className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm mb-8">
-                        <div className="text-slate-800 font-black mb-4">資產總覽與配比</div>
+                        <div className="text-slate-800 font-black mb-4">{pageText.overviewTitle}</div>
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                             <div className="space-y-4">
                                 <div className="bg-indigo-600 p-5 rounded-2xl text-white shadow-lg">
-                                    <div className="text-indigo-200 text-[10px] font-black uppercase tracking-widest mb-1">淨資產 ({displayCurrency})</div>
+                                    <div className="text-indigo-200 text-[10px] font-black uppercase tracking-widest mb-1">{pageText.netWorth} ({displayCurrency})</div>
                                     <div className="text-3xl font-black tracking-tighter">{formatAmount(totals.netWorth)}</div>
                                     <div className="text-xs font-black text-indigo-100 mt-2">{netWorthTier.emoji} {netWorthTier.label}</div>
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3">
                                     <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                                        <div className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">總資產</div>
+                                        <div className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">{pageText.totalAssets}</div>
                                         <div className="text-xl font-black text-slate-800">{formatAmount(totals.assets)}</div>
                                     </div>
                                     <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                                        <div className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">總負債</div>
+                                        <div className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">{pageText.totalLiabilities}</div>
                                         <div className="text-xl font-black text-rose-500">{formatAmount(totals.liabilities)}</div>
-                                        <div className="text-[10px] font-black text-slate-400 mt-1">負債比 {totals.debtRatio.toFixed(1)}%</div>
+                                        <div className="text-[10px] font-black text-slate-400 mt-1">{pageText.debtRatio} {totals.debtRatio.toFixed(1)}%</div>
                                     </div>
                                 </div>
                             </div>
 
                             <div className="lg:col-span-2 grid grid-cols-1 xl:grid-cols-2 gap-6 items-center">
                                 <details className="rounded-xl bg-slate-50/60 p-3 sm:p-0 sm:bg-transparent" open>
-                                    <summary className="sm:hidden text-xs font-black text-slate-600 cursor-pointer list-none">分類配比</summary>
+                                    <summary className="sm:hidden text-xs font-black text-slate-600 cursor-pointer list-none">{pageText.categoryMix}</summary>
                                     <div className="space-y-3 mt-3 sm:mt-0">
                                         {assetMix.rows.map(item => (
                                             <button
@@ -3104,13 +3320,13 @@
                                             <div className="absolute inset-8 bg-white rounded-full border border-slate-100 flex items-center justify-center">
                                                 <div className="text-center">
                                                     <div className="text-[10px] text-slate-400 font-black uppercase tracking-widest">{detailMix.categoryLabel}</div>
-                                                    <div className="text-sm font-black text-slate-700">細項佔比</div>
+                                                    <div className="text-sm font-black text-slate-700">{pageText.detailMix}</div>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
                                     <details className="rounded-xl bg-slate-50/60 p-3 sm:p-0 sm:bg-transparent" open>
-                                        <summary className="sm:hidden text-xs font-black text-slate-600 cursor-pointer list-none">細項佔比</summary>
+                                        <summary className="sm:hidden text-xs font-black text-slate-600 cursor-pointer list-none">{pageText.detailMix}</summary>
                                         <div className="space-y-2 mt-3 sm:mt-0">
                                             {detailMix.rows.length ? detailMix.rows.map(row => (
                                                 <div key={row.label} className="flex items-center justify-between text-xs font-black text-slate-500">
@@ -3121,7 +3337,7 @@
                                                     <span>{row.ratio.toFixed(1)}% · {formatAmount(row.amount)} {displayCurrency}</span>
                                                 </div>
                                             )) : (
-                                                <p className="text-sm text-slate-400 font-bold text-center">此分類尚無可計算細項</p>
+                                                <p className="text-sm text-slate-400 font-bold text-center">{pageText.noDetailItems}</p>
                                             )}
                                         </div>
                                     </details>
@@ -3136,21 +3352,21 @@
                             onClick={() => setFinanceSectionTab('ASSET_ACCOUNT')}
                             className={`px-4 py-2 rounded-lg text-sm font-black border ${financeSectionTab === 'ASSET_ACCOUNT' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
                         >
-                            資產帳戶管理
+                            {pageText.tabAssetAccount}
                         </button>
                         <button
                             type="button"
                             onClick={() => setFinanceSectionTab('CASHFLOW')}
                             className={`px-4 py-2 rounded-lg text-sm font-black border ${financeSectionTab === 'CASHFLOW' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
                         >
-                            現金流記帳與收益月曆
+                            {pageText.tabCashflow}
                         </button>
                     </div>
 
                     {financeSectionTab === 'ASSET_ACCOUNT' && (
                     <section className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm mb-8">
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-                            <div className="text-slate-800 font-black">資產帳戶管理</div>
+                            <div className="text-slate-800 font-black">{pageText.tabAssetAccount}</div>
                             <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2">
                                 <select
                                     value={selectedStatsCategory}
@@ -3285,8 +3501,8 @@
                     <section className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm mb-8">
                         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-4">
                             <div>
-                                <div className="text-slate-800 font-black">現金流記帳與收益月曆</div>
-                                <p className="text-xs text-slate-400 font-bold mt-1">可設定固定收入/支出規則（收租、兼職、餐費等），並查看每天、每月、每年流水。</p>
+                                <div className="text-slate-800 font-black">{pageText.tabCashflow}</div>
+                                <p className="text-xs text-slate-400 font-bold mt-1">{pageText.cashflowDesc}</p>
                             </div>
                             <div className="flex items-center gap-2">
                                 <button
@@ -3294,7 +3510,7 @@
                                     onClick={() => moveCashflowMonth(-1)}
                                     className="px-3 py-2 rounded-lg border border-slate-200 text-xs font-black text-slate-600 hover:bg-slate-50"
                                 >
-                                    上月
+                                    {pageText.prevMonth}
                                 </button>
                                 <input
                                     type="month"
@@ -3307,7 +3523,7 @@
                                     onClick={() => moveCashflowMonth(1)}
                                     className="px-3 py-2 rounded-lg border border-slate-200 text-xs font-black text-slate-600 hover:bg-slate-50"
                                 >
-                                    下月
+                                    {pageText.nextMonth}
                                 </button>
                             </div>
                         </div>
@@ -4686,8 +4902,18 @@
                         </div>
                     )}
 
-                    <footer className="mt-20 text-center text-slate-300 text-[10px] font-bold uppercase tracking-[0.3em] pb-10">
-                        Percento Style Personal Asset Tracker
+                    <div className="hidden md:block fixed right-4 bottom-5 z-30 pointer-events-none">
+                        <div className="max-w-[250px] rounded-2xl border border-pink-100 bg-white/90 backdrop-blur-sm shadow-lg px-3 py-2 prince-talk">
+                            <div className="text-[11px] leading-5 font-black text-slate-600">{princeHintMessage}</div>
+                        </div>
+                        <div className="mt-2 flex items-end justify-end gap-1">
+                            <div className="text-2xl prince-sparkle">✨</div>
+                            <div className="prince-float w-16 h-16 rounded-2xl bg-gradient-to-br from-pink-200 via-amber-200 to-sky-200 border border-white shadow-md flex items-center justify-center text-3xl">🤴🏻</div>
+                        </div>
+                    </div>
+
+                    <footer className="mt-20 text-center text-pink-300 text-[10px] font-bold uppercase tracking-[0.22em] pb-10">
+                        SweetPrinceLedger · 王子甜甜帳
                     </footer>
                 </div>
             );
