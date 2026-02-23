@@ -106,8 +106,29 @@
         return '規則已更新';
     };
 
+    const buildCashflowFormFromEntry = ({
+        entry,
+        getDefaultCashflowCategory,
+        toDateKey
+    }) => ({
+        title: entry?.title || '',
+        account: entry?.account || '',
+        category: entry?.category || getDefaultCashflowCategory(entry?.type || 'EXPENSE'),
+        type: entry?.type || 'EXPENSE',
+        scheduleType: entry?.scheduleType || (entry?.frequency === 'ONE_TIME' ? 'ONE_TIME' : 'RECURRING'),
+        amount: String(Number(entry?.amount || 0)),
+        currency: entry?.currency || 'HKD',
+        frequency: entry?.frequency === 'ONE_TIME' ? 'MONTHLY' : (entry?.frequency || 'MONTHLY'),
+        startDate: entry?.startDate || toDateKey(new Date()),
+        endDate: entry?.endDate || '',
+        payday: String(entry?.payday || entry?.monthday || 1),
+        targetLiquidAssetId: entry?.targetLiquidAssetId || '',
+        note: entry?.note || ''
+    });
+
     window.APP_CASHFLOW_FORM = {
         buildCashflowSubmission,
-        buildCashflowSubmitStatus
+        buildCashflowSubmitStatus,
+        buildCashflowFormFromEntry
     };
 })();
