@@ -118,14 +118,24 @@
         };
     };
 
-    const loginWithGoogle = async ({ isCloudEnabled, firebaseAuth, firebase, onStatus, tByLang }) => {
+    const loginWithGoogle = async ({ isCloudEnabled, firebaseAuth, firebase, onStatus, tByLang, tByLangBy }) => {
         const t = typeof tByLang === 'function' ? tByLang : ((zh) => zh);
+        const buildStatusMessage = (zh, en, ja) => {
+            if (typeof tByLangBy === 'function') {
+                return (lang) => tByLangBy(lang, zh, en, ja);
+            }
+            return t(zh, en, ja);
+        };
+        const setStatus = (zh, en, ja) => {
+            if (typeof onStatus !== 'function') return;
+            onStatus(buildStatusMessage(zh, en, ja));
+        };
         if (!isCloudEnabled) {
-            onStatus(t(
+            setStatus(
                 '尚未設定 Firebase，請先在 index.html 填入 Firebase 設定',
                 'Firebase is not configured yet. Please fill FIREBASE_CONFIG in index.html first',
                 'Firebase が未設定です。先に index.html の FIREBASE_CONFIG を設定してください'
-            ));
+            );
             return;
         }
 
@@ -137,44 +147,54 @@
             if (code === 'auth/popup-blocked' || code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
                 try {
                     const provider = new firebase.auth.GoogleAuthProvider();
-                    onStatus(t('Popup 受限，改用導頁登入中...', 'Popup blocked. Switching to redirect sign-in...', 'ポップアップが制限されたため、リダイレクトログインに切り替えています...'));
+                    setStatus('Popup 受限，改用導頁登入中...', 'Popup blocked. Switching to redirect sign-in...', 'ポップアップが制限されたため、リダイレクトログインに切り替えています...');
                     await firebaseAuth.signInWithRedirect(provider);
                     return;
                 } catch (redirectError) {
                     const redirectCode = redirectError?.code || 'unknown';
-                    onStatus(t(
+                    setStatus(
                         `Google 登入失敗（${redirectCode}）`,
                         `Google sign-in failed (${redirectCode})`,
                         `Google ログインに失敗しました（${redirectCode}）`
-                    ));
+                    );
                     return;
                 }
             }
 
             if (code === 'auth/unauthorized-domain') {
-                onStatus(t(
+                setStatus(
                     '網域未授權：請到 Firebase Auth 加入 localhost、127.0.0.1、ivankaiwck.github.io',
                     'Unauthorized domain: add localhost, 127.0.0.1, and ivankaiwck.github.io in Firebase Auth',
                     '未承認ドメインです：Firebase Auth に localhost、127.0.0.1、ivankaiwck.github.io を追加してください'
-                ));
+                );
                 return;
             }
 
-            onStatus(t(
+            setStatus(
                 `Google 登入失敗（${code || 'unknown'}）`,
                 `Google sign-in failed (${code || 'unknown'})`,
                 `Google ログインに失敗しました（${code || 'unknown'}）`
-            ));
+            );
         }
     };
 
-    const logoutGoogle = async ({ isCloudEnabled, firebaseAuth, onStatus, tByLang }) => {
+    const logoutGoogle = async ({ isCloudEnabled, firebaseAuth, onStatus, tByLang, tByLangBy }) => {
         const t = typeof tByLang === 'function' ? tByLang : ((zh) => zh);
+        const buildStatusMessage = (zh, en, ja) => {
+            if (typeof tByLangBy === 'function') {
+                return (lang) => tByLangBy(lang, zh, en, ja);
+            }
+            return t(zh, en, ja);
+        };
+        const setStatus = (zh, en, ja) => {
+            if (typeof onStatus !== 'function') return;
+            onStatus(buildStatusMessage(zh, en, ja));
+        };
         if (!isCloudEnabled) return;
         try {
             await firebaseAuth.signOut();
         } catch (error) {
-            onStatus(t('登出失敗，請稍後再試', 'Sign-out failed. Please try again later', 'ログアウトに失敗しました。しばらくしてから再試行してください'));
+            setStatus('登出失敗，請稍後再試', 'Sign-out failed. Please try again later', 'ログアウトに失敗しました。しばらくしてから再試行してください');
         }
     };
 

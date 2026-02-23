@@ -349,9 +349,10 @@
             UI_TEXT,
             FULL_PAGE_TEXT_MAP,
             HEADER_SLOGANS,
-            IDLE_HINT_LINES
+            IDLE_HINT_LINES,
+            THEME_NAME_MAP
         } = window.APP_I18N || {};
-        if (!PAGE_LANGUAGE_OPTIONS || !UI_TEXT || !FULL_PAGE_TEXT_MAP || !HEADER_SLOGANS || !IDLE_HINT_LINES) {
+        if (!PAGE_LANGUAGE_OPTIONS || !UI_TEXT || !FULL_PAGE_TEXT_MAP || !HEADER_SLOGANS || !IDLE_HINT_LINES || !THEME_NAME_MAP) {
             throw new Error('i18n.js is missing or incomplete.');
         }
         const {
@@ -515,10 +516,10 @@
         }
 
         const {
-            THEME_OPTIONS,
+            THEMES,
             applyTheme
         } = window.APP_THEME_SYSTEM || {};
-        if (!THEME_OPTIONS || !applyTheme) {
+        if (!THEMES || !applyTheme) {
             throw new Error('theme-system.js is missing or incomplete.');
         }
 
@@ -690,7 +691,12 @@
             const [authUser, setAuthUser] = useState(null);
             const [isAuthLoading, setIsAuthLoading] = useState(isCloudEnabled);
             const [isCloudSyncing, setIsCloudSyncing] = useState(false);
-            const [cloudStatus, setCloudStatus] = useState(isCloudEnabled ? '尚未登入 Google，資料僅存在此裝置' : '未設定 Firebase，資料僅存在此裝置');
+            const [cloudStatus, setCloudStatus] = useState('');
+            const [cloudStatusMode, setCloudStatusMode] = useState('auth');
+            const [cloudAuthState, setCloudAuthState] = useState(() => ({
+                status: isCloudEnabled ? 'signed-out' : 'disabled',
+                email: ''
+            }));
 
             const [isModalOpen, setIsModalOpen] = useState(false);
             const [editingId, setEditingId] = useState(null);
@@ -707,9 +713,10 @@
                 const saved = parseStorage(STORAGE_KEYS.pageLanguage, 'zh-Hant');
                 return PAGE_LANGUAGE_OPTIONS.some(item => item.value === saved) ? saved : 'zh-Hant';
             });
+            const themeIds = Object.keys(THEMES || {});
             const [themeId, setThemeId] = useState(() => {
                 const saved = parseStorage(STORAGE_KEYS.themeId, 'macaron-prince');
-                return THEME_OPTIONS.some(item => item.value === saved) ? saved : 'macaron-prince';
+                return themeIds.includes(saved) ? saved : 'macaron-prince';
             });
             const [headerSloganIndex, setHeaderSloganIndex] = useState(0);
             const [princeIdleIndex, setPrinceIdleIndex] = useState(0);
@@ -1261,6 +1268,69 @@
 
             const pageText = useMemo(() => UI_TEXT[pageLanguage] || UI_TEXT['zh-Hant'], [pageLanguage]);
             const tByLang = (zh, en, ja) => (pageLanguage === 'en-US' ? en : (pageLanguage === 'ja-JP' ? ja : zh));
+            const tByLangBy = (lang, zh, en, ja) => (lang === 'en-US' ? en : (lang === 'ja-JP' ? ja : zh));
+            const dictionary = useMemo(() => FULL_PAGE_TEXT_MAP[pageLanguage] || {}, [pageLanguage]);
+            const translate = (text) => (pageLanguage === 'zh-Hant' ? text : (dictionary[text] || text));
+            const themeNameMap = useMemo(() => THEME_NAME_MAP[pageLanguage] || THEME_NAME_MAP['zh-Hant'] || {}, [pageLanguage]);
+            const themeOptions = useMemo(() => {
+                return Object.values(THEMES || {}).map(theme => ({
+                    value: theme.id,
+                    label: themeNameMap[theme.id] || theme.label || theme.id
+                }));
+            }, [themeNameMap, THEMES]);
+            const cloudStatusBuilderRef = useRef(null);
+            const setCloudStatusWithMode = (messageOrBuilder, mode = 'action') => {
+                if (typeof messageOrBuilder === 'function') {
+                    cloudStatusBuilderRef.current = messageOrBuilder;
+                    setCloudStatus(messageOrBuilder(pageLanguage));
+                } else {
+                    cloudStatusBuilderRef.current = null;
+                    setCloudStatus(messageOrBuilder);
+                }
+                setCloudStatusMode(mode);
+            };
+            const buildCloudAuthStatusMessage = (state) => {
+                const accountLabel = state.email || tByLang('Google 帳號', 'Google Account', 'Google アカウント');
+                switch (state.status) {
+                    case 'disabled':
+                        return tByLang(
+                            '未設定 Firebase，資料僅存在此裝置',
+                            'Firebase not configured. Data is only stored on this device',
+                            'Firebase が未設定のため、データはこの端末にのみ保存されます'
+                        );
+                    case 'signed-in-manual':
+                        return tByLang(
+                            `已登入 Google（${accountLabel}），請手動同步`,
+                            `Signed in as ${accountLabel}, sync manually`,
+                            `${accountLabel} でログイン済み。手動で同期してください`
+                        );
+                    case 'signed-in':
+                        return tByLang(
+                            `已登入 Google（${accountLabel}）`,
+                            `Signed in with Google (${accountLabel})`,
+                            `Google にログインしました（${accountLabel}）`
+                        );
+                    case 'signed-out':
+                    default:
+                        return tByLang(
+                            '尚未登入 Google，資料僅存在此裝置',
+                            'Not signed in to Google. Data is only stored on this device',
+                            'Google に未ログインのため、データはこの端末にのみ保存されます'
+                        );
+                }
+            };
+
+            useEffect(() => {
+                if (cloudStatusMode !== 'auth') return;
+                setCloudStatus(buildCloudAuthStatusMessage(cloudAuthState));
+            }, [cloudAuthState, cloudStatusMode, pageLanguage]);
+
+            useEffect(() => {
+                if (cloudStatusMode !== 'action') return;
+                const builder = cloudStatusBuilderRef.current;
+                if (typeof builder !== 'function') return;
+                setCloudStatus(builder(pageLanguage));
+            }, [cloudStatusMode, pageLanguage]);
             const appName = useMemo(() => {
                 if (pageLanguage === 'zh-Hant') return '王子甜甜帳';
                 if (pageLanguage === 'ja-JP') return '王子あま帳';
@@ -1546,7 +1616,7 @@
                     const valueHKD = Math.abs(totals.categoryBreakdownHKD[categoryKey] || 0);
                     return {
                         categoryKey,
-                        label: CATEGORIES[categoryKey].label,
+                        label: translate(CATEGORIES[categoryKey].label),
                         valueHKD,
                         amount: fromHKD(valueHKD, displayCurrency),
                         hex: categoryMixHexByKey[categoryKey] || getThemeToken('--primary', '#8B5CF6')
@@ -1574,7 +1644,7 @@
                     rows: rowsWithRatio,
                     gradient: segments.length ? `conic-gradient(${segments.join(', ')})` : `conic-gradient(${emptyColor} 0% 100%)`
                 };
-            }, [totals.categoryBreakdownHKD, displayCurrency, categoryMixHexByKey]);
+            }, [totals.categoryBreakdownHKD, displayCurrency, categoryMixHexByKey, pageLanguage, dictionary]);
 
             useEffect(() => {
                 const selectedExists = assetMix.rows.some(row => row.categoryKey === selectedMixCategory);
@@ -1608,7 +1678,7 @@
                     });
 
                 const rows = sortedEntries.map(([label, valueHKD], idx) => ({
-                    label,
+                    label: translate(label),
                     valueHKD,
                     amount: fromHKD(valueHKD, displayCurrency),
                     ratio: totalHKD > 0 ? (valueHKD / totalHKD) * 100 : 0,
@@ -1627,11 +1697,11 @@
                 const emptyColor = getThemeToken('--panel-soft', '#FCE7F3');
 
                 return {
-                    categoryLabel: CATEGORIES[category]?.label || '細項',
+                    categoryLabel: translate(CATEGORIES[category]?.label || '細項'),
                     rows,
                     gradient: segments.length ? `conic-gradient(${segments.join(', ')})` : `conic-gradient(${emptyColor} 0% 100%)`
                 };
-            }, [assets, selectedMixCategory, displayCurrency, currencyRates, detailMixPalette]);
+            }, [assets, selectedMixCategory, displayCurrency, currencyRates, detailMixPalette, pageLanguage, dictionary]);
 
             const accountStats = useMemo(() => {
                 const category = selectedStatsCategory;
@@ -1658,7 +1728,7 @@
                         grouped[`ACC:${accountName}`] = {
                             key: `ACC:${accountName}`,
                             label: accountName,
-                            subtype: CATEGORIES[category].label,
+                            subtype: translate(CATEGORIES[category].label),
                             symbol: '',
                             quantity: accountItems.length,
                             valueDisplay,
@@ -1731,7 +1801,7 @@
                     selectedItem,
                     mode: statsBreakdownMode
                 };
-            }, [assets, displayCurrency, selectedStatsCategory, selectedStatsAccount, selectedStatsSegmentKey, statsBreakdownMode, currencyRates, detailMixPalette]);
+            }, [assets, displayCurrency, selectedStatsCategory, selectedStatsAccount, selectedStatsSegmentKey, statsBreakdownMode, currencyRates, detailMixPalette, pageLanguage, dictionary]);
 
             const liquidAssetOptions = useMemo(() => {
                 return assets
@@ -2197,26 +2267,29 @@
 
                 firebaseAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
                     .catch(() => {
-                        setCloudStatus('無法啟用登入持久化，請允許第三方 Cookie 或關閉隱私阻擋');
+                        setCloudStatusWithMode((lang) => tByLangBy(
+                            lang,
+                            '無法啟用登入持久化，請允許第三方 Cookie 或關閉隱私阻擋',
+                            'Unable to enable login persistence. Please allow third-party cookies or disable tracking protection',
+                            'ログインの永続化を有効にできませんでした。サードパーティCookieを許可するか、追跡防止を無効にしてください'
+                        ), 'action');
                     });
 
                 firebaseAuth.getRedirectResult()
                     .then(result => {
                         if (result?.user) {
-                            setCloudStatus(tByLang(
-                                `已登入 Google（${result.user.email || 'Google 帳號'}）`,
-                                `Signed in with Google (${result.user.email || 'Google Account'})`,
-                                `Google にログインしました（${result.user.email || 'Google アカウント'}）`
-                            ));
+                            setCloudAuthState({ status: 'signed-in', email: result.user.email || '' });
+                            setCloudStatusMode('auth');
                         }
                     })
                     .catch(error => {
                         const code = error?.code || 'unknown';
-                        setCloudStatus(tByLang(
+                        setCloudStatusWithMode((lang) => tByLangBy(
+                            lang,
                             `導頁登入失敗（${code}）`,
                             `Redirect sign-in failed (${code})`,
                             `リダイレクトログインに失敗しました（${code}）`
-                        ));
+                        ), 'action');
                     });
 
                 const unsubscribe = firebaseAuth.onAuthStateChanged(async (user) => {
@@ -2224,19 +2297,13 @@
                     setIsAuthLoading(false);
 
                     if (!user) {
-                        setCloudStatus(tByLang(
-                            '已登出 Google，資料僅存在此裝置',
-                            'Signed out from Google. Data is only stored on this device',
-                            'Google からログアウトしました。データはこの端末にのみ保存されています'
-                        ));
+                        setCloudAuthState({ status: 'signed-out', email: '' });
+                        setCloudStatusMode('auth');
                         return;
                     }
 
-                    setCloudStatus(tByLang(
-                        `已登入 Google（${user.email || 'Google 帳號'}），請手動同步`,
-                        `Signed in as ${user.email || 'Google Account'}, sync manually`,
-                        `${user.email || 'Google アカウント'} でログイン済み。手動で同期してください`
-                    ));
+                    setCloudAuthState({ status: 'signed-in-manual', email: user.email || '' });
+                    setCloudStatusMode('auth');
                 });
 
                 return () => unsubscribe();
@@ -2244,20 +2311,31 @@
 
             const handleCloudDownload = async () => {
                 if (!isCloudEnabled) {
-                    setCloudStatus(tByLang(
+                    setCloudStatusWithMode((lang) => tByLangBy(
+                        lang,
                         '尚未設定 Firebase，請先在 index.html 填入 Firebase 設定',
                         'Firebase is not configured yet. Please fill FIREBASE_CONFIG in index.html first',
                         'Firebase が未設定です。先に index.html の FIREBASE_CONFIG を設定してください'
-                    ));
+                    ), 'action');
                     return;
                 }
                 if (!authUser) {
-                    setCloudStatus(tByLang('請先登入 Google 後再同步', 'Please sign in to Google before syncing', '同期前に Google にログインしてください'));
+                    setCloudStatusWithMode((lang) => tByLangBy(
+                        lang,
+                        '請先登入 Google 後再同步',
+                        'Please sign in to Google before syncing',
+                        '同期前に Google にログインしてください'
+                    ), 'action');
                     return;
                 }
 
                 setIsCloudSyncing(true);
-                setCloudStatus(tByLang('下載雲端中...', 'Downloading from cloud...', 'クラウドからダウンロード中...'));
+                setCloudStatusWithMode((lang) => tByLangBy(
+                    lang,
+                    '下載雲端中...',
+                    'Downloading from cloud...',
+                    'クラウドからダウンロード中...'
+                ), 'action');
 
                 try {
                     const result = await downloadCloudData({
@@ -2279,26 +2357,34 @@
                             setCashflowAppliedPostings,
                             setCashflowLastAutoApplyDate
                         });
-                        setCloudStatus(tByLang(
+                        setCloudStatusWithMode((lang) => tByLangBy(
+                            lang,
                             `已下載雲端資料（${authUser.email || 'Google 帳號'}）`,
                             `Cloud data downloaded (${authUser.email || 'Google Account'})`,
                             `クラウドデータをダウンロードしました（${authUser.email || 'Google アカウント'}）`
-                        ));
+                        ), 'action');
                     } else if (result.hasSnapshot) {
-                        setCloudStatus(tByLang(
+                        setCloudStatusWithMode((lang) => tByLangBy(
+                            lang,
                             '雲端資料格式不完整，未覆蓋本機',
                             'Cloud data is invalid, local data kept',
                             'クラウドデータ形式が不正のため、ローカルデータを維持しました'
-                        ));
+                        ), 'action');
                     } else {
-                        setCloudStatus(tByLang(
+                        setCloudStatusWithMode((lang) => tByLangBy(
+                            lang,
                             '雲端目前沒有可下載資料',
                             'No cloud data available to download',
                             'ダウンロード可能なクラウドデータがありません'
-                        ));
+                        ), 'action');
                     }
                 } catch (error) {
-                    setCloudStatus(tByLang('雲端下載失敗，資料仍保留在本機', 'Cloud download failed. Local data is kept', 'クラウドのダウンロードに失敗しました。ローカルデータは保持されています'));
+                    setCloudStatusWithMode((lang) => tByLangBy(
+                        lang,
+                        '雲端下載失敗，資料仍保留在本機',
+                        'Cloud download failed. Local data is kept',
+                        'クラウドのダウンロードに失敗しました。ローカルデータは保持されています'
+                    ), 'action');
                 } finally {
                     setIsCloudSyncing(false);
                 }
@@ -2306,20 +2392,31 @@
 
             const handleCloudUpload = async () => {
                 if (!isCloudEnabled) {
-                    setCloudStatus(tByLang(
+                    setCloudStatusWithMode((lang) => tByLangBy(
+                        lang,
                         '尚未設定 Firebase，請先在 index.html 填入 Firebase 設定',
                         'Firebase is not configured yet. Please fill FIREBASE_CONFIG in index.html first',
                         'Firebase が未設定です。先に index.html の FIREBASE_CONFIG を設定してください'
-                    ));
+                    ), 'action');
                     return;
                 }
                 if (!authUser) {
-                    setCloudStatus(tByLang('請先登入 Google 後再同步', 'Please sign in to Google before syncing', '同期前に Google にログインしてください'));
+                    setCloudStatusWithMode((lang) => tByLangBy(
+                        lang,
+                        '請先登入 Google 後再同步',
+                        'Please sign in to Google before syncing',
+                        '同期前に Google にログインしてください'
+                    ), 'action');
                     return;
                 }
 
                 setIsCloudSyncing(true);
-                setCloudStatus(tByLang('上載雲端中...', 'Uploading to cloud...', 'クラウドへアップロード中...'));
+                setCloudStatusWithMode((lang) => tByLangBy(
+                    lang,
+                    '上載雲端中...',
+                    'Uploading to cloud...',
+                    'クラウドへアップロード中...'
+                ), 'action');
 
                 try {
                     const payload = buildCloudSyncPayload({
@@ -2340,24 +2437,43 @@
                         localPayload: payload
                     });
 
-                    setCloudStatus(tByLang(
+                    setCloudStatusWithMode((lang) => tByLangBy(
+                        lang,
                         `已上載本機資料到雲端（${authUser.email || 'Google 帳號'}）`,
                         `Local data uploaded to cloud (${authUser.email || 'Google Account'})`,
                         `ローカルデータをクラウドへアップロードしました（${authUser.email || 'Google アカウント'}）`
-                    ));
+                    ), 'action');
                 } catch (error) {
-                    setCloudStatus(tByLang('雲端上載失敗，資料仍保留在本機', 'Cloud upload failed. Local data is kept', 'クラウドへのアップロードに失敗しました。ローカルデータは保持されています'));
+                    setCloudStatusWithMode((lang) => tByLangBy(
+                        lang,
+                        '雲端上載失敗，資料仍保留在本機',
+                        'Cloud upload failed. Local data is kept',
+                        'クラウドへのアップロードに失敗しました。ローカルデータは保持されています'
+                    ), 'action');
                 } finally {
                     setIsCloudSyncing(false);
                 }
             };
 
             const handleGoogleLogin = async () => {
-                await loginWithGoogle({ isCloudEnabled, firebaseAuth, firebase, onStatus: setCloudStatus, tByLang });
+                await loginWithGoogle({
+                    isCloudEnabled,
+                    firebaseAuth,
+                    firebase,
+                    onStatus: (message) => setCloudStatusWithMode(message, 'action'),
+                    tByLang,
+                    tByLangBy
+                });
             };
 
             const handleGoogleLogout = async () => {
-                await logoutGoogle({ isCloudEnabled, firebaseAuth, onStatus: setCloudStatus, tByLang });
+                await logoutGoogle({
+                    isCloudEnabled,
+                    firebaseAuth,
+                    onStatus: (message) => setCloudStatusWithMode(message, 'action'),
+                    tByLang,
+                    tByLangBy
+                });
             };
 
             const handleExportData = () => {
@@ -2755,13 +2871,13 @@
                                             >
                                                 {PAGE_LANGUAGE_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
                                             </select>
-                                            <div className="text-[10px] text-slate-400 font-black uppercase tracking-widest">主題 Theme</div>
+                                            <div className="text-[10px] text-slate-400 font-black uppercase tracking-widest">{pageText.theme}</div>
                                             <select
                                                 value={themeId}
                                                 onChange={e => setThemeId(e.target.value)}
                                                 className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 font-bold text-sm shadow-sm outline-none"
                                             >
-                                                {THEME_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                                                {themeOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
                                             </select>
                                             <button
                                                 onClick={() => { handleExportData(); setShowSettings(false); }}
@@ -2913,7 +3029,7 @@
                                     }}
                                     className="theme-input rounded-lg px-3 py-2 font-bold text-sm shadow-sm outline-none w-full sm:w-auto"
                                 >
-                                    {CATEGORY_KEYS.map(categoryKey => <option key={categoryKey} value={categoryKey}>{CATEGORIES[categoryKey].label}</option>)}
+                                    {CATEGORY_KEYS.map(categoryKey => <option key={categoryKey} value={categoryKey}>{translate(CATEGORIES[categoryKey].label)}</option>)}
                                 </select>
                                 <select
                                     value={statsBreakdownMode}
@@ -2923,8 +3039,8 @@
                                     }}
                                     className="theme-input rounded-lg px-3 py-2 font-bold text-sm shadow-sm outline-none w-full sm:w-auto"
                                 >
-                                    <option value="ACCOUNT">按帳戶佔比</option>
-                                    <option value="ITEM">按帳戶內細項</option>
+                                    <option value="ACCOUNT">{tByLang('按帳戶佔比', 'By Account Share', '口座別比率')}</option>
+                                    <option value="ITEM">{tByLang('按帳戶內細項', 'By Account Item Share', '口座内項目別比率')}</option>
                                 </select>
                                 {statsBreakdownMode === 'ITEM' && (
                                     <select
@@ -2938,7 +3054,7 @@
                                         {accountStats.accountNames.length ? (
                                             accountStats.accountNames.map(account => <option key={account} value={account}>{account}</option>)
                                         ) : (
-                                            <option value="">尚無帳戶</option>
+                                            <option value="">{tByLang('尚無帳戶', 'No accounts yet', '口座がありません')}</option>
                                         )}
                                     </select>
                                 )}
@@ -2946,7 +3062,7 @@
                         </div>
 
                         {!accountStats.accountNames.length ? (
-                            <p className="text-sm theme-text-sub font-bold">目前此類別沒有可統計資料</p>
+                            <p className="text-sm theme-text-sub font-bold">{tByLang('目前此類別沒有可統計資料', 'No data for this category yet', 'このカテゴリに集計データがありません')}</p>
                         ) : (
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
                                 <div className="flex justify-center">
@@ -2978,7 +3094,7 @@
                                         )}
                                         <circle cx="130" cy="130" r="62" fill={accountChartCenterStyle.holeFill} />
                                         <text x="130" y="116" textAnchor="middle" style={{ fontSize: '10px', fontWeight: 800, fill: accountChartCenterStyle.labelFill }}>
-                                            {accountStats.selectedItem ? accountStats.selectedItem.label : (statsBreakdownMode === 'ACCOUNT' ? CATEGORIES[selectedStatsCategory].label : accountStats.currentAccount)}
+                                            {accountStats.selectedItem ? accountStats.selectedItem.label : (statsBreakdownMode === 'ACCOUNT' ? translate(CATEGORIES[selectedStatsCategory].label) : accountStats.currentAccount)}
                                         </text>
                                         <text x="130" y="136" textAnchor="middle" style={{ fontSize: '13px', fontWeight: 900, fill: accountChartCenterStyle.valueFill }}>
                                             {accountStats.selectedItem ? `${formatAmount(accountStats.selectedItem.valueDisplay)} ${displayCurrency}` : `${formatAmount(accountStats.total)} ${displayCurrency}`}
@@ -3014,9 +3130,9 @@
 
                                     {accountStats.selectedItem && (
                                         <details className="rounded-xl p-4 theme-summary-card" style={overviewPanelCardStyle} open>
-                                            <summary className="md:hidden text-xs theme-text-sub font-black cursor-pointer list-none">已選擇項目細節</summary>
+                                            <summary className="md:hidden text-xs theme-text-sub font-black cursor-pointer list-none">{tByLang('已選擇項目細節', 'Selected Item Details', '選択中の項目詳細')}</summary>
                                             <div className="mt-3 md:mt-0">
-                                                <div className="text-xs theme-text-sub font-black mb-2">已選擇項目</div>
+                                                <div className="text-xs theme-text-sub font-black mb-2">{tByLang('已選擇項目', 'Selected Item', '選択中の項目')}</div>
                                                 <div className="text-base font-black theme-text-main mb-1">{accountStats.selectedItem.label}</div>
                                                 <div className="text-xs theme-text-sub font-bold mb-2">
                                                     {statsBreakdownMode === 'ACCOUNT'
@@ -3025,7 +3141,7 @@
                                                             `Account Asset Items: ${accountStats.selectedItem.members?.length || 0}`,
                                                             `口座資産項目：${accountStats.selectedItem.members?.length || 0}件`
                                                         )
-                                                        : (accountStats.selectedItem.subtype || CATEGORIES[selectedStatsCategory].label)}
+                                                        : (accountStats.selectedItem.subtype || translate(CATEGORIES[selectedStatsCategory].label))}
                                                     {accountStats.selectedItem.symbol ? ` · ${accountStats.selectedItem.symbol}` : ''}
                                                 </div>
                                                 <div className="text-sm font-bold theme-text-main">{tByLang('名稱：', 'Name:', '名称：')}{accountStats.selectedItem.label}</div>
@@ -3160,7 +3276,7 @@
                                 data-active={selectedCategories.includes(categoryKey) ? 'true' : 'false'}
                                 style={buildCategoryChipStyle(categoryMixHexByKey[categoryKey], selectedCategories.includes(categoryKey))}
                             >
-                                <span>{CATEGORIES[categoryKey].label}</span>
+                                <span>{translate(CATEGORIES[categoryKey].label)}</span>
                             </button>
                         ))}
                         <select
@@ -3196,7 +3312,7 @@
                                         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
                                             <div className="flex items-center gap-2">
                                                 <div className="w-1.5 h-6 rounded-full" style={{ backgroundColor: categoryMixHexByKey[catKey] }}></div>
-                                                <h2 className="text-base font-black text-slate-800">{CATEGORIES[catKey].label}</h2>
+                                                <h2 className="text-base font-black text-slate-800">{translate(CATEGORIES[catKey].label)}</h2>
                                             </div>
                                             <div className={`text-sm font-black ${isLiabilityCategory ? 'text-rose-500' : 'text-emerald-600'}`}>
                                                 {isLiabilityCategory ? '-' : ''}{formatAmount(Math.abs(categoryTotalDisplay))} {displayCurrency}
@@ -3226,7 +3342,7 @@
                                 <div key={catKey} className="space-y-4">
                                     <div className="flex items-center gap-2 px-2">
                                         <div className="w-1.5 h-6 rounded-full" style={{ backgroundColor: categoryMixHexByKey[catKey] }}></div>
-                                        <h2 className="text-lg font-black text-slate-800">{CATEGORIES[catKey].label}</h2>
+                                        <h2 className="text-lg font-black text-slate-800">{translate(CATEGORIES[catKey].label)}</h2>
                                     </div>
 
                                     {accounts.map(({ accountName, items }) => {
@@ -3251,7 +3367,7 @@
                                                 <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest">{accountName}</h3>
                                                 <div className="text-right flex items-center gap-3">
                                                     <div>
-                                                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">帳戶匯總</div>
+                                                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">{translate('帳戶匯總')}</div>
                                                     <div className={`text-sm font-black ${isLiabilityCategory ? 'text-rose-500' : 'text-emerald-600'}`}>
                                                         {isLiabilityCategory ? '-' : ''}{formatAmount(Math.abs(accountTotalDisplay))} {displayCurrency}
                                                     </div>
@@ -3278,8 +3394,8 @@
                                                             <div key={item.id} onClick={() => openEdit(item)} className="rounded-xl border border-slate-100 bg-white shadow-sm p-4 space-y-2">
                                                                 <div className="flex items-start justify-between gap-3">
                                                                     <div>
-                                                                        <div className="font-black text-slate-800">{item.name}</div>
-                                                                        <div className="text-[10px] text-slate-400 font-bold">{CATEGORIES[item.category].label} / {item.subtype}</div>
+                                                                        <div className="font-black text-slate-800">{translate(item.name || '')}</div>
+                                                                        <div className="text-[10px] text-slate-400 font-bold">{translate(CATEGORIES[item.category].label)} / {translate(item.subtype)}</div>
                                                                     </div>
                                                                     <div className={`text-base font-black ${highlightClass}`}>
                                                                         {amountPrefix}{formatAmount(mktValDisplay)} {displayCurrency}
@@ -3408,12 +3524,12 @@
                                                     )}
                                                     <thead className="text-[10px] font-black text-slate-400 uppercase tracking-tighter bg-slate-50/30">
                                                         <tr>
-                                                            <th className="px-6 py-3">名稱 / 細項</th>
-                                                            <th className="px-6 py-3 text-right">{isInsuranceCategory ? '保費設定' : isLiquidCategory ? '數量 / 幣別' : isLiabilityCategory ? '金額 / 期數' : isReceivableCategory ? '應收金額 / 期數' : isFixedCategory ? '估值 / 成本' : '市值 / 數量'}</th>
-                                                            <th className="px-6 py-3 text-right">{isInsuranceCategory ? '已繳期數' : isLiquidCategory ? '餘額' : isLiabilityCategory ? '利率 / 到期' : isReceivableCategory ? '到期 / 對象' : isFixedCategory ? '購入日 / 備註' : '現價 / 成本'}</th>
-                                                            {isInsuranceCategory && <th className="px-6 py-3 text-right">保單價值</th>}
-                                                            {isInvestCategory && <th className="px-6 py-3 text-right">持倉盈虧</th>}
-                                                            {isInvestCategory && <th className="px-6 py-3 text-right">績效</th>}
+                                                            <th className="px-6 py-3">{translate('名稱 / 細項')}</th>
+                                                            <th className="px-6 py-3 text-right">{isInsuranceCategory ? translate('保費設定') : isLiquidCategory ? translate('數量 / 幣別') : isLiabilityCategory ? translate('金額 / 期數') : isReceivableCategory ? translate('應收金額 / 期數') : isFixedCategory ? translate('估值 / 成本') : translate('市值 / 數量')}</th>
+                                                            <th className="px-6 py-3 text-right">{isInsuranceCategory ? translate('已繳期數') : isLiquidCategory ? translate('餘額') : isLiabilityCategory ? translate('利率 / 到期') : isReceivableCategory ? translate('到期 / 對象') : isFixedCategory ? translate('購入日 / 備註') : translate('現價 / 成本')}</th>
+                                                            {isInsuranceCategory && <th className="px-6 py-3 text-right">{translate('保單價值')}</th>}
+                                                            {isInvestCategory && <th className="px-6 py-3 text-right">{translate('持倉盈虧')}</th>}
+                                                            {isInvestCategory && <th className="px-6 py-3 text-right">{translate('績效')}</th>}
                                                         </tr>
                                                     </thead>
                                                     <tbody className="divide-y divide-slate-50">
@@ -3475,8 +3591,8 @@
                                                             return (
                                                                 <tr key={item.id} onClick={() => openEdit(item)} className="hover:bg-indigo-50/30 cursor-pointer transition-colors group">
                                                                     <td className="px-6 py-4">
-                                                                        <div className="font-bold text-slate-800">{item.name}</div>
-                                                                        <div className="text-[10px] text-slate-400 font-medium">{CATEGORIES[item.category].label} / {item.subtype}</div>
+                                                                        <div className="font-bold text-slate-800">{translate(item.name || '')}</div>
+                                                                        <div className="text-[10px] text-slate-400 font-medium">{translate(CATEGORIES[item.category].label)} / {translate(item.subtype)}</div>
                                                                         {isMortgageLiability && (
                                                                             <div className="text-[10px] text-slate-500 font-medium mt-1">
                                                                                 首期 {formatAmount(mortgageDownPaymentDisplay)} {displayCurrency} · 貸款 {formatAmount(mortgageLoanDisplay)} {displayCurrency} · 利息 {formatAmount(mortgageInterestDisplay)} {displayCurrency}
