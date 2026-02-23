@@ -15,7 +15,22 @@
         cashflowView,
         setCashflowView,
         WEEKDAY_LABELS
-    }) => (
+    }) => {
+        const mobileListRef = React.useRef(null);
+        const mobileTodayCardRef = React.useRef(null);
+
+        React.useEffect(() => {
+            if (cashflowView !== 'MONTH') return;
+            if (!window.matchMedia('(max-width: 767px)').matches) return;
+            const listEl = mobileListRef.current;
+            const todayEl = mobileTodayCardRef.current;
+            if (!listEl || !todayEl) return;
+
+            const scrollTop = Math.max(0, todayEl.offsetTop - (listEl.clientHeight * 0.22));
+            listEl.scrollTo({ top: scrollTop, behavior: 'smooth' });
+        }, [cashflowView, cashflowMonthData.dayRows]);
+
+        return (
         <>
             <div className="order-1 grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div className="theme-income-card rounded-xl p-4">
@@ -55,15 +70,16 @@
                 <div className="order-1 space-y-3">
                     <div className="md:hidden">
                         <div className="text-[10px] text-slate-400 font-black mb-2">固定顯示約 5-10 日，可上下滑動查看更多</div>
-                        <div className="space-y-2 max-h-[68vh] min-h-[52vh] overflow-y-auto pr-1 custom-scrollbar">
+                        <div ref={mobileListRef} className="space-y-2 max-h-[68vh] min-h-[52vh] overflow-y-auto pr-1 custom-scrollbar">
                         {cashflowMonthData.dayRows.map(day => (
                             <div
                                 key={day.dateKey}
-                                className={`min-h-[96px] rounded-xl border bg-white px-3 py-2.5 flex flex-col gap-1.5 ${day.entries.length > 0 ? 'border-indigo-200 ring-1 ring-indigo-100' : 'border-slate-100'}`}
+                                ref={day.dateKey === TODAY_DATE_KEY ? mobileTodayCardRef : null}
+                                className={`min-h-[96px] rounded-xl border px-3 py-2.5 flex flex-col gap-1.5 ${day.dateKey === TODAY_DATE_KEY ? 'bg-indigo-50/80 border-indigo-300 ring-1 ring-indigo-200 shadow-sm shadow-indigo-100/70' : day.entries.length > 0 ? 'bg-white border-indigo-200 ring-1 ring-indigo-100' : 'bg-white border-slate-100'}`}
                             >
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-1.5">
-                                        <span className="text-sm font-black text-slate-700">{day.day} 日</span>
+                                        <span className={`text-sm font-black ${day.dateKey === TODAY_DATE_KEY ? 'text-indigo-700' : 'text-slate-700'}`}>{day.day} 日</span>
                                         {day.dateKey === TODAY_DATE_KEY && (
                                             <span className="px-1.5 py-0.5 rounded-full text-[9px] font-black bg-indigo-100 text-indigo-600">今日</span>
                                         )}
@@ -106,10 +122,13 @@
                                 <div key={`empty-${idx}`} className="h-24 rounded-xl bg-slate-50/40 border border-slate-100"></div>
                             ))}
                             {cashflowMonthData.dayRows.map(day => (
-                                <div key={day.dateKey} className="min-h-24 rounded-xl border border-slate-100 bg-white p-2 flex flex-col gap-1">
+                                <div
+                                    key={day.dateKey}
+                                    className={`min-h-24 rounded-xl border p-2 flex flex-col gap-1 ${day.dateKey === TODAY_DATE_KEY ? 'bg-indigo-50/70 border-indigo-300 ring-1 ring-indigo-200 shadow-sm shadow-indigo-100/70' : 'bg-white border-slate-100'}`}
+                                >
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-1">
-                                            <span className="text-xs font-black text-slate-700">{day.day}</span>
+                                            <span className={`text-xs font-black ${day.dateKey === TODAY_DATE_KEY ? 'text-indigo-700' : 'text-slate-700'}`}>{day.day}</span>
                                             {day.dateKey === TODAY_DATE_KEY && (
                                                 <span className="px-1.5 py-0.5 rounded-full text-[9px] font-black bg-indigo-100 text-indigo-600">今日</span>
                                             )}
@@ -175,6 +194,7 @@
             )}
         </>
     );
+    };
 
     window.APP_CASHFLOW_OVERVIEW_VIEW = {
         CashflowOverviewView
