@@ -77,52 +77,132 @@
 
     const THEME_WEALTH_TITLES = {
         'macaron-prince': [
-            { suffix: '迷路奶油勺', emoji: '🍭⚠️' },
-            { suffix: '馬卡龍見習生', emoji: '🌱🍬' },
-            { suffix: '糖霜小騎士', emoji: '🍀🗡️' },
-            { suffix: '草莓塔管家', emoji: '🌸🛡️' },
-            { suffix: '奶霜勳章王子', emoji: '🧭🍯' },
-            { suffix: '甜圈巡遊者', emoji: '🚗💎' },
-            { suffix: '城堡甜點領班', emoji: '🏡👑' },
+            { suffix: '迷路奶油球', emoji: '🍬⚠️' },
+            { suffix: '馬卡龍新手', emoji: '🌱🍬' },
+            { suffix: '糖霜小隊長', emoji: '🍀🧁' },
+            { suffix: '草莓塔小管家', emoji: '🍓🛡️' },
+            { suffix: '奶霜達人', emoji: '🧭🍰' },
+            { suffix: '甜圈巡遊者', emoji: '🚗🍩' },
+            { suffix: '城堡甜點隊長', emoji: '🏡👑' },
             { suffix: '糖塔總管', emoji: '🏰✨' },
             { suffix: '王室甜點顧問', emoji: '💠🍰' },
-            { suffix: '糖果伯爵', emoji: '💼🌟' },
-            { suffix: '奶霜公爵', emoji: '💎🍭' },
-            { suffix: '王都甜點守護者', emoji: '🏰👑' },
+            { suffix: '糖果伯爵', emoji: '💼🍭' },
+            { suffix: '奶霜公爵', emoji: '💎🧁' },
+            { suffix: '王都甜點守護者', emoji: '🏰🍰' },
             { suffix: '星糖皇冠領主', emoji: '🌟👑' },
             { suffix: '宇宙糖果王子', emoji: '🌌🍬' }
         ],
         'mint-prince': [
-            { suffix: '迷霧觀星者', emoji: '✨⚠️' },
-            { suffix: '流星見習王子', emoji: '🌠🔹' },
-            { suffix: '月塵小騎士', emoji: '🌙🛡️' },
-            { suffix: '星願管家', emoji: '🪐✨' },
-            { suffix: '星紋王子', emoji: '🧭🌟' },
-            { suffix: '流光巡遊者', emoji: '🚗💫' },
-            { suffix: '蒼穹庭園王子', emoji: '🏡🌌' },
-            { suffix: '彗尾總管', emoji: '🏙️✨' },
-            { suffix: '王室星象顧問', emoji: '💠🔮' },
-            { suffix: '星軌伯爵', emoji: '💼🌬️' },
-            { suffix: '星環公爵', emoji: '💎🌠' },
-            { suffix: '銀河王都衛士', emoji: '🏰🪐' },
-            { suffix: '星霧皇冠領主', emoji: '👑🌫️' },
-            { suffix: '宇宙星辰王子', emoji: '🌌✨' }
+            { suffix: '迷路薄荷豆', emoji: '🌿⚠️' },
+            { suffix: '薄荷巧克力新手', emoji: '🌱🍫' },
+            { suffix: '可可小隊長', emoji: '🍀🍫' },
+            { suffix: '薄荷管家', emoji: '🛡️🌿' },
+            { suffix: '薄荷可可達人', emoji: '🧭🍫' },
+            { suffix: '薄荷巡遊者', emoji: '🚗🌿' },
+            { suffix: '巧克力城堡王子', emoji: '🏡🍫' },
+            { suffix: '薄荷總管', emoji: '🏙️🌿' },
+            { suffix: '王室可可顧問', emoji: '💠🍫' },
+            { suffix: '薄荷伯爵', emoji: '💼🌿' },
+            { suffix: '巧克力公爵', emoji: '💎🍫' },
+            { suffix: '王都薄荷守護者', emoji: '🏰🌿' },
+            { suffix: '可可皇冠領主', emoji: '👑🍫' },
+            { suffix: '宇宙薄荷王子', emoji: '🌌🌿' }
         ],
         'lavender-prince': [
-            { suffix: '迷航小水手', emoji: '🌊⚠️' },
-            { suffix: '海灣見習王子', emoji: '🌱⚓' },
-            { suffix: '珊瑚小騎士', emoji: '🍀🌊' },
-            { suffix: '港灣管家', emoji: '🐚🛡️' },
-            { suffix: '潮汐王子', emoji: '🧭🐬' },
-            { suffix: '洋流巡遊者', emoji: '🚤💎' },
-            { suffix: '藍灣城堡王子', emoji: '🏝️👑' },
-            { suffix: '海圖總管', emoji: '🏙️🌊' },
-            { suffix: '王室海圖顧問', emoji: '💠⚓' },
-            { suffix: '浪潮伯爵', emoji: '💼🌊' },
-            { suffix: '深藍公爵', emoji: '💎🐋' },
-            { suffix: '海都王城守護者', emoji: '🏰🌊' },
-            { suffix: '海冠領主', emoji: '👑🐙' },
-            { suffix: '深海星辰王子', emoji: '🌌🌊' }
+            { suffix: '迷路薰衣草', emoji: '🪻⚠️' },
+            { suffix: '薰衣草新手', emoji: '🌱🪻' },
+            { suffix: '蜂蜜小隊長', emoji: '🍯✨' },
+            { suffix: '薰香管家', emoji: '🛡️🪻' },
+            { suffix: '薰衣草達人', emoji: '🧭🪻' },
+            { suffix: '蜂蜜巡遊者', emoji: '🚗🍯' },
+            { suffix: '薰香城堡王子', emoji: '🏡🪻' },
+            { suffix: '蜂蜜總管', emoji: '🏙️🍯' },
+            { suffix: '王室薰香顧問', emoji: '💠🪻' },
+            { suffix: '蜂蜜伯爵', emoji: '💼🍯' },
+            { suffix: '薰香公爵', emoji: '💎🪻' },
+            { suffix: '王都薰香守護者', emoji: '🏰🪻' },
+            { suffix: '蜂蜜皇冠領主', emoji: '👑🍯' },
+            { suffix: '宇宙薰香王子', emoji: '🌌🪻' }
+        ],
+        'strawberry-tart-prince': [
+            { suffix: '迷路草莓籽', emoji: '🍓⚠️' },
+            { suffix: '草莓見習生', emoji: '🌱🍓' },
+            { suffix: '糖霜草莓騎士', emoji: '🍓🗡️' },
+            { suffix: '草莓塔管家', emoji: '🍰🛡️' },
+            { suffix: '草莓園匠師', emoji: '🍓🌿' },
+            { suffix: '草莓巡遊者', emoji: '🚗🍓' },
+            { suffix: '草莓城堡王子', emoji: '🏡🍓' },
+            { suffix: '草莓塔總管', emoji: '🏰🍓' },
+            { suffix: '王室草莓顧問', emoji: '💠🍓' },
+            { suffix: '草莓伯爵', emoji: '💼🍓' },
+            { suffix: '草莓公爵', emoji: '💎🍓' },
+            { suffix: '草莓王都守護者', emoji: '🏰✨' },
+            { suffix: '草莓皇冠領主', emoji: '👑🍓' },
+            { suffix: '星糖草莓王子', emoji: '🌌🍓' }
+        ],
+        'caramel-pudding-prince': [
+            { suffix: '迷路焦糖勺', emoji: '🍮⚠️' },
+            { suffix: '布丁見習生', emoji: '🌱🍮' },
+            { suffix: '焦糖小騎士', emoji: '🍮🗡️' },
+            { suffix: '布丁管家', emoji: '🍮🛡️' },
+            { suffix: '焦糖匠師', emoji: '🧭🍮' },
+            { suffix: '焦糖巡遊者', emoji: '🚗🍮' },
+            { suffix: '布丁城堡王子', emoji: '🏡🍮' },
+            { suffix: '焦糖總管', emoji: '🏙️🍮' },
+            { suffix: '王室布丁顧問', emoji: '💠🍮' },
+            { suffix: '焦糖伯爵', emoji: '💼🍮' },
+            { suffix: '焦糖公爵', emoji: '💎🍮' },
+            { suffix: '王都焦糖守護者', emoji: '🏰🍮' },
+            { suffix: '皇冠布丁領主', emoji: '👑🍮' },
+            { suffix: '宇宙焦糖王子', emoji: '🌌🍮' }
+        ],
+        'milk-tea-boba-prince': [
+            { suffix: '迷路珍珠', emoji: '🧋⚠️' },
+            { suffix: '奶茶見習生', emoji: '🌱🧋' },
+            { suffix: '珍珠小騎士', emoji: '🧋🗡️' },
+            { suffix: '珍珠管家', emoji: '🧋🛡️' },
+            { suffix: '奶茶調飲師', emoji: '🧭🧋' },
+            { suffix: '奶茶巡遊者', emoji: '🚗🧋' },
+            { suffix: '珍珠城堡王子', emoji: '🏡🧋' },
+            { suffix: '珍珠總管', emoji: '🏙️🧋' },
+            { suffix: '王室奶茶顧問', emoji: '💠🧋' },
+            { suffix: '珍珠伯爵', emoji: '💼🧋' },
+            { suffix: '珍珠公爵', emoji: '💎🧋' },
+            { suffix: '王都奶茶守護者', emoji: '🏰🧋' },
+            { suffix: '皇冠珍珠領主', emoji: '👑🧋' },
+            { suffix: '宇宙奶茶王子', emoji: '🌌🧋' }
+        ],
+        'black-forest-prince': [
+            { suffix: '迷路櫻桃', emoji: '🍒⚠️' },
+            { suffix: '森林見習生', emoji: '🌱🍒' },
+            { suffix: '黑森小騎士', emoji: '🍒🗡️' },
+            { suffix: '森林管家', emoji: '🍒🛡️' },
+            { suffix: '黑森匠師', emoji: '🧭🍒' },
+            { suffix: '黑森巡遊者', emoji: '🚗🍒' },
+            { suffix: '森林城堡王子', emoji: '🏡🍒' },
+            { suffix: '森林總管', emoji: '🏙️🍒' },
+            { suffix: '王室黑森顧問', emoji: '💠🍒' },
+            { suffix: '黑森林伯爵', emoji: '💼🍒' },
+            { suffix: '黑森林公爵', emoji: '💎🍒' },
+            { suffix: '森林王都守護者', emoji: '🏰🍒' },
+            { suffix: '櫻桃皇冠領主', emoji: '👑🍒' },
+            { suffix: '宇宙黑森王子', emoji: '🌌🍒' }
+        ],
+        'coconut-snowball-prince': [
+            { suffix: '迷路椰雪', emoji: '🥥⚠️' },
+            { suffix: '椰雪見習生', emoji: '🌱🥥' },
+            { suffix: '雪球小騎士', emoji: '🥥🗡️' },
+            { suffix: '椰雪管家', emoji: '🥥🛡️' },
+            { suffix: '椰香匠師', emoji: '🧭🥥' },
+            { suffix: '椰雪巡遊者', emoji: '🚗🥥' },
+            { suffix: '雪堡王子', emoji: '🏡🥥' },
+            { suffix: '雪堡總管', emoji: '🏙️🥥' },
+            { suffix: '王室椰香顧問', emoji: '💠🥥' },
+            { suffix: '椰雪伯爵', emoji: '💼🥥' },
+            { suffix: '椰雪公爵', emoji: '💎🥥' },
+            { suffix: '王都椰雪守護者', emoji: '🏰🥥' },
+            { suffix: '椰雪皇冠領主', emoji: '👑🥥' },
+            { suffix: '宇宙椰雪王子', emoji: '🌌🥥' }
         ]
     };
 
@@ -145,10 +225,20 @@
         return result;
     }, {});
 
+    const WEALTH_THEME_ALIAS = {};
+
     const resolveThemeIdForWealthTitle = (themeId) => {
-        if (typeof themeId === 'string' && WEALTH_TITLE_BY_THEME[themeId]) return themeId;
+        if (typeof themeId === 'string') {
+            if (WEALTH_TITLE_BY_THEME[themeId]) return themeId;
+            const aliased = WEALTH_THEME_ALIAS[themeId];
+            if (aliased && WEALTH_TITLE_BY_THEME[aliased]) return aliased;
+        }
         const domTheme = typeof document !== 'undefined' ? document.documentElement?.getAttribute('data-theme') : '';
-        if (domTheme && WEALTH_TITLE_BY_THEME[domTheme]) return domTheme;
+        if (domTheme) {
+            if (WEALTH_TITLE_BY_THEME[domTheme]) return domTheme;
+            const aliased = WEALTH_THEME_ALIAS[domTheme];
+            if (aliased && WEALTH_TITLE_BY_THEME[aliased]) return aliased;
+        }
         return 'macaron-prince';
     };
 

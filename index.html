@@ -49,7 +49,8 @@
             border: 1px solid var(--header-border, #FFD1DC);
             background: linear-gradient(90deg, var(--header-bg-start, #FEF5F7), var(--header-bg-mid, #F2FBFD), var(--header-bg-end, #FFF7EC));
         }
-        [data-theme='mint-prince'] .theme-header-card {
+        [data-theme='mint-prince'] .theme-header-card,
+        [data-theme='black-forest-prince'] .theme-header-card {
             border-color: color-mix(in srgb, var(--gold, #F2D492) 28%, var(--header-border, rgba(224, 212, 245, 0.2)) 72%);
             box-shadow:
                 0 0 0 1px color-mix(in srgb, var(--gold, #F2D492) 22%, transparent 78%),
@@ -142,7 +143,11 @@
         [data-theme='mint-prince'] .theme-surface,
         [data-theme='mint-prince'] .theme-summary-card,
         [data-theme='mint-prince'] .theme-soft-surface,
-        [data-theme='mint-prince'] .theme-modal-shell {
+        [data-theme='mint-prince'] .theme-modal-shell,
+        [data-theme='black-forest-prince'] .theme-surface,
+        [data-theme='black-forest-prince'] .theme-summary-card,
+        [data-theme='black-forest-prince'] .theme-soft-surface,
+        [data-theme='black-forest-prince'] .theme-modal-shell {
             border-color: color-mix(in srgb, var(--gold, #F2D492) 24%, var(--header-border, rgba(224, 212, 245, 0.2)) 76%);
             box-shadow: 0 0 0 1px color-mix(in srgb, var(--gold, #F2D492) 12%, transparent 88%);
         }
@@ -711,6 +716,17 @@
             const importInputRef = useRef(null);
             const cashflowFormRef = useRef(null);
 
+            const resolveThemeFamily = (rawThemeId) => {
+                const familyMap = {
+                    'strawberry-tart-prince': 'macaron-prince',
+                    'caramel-pudding-prince': 'macaron-prince',
+                    'milk-tea-boba-prince': 'macaron-prince',
+                    'black-forest-prince': 'mint-prince',
+                    'coconut-snowball-prince': 'lavender-prince'
+                };
+                return familyMap[rawThemeId] || rawThemeId;
+            };
+
             const getThemeToken = (tokenName, fallback) => {
                 if (typeof window === 'undefined' || typeof document === 'undefined') return fallback;
                 const value = getComputedStyle(document.documentElement).getPropertyValue(tokenName).trim();
@@ -756,12 +772,13 @@
 
             const buildNetworthCardStyle = (currentThemeId, tierIndex) => {
                 const safeTier = Math.max(0, Math.min(13, Number(tierIndex) || 0));
+                const resolvedThemeId = resolveThemeFamily(currentThemeId);
                 const paletteByTheme = {
                     'macaron-prince': ['--primary', '--accent', '--gold', '--danger'],
                     'mint-prince': ['--primary', '--accent', '--gold', '--card-net-end'],
                     'lavender-prince': ['--accent', '--card-net-end', '--gold', '--primary']
                 };
-                const selectedPalette = paletteByTheme[currentThemeId] || paletteByTheme['macaron-prince'];
+                const selectedPalette = paletteByTheme[resolvedThemeId] || paletteByTheme['macaron-prince'];
                 const startVar = selectedPalette[safeTier % selectedPalette.length];
                 const midVar = selectedPalette[(safeTier + 1) % selectedPalette.length];
                 const endVar = selectedPalette[(safeTier + 2) % selectedPalette.length];
@@ -773,7 +790,7 @@
 
                 const baseGradient = `linear-gradient(${angle}deg, color-mix(in srgb, var(${startVar}) ${startStrength}%, var(--panel-bg, #FFFFFF) ${100 - startStrength}%), color-mix(in srgb, var(${midVar}) ${midStrength}%, var(--panel-bg, #FFFFFF) ${100 - midStrength}%), color-mix(in srgb, var(${endVar}) ${endStrength}%, var(--panel-bg, #FFFFFF) ${100 - endStrength}%))`;
 
-                const starOverlay = currentThemeId === 'mint-prince'
+                const starOverlay = resolvedThemeId === 'mint-prince'
                     ? `radial-gradient(circle at ${14 + safeTier * 2}% ${22 + safeTier}% , color-mix(in srgb, var(--gold, #F2D492) 76%, #ffffff 24%) 0 1.4px, transparent 2.4px), radial-gradient(circle at ${82 - safeTier}% ${24 + safeTier * 2}% , color-mix(in srgb, var(--gold, #F2D492) 68%, #ffffff 32%) 0 1.2px, transparent 2.1px)`
                     : '';
 
@@ -790,6 +807,7 @@
 
             const buildSummaryCardStyle = (currentThemeId, tierIndex, variant = 'asset') => {
                 const safeTier = Math.max(0, Math.min(13, Number(tierIndex) || 0));
+                const resolvedThemeId = resolveThemeFamily(currentThemeId);
                 const assetPaletteByTheme = {
                     'macaron-prince': ['--primary', '--accent', '--gold'],
                     'mint-prince': ['--primary', '--accent', '--card-net-end'],
@@ -802,7 +820,7 @@
                 };
 
                 const paletteSource = variant === 'liability' ? liabilityPaletteByTheme : assetPaletteByTheme;
-                const selectedPalette = paletteSource[currentThemeId] || paletteSource['macaron-prince'];
+                const selectedPalette = paletteSource[resolvedThemeId] || paletteSource['macaron-prince'];
                 const startVar = selectedPalette[safeTier % selectedPalette.length];
                 const endVar = selectedPalette[(safeTier + 1) % selectedPalette.length];
 
@@ -821,12 +839,13 @@
 
             const buildMixSelectedStyle = (currentThemeId, tierIndex) => {
                 const safeTier = Math.max(0, Math.min(13, Number(tierIndex) || 0));
+                const resolvedThemeId = resolveThemeFamily(currentThemeId);
                 const paletteByTheme = {
                     'macaron-prince': ['--primary', '--accent', '--gold'],
                     'mint-prince': ['--primary', '--accent', '--gold'],
                     'lavender-prince': ['--accent', '--card-net-end', '--gold']
                 };
-                const selectedPalette = paletteByTheme[currentThemeId] || paletteByTheme['macaron-prince'];
+                const selectedPalette = paletteByTheme[resolvedThemeId] || paletteByTheme['macaron-prince'];
                 const baseVar = selectedPalette[safeTier % selectedPalette.length];
                 const borderVar = selectedPalette[(safeTier + 1) % selectedPalette.length];
                 const tintStrength = Math.min(28, 14 + safeTier);
@@ -2171,12 +2190,13 @@
             const selectedMixItemStyle = useMemo(() => buildMixSelectedStyle(themeId, netWorthTierIndex), [themeId, netWorthTierIndex]);
             const accountChartCenterStyle = useMemo(() => {
                 const safeTier = Math.max(0, Math.min(13, Number(netWorthTierIndex) || 0));
+                const resolvedThemeId = resolveThemeFamily(themeId);
                 const paletteByTheme = {
                     'macaron-prince': ['--primary', '--accent', '--gold'],
                     'mint-prince': ['--primary', '--accent', '--gold'],
                     'lavender-prince': ['--accent', '--card-net-end', '--gold']
                 };
-                const selectedPalette = paletteByTheme[themeId] || paletteByTheme['macaron-prince'];
+                const selectedPalette = paletteByTheme[resolvedThemeId] || paletteByTheme['macaron-prince'];
                 const mainVar = selectedPalette[safeTier % selectedPalette.length];
                 const subVar = selectedPalette[(safeTier + 1) % selectedPalette.length];
                 return {
