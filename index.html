@@ -24,6 +24,19 @@
     <script src="./cashflow-rules.js"></script>
     <script src="./cashflow-form.js"></script>
     <script src="./asset-actions.js"></script>
+    <script type="text/babel" src="./date-picker-view.js"></script>
+    <script type="text/babel" src="./app-header-status-view.js"></script>
+    <script type="text/babel" src="./app-header-view.js"></script>
+    <script type="text/babel" src="./app-footer-view.js"></script>
+    <script type="text/babel" src="./overview-section-view.js"></script>
+    <script type="text/babel" src="./finance-section-view.js"></script>
+    <script type="text/babel" src="./asset-filter-bar-view.js"></script>
+    <script type="text/babel" src="./asset-summary-list-view.js"></script>
+    <script type="text/babel" src="./asset-detail-list-view.js"></script>
+    <script type="text/babel" src="./app-status-messages.js"></script>
+    <script type="text/babel" src="./app-style-helpers.js"></script>
+    <script type="text/babel" src="./app-modals-view.js"></script>
+    <script type="text/babel" src="./cashflow-modal-view.js"></script>
     <script type="text/babel" src="./cashflow-form-view.js"></script>
     <script type="text/babel" src="./cashflow-overview-view.js"></script>
     <script type="text/babel" src="./cashflow-rules-view.js"></script>
@@ -38,279 +51,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="./i18n.js"></script>
     <link rel="stylesheet" href="./theme-bridge.css">
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Comic+Neue:wght@400;700&display=swap');
-        body { 
-            font-family: 'Comic Neue', 'Noto Sans TC', 'Segoe UI Emoji', 'Noto Color Emoji', 'Apple Color Emoji', sans-serif; 
-            background-color: var(--bg-page, #FFF9F5); 
-            color: var(--text-main, #5A4A42);
-        }
-        .theme-header-card {
-            border: 1px solid var(--header-border, #FFD1DC);
-            background: linear-gradient(90deg, var(--header-bg-start, #FEF5F7), var(--header-bg-mid, #F2FBFD), var(--header-bg-end, #FFF7EC));
-        }
-        [data-theme='mint-prince'] .theme-header-card,
-        [data-theme='black-forest-prince'] .theme-header-card {
-            border-color: color-mix(in srgb, var(--gold, #F2D492) 28%, var(--header-border, rgba(224, 212, 245, 0.2)) 72%);
-            box-shadow:
-                0 0 0 1px color-mix(in srgb, var(--gold, #F2D492) 22%, transparent 78%),
-                0 10px 24px color-mix(in srgb, var(--gold, #F2D492) 18%, transparent 82%);
-            background:
-                radial-gradient(circle at 12% 24%, color-mix(in srgb, var(--gold, #F2D492) 72%, #ffffff 28%) 0 1.4px, transparent 2.2px),
-                radial-gradient(circle at 82% 30%, color-mix(in srgb, var(--gold, #F2D492) 64%, #ffffff 36%) 0 1.2px, transparent 2px),
-                linear-gradient(90deg, var(--header-bg-start, #F9F5FF), var(--header-bg-mid, #FAF8FF), var(--header-bg-end, #FEFCFF));
-        }
-        .theme-crown {
-            background: linear-gradient(135deg, var(--gold, #E8C39E), var(--primary, #FFB6C1), var(--accent, #A7D8DE));
-        }
-        .theme-subcard {
-            background-color: rgba(255, 255, 255, 0.92);
-            border: 1px solid var(--header-border, #FFD1DC);
-        }
-        .theme-text-main { color: var(--text-main, #5A4A42); }
-        .theme-text-sub { color: var(--text-sub, #8C7A6E); }
-        .theme-btn-primary { background-color: var(--primary, #FFB6C1); }
-        .theme-btn-primary:hover { background-color: var(--primary-hover, #FF9AB5); }
-        .theme-btn-accent { background-color: var(--accent, #A7D8DE); }
-        .theme-btn-accent:hover { background-color: var(--accent-hover, #8CCFD6); }
-        .theme-btn-gold { background-color: var(--gold, #E8C39E); }
-        .theme-btn-gold:hover { background-color: var(--gold-hover, #DDB88E); }
-        .theme-btn-danger { background-color: var(--danger, #FFB3BA); }
-        .theme-btn-danger:hover { background-color: var(--danger-hover, #FFA5AE); }
-        .theme-networth-card {
-            background: linear-gradient(90deg, var(--card-net-start, #FFB6C1), var(--card-net-mid, #C8B6FF), var(--card-net-end, #A7D8DE));
-        }
-        .theme-networth-caption { color: rgba(255, 255, 255, 0.88); }
-        .theme-networth-card--danger {
-            background: linear-gradient(90deg, color-mix(in srgb, var(--danger, #FFB3BA) 88%, #ffffff 12%), color-mix(in srgb, var(--danger, #FFB3BA) 70%, var(--primary, #FFB6C1) 30%));
-        }
-        .theme-networth-card--early {
-            background: linear-gradient(90deg, color-mix(in srgb, var(--primary, #FFB6C1) 80%, #ffffff 20%), color-mix(in srgb, var(--accent, #A7D8DE) 55%, var(--primary, #FFB6C1) 45%));
-        }
-        .theme-networth-card--growth {
-            background: linear-gradient(90deg, color-mix(in srgb, var(--accent, #A7D8DE) 72%, #ffffff 28%), color-mix(in srgb, var(--card-net-mid, #C8B6FF) 60%, var(--accent, #A7D8DE) 40%));
-        }
-        .theme-networth-card--elite {
-            background: linear-gradient(90deg, color-mix(in srgb, var(--gold, #E8C39E) 76%, #ffffff 24%), color-mix(in srgb, var(--card-net-mid, #C8B6FF) 45%, var(--gold, #E8C39E) 55%));
-        }
-        .theme-summary-card {
-            border: 1px solid var(--header-border, #FFD1DC);
-            background-color: var(--panel-soft, #FEF5F7);
-        }
-        .theme-summary-card--danger {
-            background-color: color-mix(in srgb, var(--danger, #FFB3BA) 20%, var(--panel-bg, #FFFFFF) 80%);
-            border-color: color-mix(in srgb, var(--danger, #FFB3BA) 58%, var(--header-border, #FFD1DC) 42%);
-        }
-        .theme-summary-card--early {
-            background-color: color-mix(in srgb, var(--primary, #FFB6C1) 18%, var(--panel-bg, #FFFFFF) 82%);
-            border-color: color-mix(in srgb, var(--primary, #FFB6C1) 54%, var(--header-border, #FFD1DC) 46%);
-        }
-        .theme-summary-card--growth {
-            background-color: color-mix(in srgb, var(--accent, #A7D8DE) 18%, var(--panel-bg, #FFFFFF) 82%);
-            border-color: color-mix(in srgb, var(--accent, #A7D8DE) 50%, var(--header-border, #FFD1DC) 50%);
-        }
-        .theme-summary-card--elite {
-            background-color: color-mix(in srgb, var(--gold, #E8C39E) 22%, var(--panel-bg, #FFFFFF) 78%);
-            border-color: color-mix(in srgb, var(--gold, #E8C39E) 56%, var(--header-border, #FFD1DC) 44%);
-        }
-        .theme-mix-item {
-            border: 1px solid transparent;
-        }
-        .theme-mix-item:hover {
-            background-color: color-mix(in srgb, var(--panel-soft, #FEF5F7) 72%, #ffffff 28%);
-        }
-        .theme-mix-item--danger-selected {
-            background-color: color-mix(in srgb, var(--danger, #FFB3BA) 20%, var(--panel-bg, #FFFFFF) 80%);
-            box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--danger, #FFB3BA) 58%, var(--header-border, #FFD1DC) 42%);
-        }
-        .theme-mix-item--early-selected {
-            background-color: color-mix(in srgb, var(--primary, #FFB6C1) 20%, var(--panel-bg, #FFFFFF) 80%);
-            box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary, #FFB6C1) 58%, var(--header-border, #FFD1DC) 42%);
-        }
-        .theme-mix-item--growth-selected {
-            background-color: color-mix(in srgb, var(--accent, #A7D8DE) 20%, var(--panel-bg, #FFFFFF) 80%);
-            box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent, #A7D8DE) 58%, var(--header-border, #FFD1DC) 42%);
-        }
-        .theme-mix-item--elite-selected {
-            background-color: color-mix(in srgb, var(--gold, #E8C39E) 22%, var(--panel-bg, #FFFFFF) 78%);
-            box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold, #E8C39E) 60%, var(--header-border, #FFD1DC) 40%);
-        }
-        /* moved bridge and semantic theme utilities to theme-bridge.css */
-        .theme-surface {
-            background-color: var(--panel-bg, #FFFFFF);
-            border: 1px solid var(--header-border, #FFD1DC);
-        }
-        [data-theme='mint-prince'] .theme-surface,
-        [data-theme='mint-prince'] .theme-summary-card,
-        [data-theme='mint-prince'] .theme-soft-surface,
-        [data-theme='mint-prince'] .theme-modal-shell,
-        [data-theme='black-forest-prince'] .theme-surface,
-        [data-theme='black-forest-prince'] .theme-summary-card,
-        [data-theme='black-forest-prince'] .theme-soft-surface,
-        [data-theme='black-forest-prince'] .theme-modal-shell {
-            border-color: color-mix(in srgb, var(--gold, #F2D492) 24%, var(--header-border, rgba(224, 212, 245, 0.2)) 76%);
-            box-shadow: 0 0 0 1px color-mix(in srgb, var(--gold, #F2D492) 12%, transparent 88%);
-        }
-        .theme-soft-surface {
-            background-color: var(--panel-soft, #FEF5F7);
-            border: 1px solid var(--header-border, #FFD1DC);
-        }
-        .theme-input {
-            background-color: var(--panel-bg, #FFFFFF);
-            border: 1px solid var(--header-border, #FFD1DC);
-            color: var(--text-main, #5A4A42);
-        }
-        .theme-input::placeholder {
-            color: var(--text-sub, #8C7A6E);
-        }
-        .theme-modal-shell {
-            background: linear-gradient(180deg, color-mix(in srgb, var(--panel-bg, #FFFFFF) 92%, var(--panel-soft, #FEF5F7) 8%), var(--panel-bg, #FFFFFF));
-            border: 1px solid var(--header-border, #FFD1DC);
-        }
-        .theme-modal-header {
-            background: linear-gradient(90deg, color-mix(in srgb, var(--primary, #FFB6C1) 16%, #ffffff 84%), color-mix(in srgb, var(--accent, #A7D8DE) 14%, #ffffff 86%));
-            border-bottom: 1px solid var(--header-border, #FFD1DC);
-        }
-        .theme-modal-title { color: var(--text-main, #5A4A42); }
-        .theme-modal-close {
-            color: var(--text-sub, #8C7A6E);
-            border: 1px solid var(--header-border, #FFD1DC);
-            background-color: var(--panel-bg, #FFFFFF);
-            border-radius: 12px;
-            padding: 6px;
-        }
-        .theme-form-input {
-            background-color: color-mix(in srgb, var(--panel-soft, #FEF5F7) 70%, #ffffff 30%);
-            border: 1px solid var(--header-border, #FFD1DC);
-            color: var(--text-main, #5A4A42);
-        }
-        .theme-form-input:focus {
-            outline: none;
-            border-color: var(--primary, #FFB6C1);
-            box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary, #FFB6C1) 30%, transparent 70%);
-        }
-        .theme-form-output {
-            background-color: color-mix(in srgb, var(--panel-soft, #FEF5F7) 78%, #ffffff 22%);
-            border: 1px dashed color-mix(in srgb, var(--header-border, #FFD1DC) 80%, #ffffff 20%);
-            color: var(--text-main, #5A4A42);
-        }
-        .theme-form-group {
-            background-color: color-mix(in srgb, var(--panel-soft, #FEF5F7) 85%, #ffffff 15%);
-            border: 1px solid color-mix(in srgb, var(--header-border, #FFD1DC) 88%, #ffffff 12%);
-            border-radius: 1rem;
-            padding: 0.9rem;
-        }
-        .theme-form-group-title {
-            display: flex;
-            align-items: center;
-            gap: 0.45rem;
-            font-size: 11px;
-            font-weight: 900;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-            color: var(--text-sub, #8C7A6E);
-            margin-bottom: 0.65rem;
-        }
-        .theme-form-group-icon {
-            width: 1.4rem;
-            height: 1.4rem;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 0.6rem;
-            background-color: color-mix(in srgb, var(--primary, #FFB6C1) 18%, #ffffff 82%);
-            border: 1px solid color-mix(in srgb, var(--header-border, #FFD1DC) 82%, #ffffff 18%);
-            font-size: 0.8rem;
-            line-height: 1;
-        }
-        .theme-tab-active {
-            background-color: var(--primary, #FFB6C1);
-            color: #ffffff;
-            border: 1px solid var(--primary, #FFB6C1);
-        }
-        .theme-tab-inactive {
-            background-color: var(--panel-bg, #FFFFFF);
-            color: var(--text-sub, #8C7A6E);
-            border: 1px solid var(--header-border, #FFD1DC);
-        }
-        .theme-tab-inactive:hover {
-            background-color: var(--panel-soft, #FEF5F7);
-        }
-        .theme-chip-active {
-            background-color: var(--accent, #A7D8DE);
-            color: #ffffff;
-            border: 1px solid var(--accent, #A7D8DE);
-        }
-        .theme-chip-inactive {
-            background-color: var(--panel-bg, #FFFFFF);
-            color: var(--text-sub, #8C7A6E);
-            border: 1px solid var(--header-border, #FFD1DC);
-        }
-        .theme-chip-inactive:hover {
-            background-color: var(--panel-soft, #FEF5F7);
-        }
-        .category-filter-chip {
-            background-color: var(--chip-bg, #ffffff);
-            color: var(--chip-text, #334155);
-            border: 1px solid var(--chip-border, #cbd5e1);
-            box-shadow: var(--chip-shadow, none);
-        }
-        .category-filter-chip:hover {
-            background-color: color-mix(in srgb, var(--chip-base, #8B5CF6) 24%, #ffffff 76%);
-            border-color: color-mix(in srgb, var(--chip-base, #8B5CF6) 52%, #ffffff 48%);
-        }
-        .category-filter-chip[data-active='true']:hover {
-            background-color: color-mix(in srgb, var(--chip-base, #8B5CF6) 88%, #111827 12%);
-            border-color: color-mix(in srgb, var(--chip-base, #8B5CF6) 88%, #111827 12%);
-            box-shadow: 0 6px 14px color-mix(in srgb, var(--chip-base, #8B5CF6) 34%, transparent 66%);
-        }
-        .category-filter-chip:focus-visible {
-            outline: none;
-            box-shadow:
-                0 0 0 2px color-mix(in srgb, #ffffff 72%, transparent 28%),
-                0 0 0 4px color-mix(in srgb, var(--chip-base, #8B5CF6) 56%, transparent 44%),
-                var(--chip-shadow, none);
-        }
-        .theme-bar-bg {
-            background-color: color-mix(in srgb, var(--panel-soft, #FEF5F7) 75%, var(--panel-bg, #FFFFFF) 25%);
-        }
-        .theme-income-card {
-            background-color: #ECFDF5;
-            border: 1px solid #A7F3D0;
-        }
-        .theme-expense-card {
-            background-color: #FFF1F2;
-            border: 1px solid #FECDD3;
-        }
-        .theme-netflow-card {
-            background-color: color-mix(in srgb, var(--primary, #FFB6C1) 16%, #FFFFFF 84%);
-            border: 1px solid color-mix(in srgb, var(--primary, #FFB6C1) 55%, #FFFFFF 45%);
-        }
-        .percento-card {
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
-            transition: all 0.2s ease;
-        }
-        .modal-overlay { background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(8px); }
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #E8C39E; border-radius: 10px; }
-        @keyframes princeFloat {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-8px); }
-        }
-        @keyframes princeSparkle {
-            0%, 100% { opacity: 0.5; transform: scale(0.9); }
-            50% { opacity: 1; transform: scale(1.08); }
-        }
-        @keyframes princeTalk {
-            0% { transform: translateY(6px); opacity: 0; }
-            100% { transform: translateY(0); opacity: 1; }
-        }
-        .prince-float { animation: princeFloat 3.2s ease-in-out infinite; }
-        .prince-sparkle { animation: princeSparkle 1.8s ease-in-out infinite; }
-        .prince-talk { animation: princeTalk .35s ease-out; }
-    </style>
+    <link rel="stylesheet" href="./app-shell.css">
 </head>
 <body>
     <div id="root"></div>
@@ -349,9 +90,10 @@
             UI_TEXT,
             FULL_PAGE_TEXT_MAP,
             HEADER_SLOGANS,
-            IDLE_HINT_LINES
+            IDLE_HINT_LINES,
+            THEME_NAME_MAP
         } = window.APP_I18N || {};
-        if (!PAGE_LANGUAGE_OPTIONS || !UI_TEXT || !FULL_PAGE_TEXT_MAP || !HEADER_SLOGANS || !IDLE_HINT_LINES) {
+        if (!PAGE_LANGUAGE_OPTIONS || !UI_TEXT || !FULL_PAGE_TEXT_MAP || !HEADER_SLOGANS || !IDLE_HINT_LINES || !THEME_NAME_MAP) {
             throw new Error('i18n.js is missing or incomplete.');
         }
         const {
@@ -472,6 +214,132 @@
         }
 
         const {
+            CashflowModalView
+        } = window.APP_CASHFLOW_MODAL_VIEW || {};
+        if (!CashflowModalView) {
+            throw new Error('cashflow-modal-view.js is missing or incomplete.');
+        }
+
+        const {
+            AppHeaderView
+        } = window.APP_HEADER_VIEW || {};
+        if (!AppHeaderView) {
+            throw new Error('app-header-view.js is missing or incomplete.');
+        }
+
+        const {
+            AppFooterView
+        } = window.APP_FOOTER_VIEW || {};
+        if (!AppFooterView) {
+            throw new Error('app-footer-view.js is missing or incomplete.');
+        }
+
+        const {
+            OverviewSectionView
+        } = window.APP_OVERVIEW_SECTION_VIEW || {};
+        if (!OverviewSectionView) {
+            throw new Error('overview-section-view.js is missing or incomplete.');
+        }
+
+        const {
+            FinanceSectionView
+        } = window.APP_FINANCE_SECTION_VIEW || {};
+        if (!FinanceSectionView) {
+            throw new Error('finance-section-view.js is missing or incomplete.');
+        }
+
+        const {
+            AssetFilterBarView
+        } = window.APP_ASSET_FILTER_BAR_VIEW || {};
+        if (!AssetFilterBarView) {
+            throw new Error('asset-filter-bar-view.js is missing or incomplete.');
+        }
+
+        const {
+            AssetSummaryListView
+        } = window.APP_ASSET_SUMMARY_LIST_VIEW || {};
+        if (!AssetSummaryListView) {
+            throw new Error('asset-summary-list-view.js is missing or incomplete.');
+        }
+
+        const {
+            AssetDetailListView
+        } = window.APP_ASSET_DETAIL_LIST_VIEW || {};
+        if (!AssetDetailListView) {
+            throw new Error('asset-detail-list-view.js is missing or incomplete.');
+        }
+
+        const {
+            getPrinceHintMessage,
+            getPdfGeneratingBusyMessage,
+            getPdfTimeoutMessage,
+            getCashflowStartNewMessage,
+            getCashflowStartEditMessage,
+            getCashflowAutoAppliedMessage,
+            getCashflowDeleteRollbackMessage,
+            getCashflowDeleteMessage,
+            getCashflowLinkedAccountLabel,
+            getCashflowDeleteConfirmMessage,
+            getCashflowEditCanceledMessage,
+            getFxUpdatingMessage,
+            getFxUpdatedMessage,
+            getFxUpdateFailedMessage,
+            getMarketNoSymbolsMessage,
+            getMarketUpdatingMessage,
+            getMarketUpdatedCountMessage,
+            getMarketUpToDateMessage,
+            getMarketAndFxUpdatingMessage,
+            getMarketAndFxUpdatedMessage,
+            getExportSuccessMessage,
+            getExportFailedMessage,
+            getPdfDownloadedMessage,
+            getPdfShareFailedMessage,
+            getImportSuccessMessage,
+            getImportFailedMessage,
+            getDataResetMessage,
+            getResetSeedConfirmMessage,
+            showSubmissionErrorAlert,
+            showConfirmDialog,
+            getCloudAuthStatusMessage,
+            getCloudPersistenceFailedMessage,
+            getCloudRedirectSignInFailedMessage,
+            getCloudRedirectUriMismatchHelpMessage,
+            getCloudFirebaseNotConfiguredMessage,
+            getCloudSignInRequiredMessage,
+            getCloudDownloadingMessage,
+            getCloudDownloadedMessage,
+            getCloudInvalidDataMessage,
+            getCloudNoDataMessage,
+            getCloudDownloadFailedMessage,
+            getCloudUploadingMessage,
+            getCloudUploadedMessage,
+            getCloudUploadFailedMessage
+        } = window.APP_STATUS_MESSAGES || {};
+        if (!getPrinceHintMessage || !getPdfGeneratingBusyMessage || !getPdfTimeoutMessage || !getCashflowStartNewMessage || !getCashflowStartEditMessage || !getCashflowAutoAppliedMessage || !getCashflowDeleteRollbackMessage || !getCashflowDeleteMessage || !getCashflowLinkedAccountLabel || !getCashflowDeleteConfirmMessage || !getCashflowEditCanceledMessage || !getFxUpdatingMessage || !getFxUpdatedMessage || !getFxUpdateFailedMessage || !getMarketNoSymbolsMessage || !getMarketUpdatingMessage || !getMarketUpdatedCountMessage || !getMarketUpToDateMessage || !getMarketAndFxUpdatingMessage || !getMarketAndFxUpdatedMessage || !getExportSuccessMessage || !getExportFailedMessage || !getPdfDownloadedMessage || !getPdfShareFailedMessage || !getImportSuccessMessage || !getImportFailedMessage || !getDataResetMessage || !getResetSeedConfirmMessage || !showSubmissionErrorAlert || !showConfirmDialog || !getCloudAuthStatusMessage || !getCloudPersistenceFailedMessage || !getCloudRedirectSignInFailedMessage || !getCloudRedirectUriMismatchHelpMessage || !getCloudFirebaseNotConfiguredMessage || !getCloudSignInRequiredMessage || !getCloudDownloadingMessage || !getCloudDownloadedMessage || !getCloudInvalidDataMessage || !getCloudNoDataMessage || !getCloudDownloadFailedMessage || !getCloudUploadingMessage || !getCloudUploadedMessage || !getCloudUploadFailedMessage) {
+            throw new Error('app-status-messages.js is missing or incomplete.');
+        }
+
+        const {
+            resolveThemeFamily,
+            buildNetworthCardStyle,
+            buildSummaryCardStyle,
+            buildMixSelectedStyle,
+            buildCategoryChipStyle,
+            getCategoryMixHexByTheme,
+            getDetailMixPaletteByTheme
+        } = window.APP_STYLE_HELPERS || {};
+        if (!resolveThemeFamily || !buildNetworthCardStyle || !buildSummaryCardStyle || !buildMixSelectedStyle || !buildCategoryChipStyle || !getCategoryMixHexByTheme || !getDetailMixPaletteByTheme) {
+            throw new Error('app-style-helpers.js is missing or incomplete.');
+        }
+
+        const {
+            AppModalsView
+        } = window.APP_MODALS_VIEW || {};
+        if (!AppModalsView) {
+            throw new Error('app-modals-view.js is missing or incomplete.');
+        }
+
+        const {
             CashflowOverviewView
         } = window.APP_CASHFLOW_OVERVIEW_VIEW || {};
         if (!CashflowOverviewView) {
@@ -490,6 +358,14 @@
         } = window.APP_ASSET_MODAL_VIEW || {};
         if (!AssetModalView) {
             throw new Error('asset-modal-view.js is missing or incomplete.');
+        }
+
+        const {
+            DatePicker,
+            MonthPicker
+        } = window.APP_DATE_PICKER || {};
+        if (!DatePicker || !MonthPicker) {
+            throw new Error('date-picker-view.js is missing or incomplete.');
         }
 
         const {
@@ -515,10 +391,10 @@
         }
 
         const {
-            THEME_OPTIONS,
+            THEMES,
             applyTheme
         } = window.APP_THEME_SYSTEM || {};
-        if (!THEME_OPTIONS || !applyTheme) {
+        if (!THEMES || !applyTheme) {
             throw new Error('theme-system.js is missing or incomplete.');
         }
 
@@ -530,7 +406,37 @@
             const MODAL_INPUT_FOCUS_CLASS = MODAL_INPUT_CLASS;
             const MODAL_OUTPUT_CLASS = 'w-full p-3 theme-form-output rounded-xl font-black';
             const MODAL_GROUP_CLASS = 'theme-form-group';
-            const updateFormField = (field) => (event) => setFormData(prev => ({ ...prev, [field]: event.target.value }));
+            const sanitizeRecentCurrencies = (rawList) => {
+                if (!Array.isArray(rawList)) return [];
+                const unique = [];
+                rawList.forEach(item => {
+                    const currency = typeof item === 'string' ? item : '';
+                    if (!CURRENCIES.includes(currency)) return;
+                    if (unique.includes(currency)) return;
+                    unique.push(currency);
+                });
+                return unique.slice(0, 6);
+            };
+            const [recentCurrencies, setRecentCurrencies] = useState(() => {
+                const saved = sanitizeRecentCurrencies(parseStorage(STORAGE_KEYS.recentCurrencies, []));
+                if (saved.length) return saved;
+                const savedDisplayCurrency = parseStorage(STORAGE_KEYS.displayCurrency, 'HKD');
+                return CURRENCIES.includes(savedDisplayCurrency) ? [savedDisplayCurrency] : ['HKD'];
+            });
+            const markRecentCurrency = (currency) => {
+                if (!CURRENCIES.includes(currency)) return;
+                setRecentCurrencies(prev => sanitizeRecentCurrencies([currency, ...prev]));
+            };
+            const orderedCurrencies = useMemo(() => {
+                const preferred = sanitizeRecentCurrencies(recentCurrencies);
+                const rest = CURRENCIES.filter(currency => !preferred.includes(currency));
+                return [...preferred, ...rest];
+            }, [recentCurrencies]);
+            const updateFormField = (field) => (event) => {
+                const value = event.target.value;
+                if (field === 'currency') markRecentCurrency(value);
+                setFormData(prev => ({ ...prev, [field]: value }));
+            };
             const updateFormFieldUpper = (field) => (event) => setFormData(prev => ({ ...prev, [field]: event.target.value.toUpperCase() }));
 
             const createInitialAssetFormData = () => ({
@@ -660,9 +566,15 @@
             const [authUser, setAuthUser] = useState(null);
             const [isAuthLoading, setIsAuthLoading] = useState(isCloudEnabled);
             const [isCloudSyncing, setIsCloudSyncing] = useState(false);
-            const [cloudStatus, setCloudStatus] = useState(isCloudEnabled ? '尚未登入 Google，資料僅存在此裝置' : '未設定 Firebase，資料僅存在此裝置');
+            const [cloudStatus, setCloudStatus] = useState('');
+            const [cloudStatusMode, setCloudStatusMode] = useState('auth');
+            const [cloudAuthState, setCloudAuthState] = useState(() => ({
+                status: isCloudEnabled ? 'signed-out' : 'disabled',
+                email: ''
+            }));
 
             const [isModalOpen, setIsModalOpen] = useState(false);
+            const [isCashflowModalOpen, setIsCashflowModalOpen] = useState(false);
             const [editingId, setEditingId] = useState(null);
             const [selectedCategories, setSelectedCategories] = useState(CATEGORY_KEYS);
             const [sortMode, setSortMode] = useState('AMOUNT_DESC');
@@ -677,9 +589,10 @@
                 const saved = parseStorage(STORAGE_KEYS.pageLanguage, 'zh-Hant');
                 return PAGE_LANGUAGE_OPTIONS.some(item => item.value === saved) ? saved : 'zh-Hant';
             });
+            const themeIds = Object.keys(THEMES || {});
             const [themeId, setThemeId] = useState(() => {
                 const saved = parseStorage(STORAGE_KEYS.themeId, 'macaron-prince');
-                return THEME_OPTIONS.some(item => item.value === saved) ? saved : 'macaron-prince';
+                return themeIds.includes(saved) ? saved : 'macaron-prince';
             });
             const [headerSloganIndex, setHeaderSloganIndex] = useState(0);
             const [princeIdleIndex, setPrinceIdleIndex] = useState(0);
@@ -697,7 +610,7 @@
             const [cashflowRuleFilter, setCashflowRuleFilter] = useState('ALL');
             const [cashflowRuleSortMode, setCashflowRuleSortMode] = useState('START_DESC');
             const [cashflowRulesVisibleCount, setCashflowRulesVisibleCount] = useState(20);
-            const [cashflowForm, setCashflowForm] = useState(() => {
+            const createInitialCashflowForm = () => {
                 const today = toDateKey(new Date());
                 return {
                     title: '',
@@ -715,8 +628,13 @@
                     targetLiquidAssetId: '',
                     note: ''
                 };
-            });
-            const updateCashflowField = (field) => (event) => setCashflowForm(prev => ({ ...prev, [field]: event.target.value }));
+            };
+            const [cashflowForm, setCashflowForm] = useState(() => createInitialCashflowForm());
+            const updateCashflowField = (field) => (event) => {
+                const value = event.target.value;
+                if (field === 'currency') markRecentCurrency(value);
+                setCashflowForm(prev => ({ ...prev, [field]: value }));
+            };
             const normalizeOneTimeDateList = (rawList) => {
                 const unique = new Set();
                 (Array.isArray(rawList) ? rawList : []).forEach(item => {
@@ -823,17 +741,6 @@
             const importInputRef = useRef(null);
             const cashflowFormRef = useRef(null);
 
-            const resolveThemeFamily = (rawThemeId) => {
-                const familyMap = {
-                    'strawberry-tart-prince': 'macaron-prince',
-                    'caramel-pudding-prince': 'macaron-prince',
-                    'milk-tea-boba-prince': 'macaron-prince',
-                    'black-forest-prince': 'mint-prince',
-                    'coconut-snowball-prince': 'lavender-prince'
-                };
-                return familyMap[rawThemeId] || rawThemeId;
-            };
-
             const themeTokensById = useMemo(() => {
                 const themeMap = window.APP_THEME_SYSTEM?.THEMES || {};
                 const fallbackTokens = themeMap['macaron-prince']?.tokens || {};
@@ -878,208 +785,10 @@
                 '--danger': getThemeTokenByTheme('--danger', '#F43F5E')
             }), [themeTokensById]);
 
-            const categoryMixHexByKey = useMemo(() => {
-                const paletteByTheme = {
-                    'macaron-prince': {
-                        LIQUID: '#4FC7D4',
-                        INVEST: '#6D88FF',
-                        INSURANCE: '#9A7CFF',
-                        FIXED: '#E8B25C',
-                        RECEIVABLE: '#54C3A0',
-                        LIABILITY: '#FF5D7A'
-                    },
-                    'mint-prince': {
-                        LIQUID: '#55C6E6',
-                        INVEST: '#4A73D8',
-                        INSURANCE: '#7A6EFA',
-                        FIXED: '#E1B04B',
-                        RECEIVABLE: '#4FB58D',
-                        LIABILITY: '#D95B83'
-                    },
-                    'lavender-prince': {
-                        LIQUID: '#45C6D8',
-                        INVEST: '#4B9BE4',
-                        INSURANCE: '#6F7CFF',
-                        FIXED: '#E7AF4E',
-                        RECEIVABLE: '#50C1A7',
-                        LIABILITY: '#F76B92'
-                    },
-                    'strawberry-tart-prince': {
-                        LIQUID: '#5EC8B0',
-                        INVEST: '#5D8CFF',
-                        INSURANCE: '#9C78FF',
-                        FIXED: '#E8AB4D',
-                        RECEIVABLE: '#58BF93',
-                        LIABILITY: '#E84E74'
-                    },
-                    'caramel-pudding-prince': {
-                        LIQUID: '#55AFCB',
-                        INVEST: '#4F77C8',
-                        INSURANCE: '#876BD4',
-                        FIXED: '#D79B33',
-                        RECEIVABLE: '#4EA681',
-                        LIABILITY: '#CC6746'
-                    },
-                    'milk-tea-boba-prince': {
-                        LIQUID: '#5EAAC5',
-                        INVEST: '#5D74C0',
-                        INSURANCE: '#8573CC',
-                        FIXED: '#C99845',
-                        RECEIVABLE: '#5AA07A',
-                        LIABILITY: '#B86556'
-                    },
-                    'black-forest-prince': {
-                        LIQUID: '#4A8EAA',
-                        INVEST: '#4F62AF',
-                        INSURANCE: '#7867CE',
-                        FIXED: '#BE8C3A',
-                        RECEIVABLE: '#4A8E70',
-                        LIABILITY: '#85253A'
-                    },
-                    'coconut-snowball-prince': {
-                        LIQUID: '#87CFE2',
-                        INVEST: '#5D9EC1',
-                        INSURANCE: '#7B86E8',
-                        FIXED: '#D3B373',
-                        RECEIVABLE: '#6ABF9F',
-                        LIABILITY: '#B67A92'
-                    }
-                };
+            const categoryMixHexByKey = useMemo(() => getCategoryMixHexByTheme(themeId), [themeId]);
 
-                const fallbackPalette = paletteByTheme['macaron-prince'];
-                const resolvedThemeId = paletteByTheme[themeId] ? themeId : resolveThemeFamily(themeId);
-                const selectedPalette = paletteByTheme[resolvedThemeId] || fallbackPalette;
+            const detailMixPalette = useMemo(() => getDetailMixPaletteByTheme(themeId), [themeId]);
 
-                return {
-                    LIQUID: selectedPalette.LIQUID,
-                    INVEST: selectedPalette.INVEST,
-                    INSURANCE: selectedPalette.INSURANCE,
-                    FIXED: selectedPalette.FIXED,
-                    RECEIVABLE: selectedPalette.RECEIVABLE,
-                    LIABILITY: selectedPalette.LIABILITY
-                };
-            }, [themeId]);
-
-            const detailMixPalette = useMemo(() => {
-                const paletteByTheme = {
-                    'macaron-prince': ['#FF7FA9', '#4FC7D4', '#8F7BFF', '#E8B25C', '#57A0FF', '#FF5D7A', '#6CCF8A', '#C68BFF'],
-                    'mint-prince': ['#4C78DA', '#56C8E8', '#7C70FF', '#E2B24E', '#52B58F', '#D85A8E', '#5FA3F5', '#9F86FF'],
-                    'lavender-prince': ['#45A9E7', '#46C9B8', '#6E7DFF', '#E7AF4E', '#50C0FF', '#FF668B', '#63B8A7', '#9A87FF'],
-                    'strawberry-tart-prince': ['#E7486D', '#63C89D', '#9A77FF', '#E8AB4D', '#5A9DFF', '#E74F77', '#4DB9C1', '#BE7CFF'],
-                    'caramel-pudding-prince': ['#C56F2D', '#DB9E43', '#8E74DE', '#D79B33', '#4D8EE5', '#CD6A49', '#4EA68C', '#A483E8'],
-                    'milk-tea-boba-prince': ['#A5663B', '#B58A5A', '#8B79D4', '#C99845', '#5C98D8', '#B86556', '#5EAA95', '#9F87DB'],
-                    'black-forest-prince': ['#6B2434', '#A44962', '#7867CE', '#BE8C3A', '#4F8BCF', '#85253A', '#54997F', '#967BD8'],
-                    'coconut-snowball-prince': ['#5D9EC1', '#88CEE1', '#7B86E8', '#D3B373', '#4FAFD8', '#B77B93', '#71C2A9', '#9AA4EE']
-                };
-
-                const fallbackPalette = paletteByTheme['macaron-prince'];
-                const resolvedThemeId = paletteByTheme[themeId] ? themeId : resolveThemeFamily(themeId);
-                const selectedPalette = paletteByTheme[resolvedThemeId] || fallbackPalette;
-                const getLuminance = (hex) => {
-                    const normalized = String(hex || '').replace('#', '');
-                    if (normalized.length !== 6) return 255;
-                    const red = parseInt(normalized.slice(0, 2), 16);
-                    const green = parseInt(normalized.slice(2, 4), 16);
-                    const blue = parseInt(normalized.slice(4, 6), 16);
-                    if (!Number.isFinite(red) || !Number.isFinite(green) || !Number.isFinite(blue)) return 255;
-                    return red * 0.299 + green * 0.587 + blue * 0.114;
-                };
-
-                return [...selectedPalette]
-                    .map((color, index) => ({ color, index, luminance: getLuminance(color) }))
-                    .sort((a, b) => {
-                        if (a.luminance === b.luminance) return a.index - b.index;
-                        return a.luminance - b.luminance;
-                    })
-                    .map(item => item.color);
-            }, [themeId]);
-
-            const buildNetworthCardStyle = (currentThemeId, tierIndex) => {
-                const safeTier = Math.max(0, Math.min(13, Number(tierIndex) || 0));
-                const resolvedThemeId = resolveThemeFamily(currentThemeId);
-                const paletteByTheme = {
-                    'macaron-prince': ['--primary', '--accent', '--gold', '--danger'],
-                    'mint-prince': ['--primary', '--accent', '--gold', '--card-net-end'],
-                    'lavender-prince': ['--accent', '--card-net-end', '--gold', '--primary']
-                };
-                const selectedPalette = paletteByTheme[resolvedThemeId] || paletteByTheme['macaron-prince'];
-                const startVar = selectedPalette[safeTier % selectedPalette.length];
-                const midVar = selectedPalette[(safeTier + 1) % selectedPalette.length];
-                const endVar = selectedPalette[(safeTier + 2) % selectedPalette.length];
-
-                const angle = 92 + safeTier * 5;
-                const startStrength = Math.min(86, 58 + safeTier * 2);
-                const midStrength = Math.min(84, 54 + safeTier * 2);
-                const endStrength = Math.min(82, 50 + safeTier * 2);
-
-                const baseGradient = `linear-gradient(${angle}deg, color-mix(in srgb, var(${startVar}) ${startStrength}%, var(--panel-bg, #FFFFFF) ${100 - startStrength}%), color-mix(in srgb, var(${midVar}) ${midStrength}%, var(--panel-bg, #FFFFFF) ${100 - midStrength}%), color-mix(in srgb, var(${endVar}) ${endStrength}%, var(--panel-bg, #FFFFFF) ${100 - endStrength}%))`;
-
-                const starOverlay = resolvedThemeId === 'mint-prince'
-                    ? `radial-gradient(circle at ${14 + safeTier * 2}% ${22 + safeTier}% , color-mix(in srgb, var(--gold, #F2D492) 76%, #ffffff 24%) 0 1.4px, transparent 2.4px), radial-gradient(circle at ${82 - safeTier}% ${24 + safeTier * 2}% , color-mix(in srgb, var(--gold, #F2D492) 68%, #ffffff 32%) 0 1.2px, transparent 2.1px)`
-                    : '';
-
-                const borderStrength = Math.min(72, 40 + safeTier * 2);
-                const glowStrength = safeTier >= 12 ? 30 : (safeTier >= 9 ? 22 : (safeTier >= 5 ? 14 : 8));
-                const shadowStrength = safeTier >= 12 ? 0.35 : (safeTier >= 9 ? 0.28 : 0.2);
-
-                return {
-                    background: starOverlay ? `${starOverlay}, ${baseGradient}` : baseGradient,
-                    border: `1px solid color-mix(in srgb, var(--gold, #E8C39E) ${borderStrength}%, var(--header-border, #FFD1DC) ${100 - borderStrength}%)`,
-                    boxShadow: `0 0 0 1px color-mix(in srgb, var(--gold, #E8C39E) ${glowStrength}%, transparent ${100 - glowStrength}%), 0 12px 26px color-mix(in srgb, var(--card-net-mid, #C8B6FF) ${Math.round(shadowStrength * 100)}%, transparent ${100 - Math.round(shadowStrength * 100)}%)`
-                };
-            };
-
-            const buildSummaryCardStyle = (currentThemeId, tierIndex, variant = 'asset') => {
-                const safeTier = Math.max(0, Math.min(13, Number(tierIndex) || 0));
-                const resolvedThemeId = resolveThemeFamily(currentThemeId);
-                const assetPaletteByTheme = {
-                    'macaron-prince': ['--primary', '--accent', '--gold'],
-                    'mint-prince': ['--primary', '--accent', '--card-net-end'],
-                    'lavender-prince': ['--accent', '--card-net-end', '--primary']
-                };
-                const liabilityPaletteByTheme = {
-                    'macaron-prince': ['--danger', '--primary', '--gold'],
-                    'mint-prince': ['--danger', '--primary', '--accent'],
-                    'lavender-prince': ['--danger', '--accent', '--card-net-end']
-                };
-
-                const paletteSource = variant === 'liability' ? liabilityPaletteByTheme : assetPaletteByTheme;
-                const selectedPalette = paletteSource[resolvedThemeId] || paletteSource['macaron-prince'];
-                const startVar = selectedPalette[safeTier % selectedPalette.length];
-                const endVar = selectedPalette[(safeTier + 1) % selectedPalette.length];
-
-                const tintStrength = Math.min(34, 14 + safeTier);
-                const borderStrength = Math.min(62, 38 + safeTier);
-                const shadowStrength = variant === 'liability'
-                    ? (safeTier >= 8 ? 18 : 12)
-                    : (safeTier >= 10 ? 16 : 10);
-
-                return {
-                    background: `linear-gradient(135deg, color-mix(in srgb, var(${startVar}) ${tintStrength}%, var(--panel-bg, #FFFFFF) ${100 - tintStrength}%), color-mix(in srgb, var(${endVar}) ${Math.max(12, tintStrength - 6)}%, var(--panel-bg, #FFFFFF) ${100 - Math.max(12, tintStrength - 6)}%))`,
-                    border: `1px solid color-mix(in srgb, var(${startVar}) ${borderStrength}%, var(--header-border, #FFD1DC) ${100 - borderStrength}%)`,
-                    boxShadow: `0 1px 0 color-mix(in srgb, var(${endVar}) ${Math.max(10, borderStrength - 12)}%, transparent ${100 - Math.max(10, borderStrength - 12)}%), 0 8px 18px color-mix(in srgb, var(${startVar}) ${shadowStrength}%, transparent ${100 - shadowStrength})`
-                };
-            };
-
-            const buildMixSelectedStyle = (currentThemeId, tierIndex) => {
-                const safeTier = Math.max(0, Math.min(13, Number(tierIndex) || 0));
-                const resolvedThemeId = resolveThemeFamily(currentThemeId);
-                const paletteByTheme = {
-                    'macaron-prince': ['--primary', '--accent', '--gold'],
-                    'mint-prince': ['--primary', '--accent', '--gold'],
-                    'lavender-prince': ['--accent', '--card-net-end', '--gold']
-                };
-                const selectedPalette = paletteByTheme[resolvedThemeId] || paletteByTheme['macaron-prince'];
-                const baseVar = selectedPalette[safeTier % selectedPalette.length];
-                const borderVar = selectedPalette[(safeTier + 1) % selectedPalette.length];
-                const tintStrength = Math.min(28, 14 + safeTier);
-                const borderStrength = Math.min(66, 42 + safeTier);
-                return {
-                    background: `color-mix(in srgb, var(${baseVar}) ${tintStrength}%, var(--panel-bg, #FFFFFF) ${100 - tintStrength}%)`,
-                    borderColor: `color-mix(in srgb, var(${borderVar}) ${borderStrength}%, var(--header-border, #FFD1DC) ${100 - borderStrength}%)`,
-                    boxShadow: `inset 0 0 0 1px color-mix(in srgb, var(${baseVar}) ${Math.max(20, borderStrength - 16)}%, transparent ${100 - Math.max(20, borderStrength - 16)}%)`
-                };
-            };
 
             const handleAssetCategoryChange = (event) => {
                 const nextCategory = event.target.value;
@@ -1143,6 +852,10 @@
             useEffect(() => {
                 localStorage.setItem(STORAGE_KEYS.displayCurrency, JSON.stringify(displayCurrency));
             }, [displayCurrency]);
+
+            useEffect(() => {
+                localStorage.setItem(STORAGE_KEYS.recentCurrencies, JSON.stringify(sanitizeRecentCurrencies(recentCurrencies)));
+            }, [recentCurrencies]);
 
             useEffect(() => {
                 localStorage.setItem(STORAGE_KEYS.currencyRates, JSON.stringify(currencyRates));
@@ -1219,15 +932,59 @@
 
             useEffect(() => {
                 if (window.lucide) window.lucide.createIcons();
-            }, [assets, isModalOpen, selectedCategories, sortMode, isUpdatingPrice]);
+            }, [assets, isModalOpen, isCashflowModalOpen, selectedCategories, sortMode, isUpdatingPrice]);
 
             const pageText = useMemo(() => UI_TEXT[pageLanguage] || UI_TEXT['zh-Hant'], [pageLanguage]);
             const tByLang = (zh, en, ja) => (pageLanguage === 'en-US' ? en : (pageLanguage === 'ja-JP' ? ja : zh));
+            const tByLangBy = (lang, zh, en, ja) => (lang === 'en-US' ? en : (lang === 'ja-JP' ? ja : zh));
+            const dictionary = useMemo(() => FULL_PAGE_TEXT_MAP[pageLanguage] || {}, [pageLanguage]);
+            const translate = (text) => (pageLanguage === 'zh-Hant' ? text : (dictionary[text] || text));
+            const themeNameMap = useMemo(() => THEME_NAME_MAP[pageLanguage] || THEME_NAME_MAP['zh-Hant'] || {}, [pageLanguage]);
+            const themeOptions = useMemo(() => {
+                return Object.values(THEMES || {}).map(theme => ({
+                    value: theme.id,
+                    label: themeNameMap[theme.id] || theme.label || theme.id
+                }));
+            }, [themeNameMap, THEMES]);
+            const cloudStatusBuilderRef = useRef(null);
+            const setCloudStatusWithMode = (messageOrBuilder, mode = 'action') => {
+                if (typeof messageOrBuilder === 'function') {
+                    cloudStatusBuilderRef.current = messageOrBuilder;
+                    setCloudStatus(messageOrBuilder(pageLanguage));
+                } else {
+                    cloudStatusBuilderRef.current = null;
+                    setCloudStatus(messageOrBuilder);
+                }
+                setCloudStatusMode(mode);
+            };
+            const buildCloudAuthStatusMessage = (state) => getCloudAuthStatusMessage(pageLanguage, state);
+
+            useEffect(() => {
+                if (cloudStatusMode !== 'auth') return;
+                setCloudStatus(buildCloudAuthStatusMessage(cloudAuthState));
+            }, [cloudAuthState, cloudStatusMode, pageLanguage]);
+
+            useEffect(() => {
+                if (cloudStatusMode !== 'action') return;
+                const builder = cloudStatusBuilderRef.current;
+                if (typeof builder !== 'function') return;
+                setCloudStatus(builder(pageLanguage));
+            }, [cloudStatusMode, pageLanguage]);
             const appName = useMemo(() => {
                 if (pageLanguage === 'zh-Hant') return '王子甜甜帳';
                 if (pageLanguage === 'ja-JP') return '王子あま帳';
                 return 'SweetPrinceLedger';
             }, [pageLanguage]);
+            const dateTimeLocale = useMemo(() => {
+                if (pageLanguage === 'ja-JP') return 'ja-JP';
+                if (pageLanguage === 'en-US') return 'en-US';
+                return 'zh-Hant-TW';
+            }, [pageLanguage]);
+            const formatDateTime = (dateValue) => {
+                const date = dateValue instanceof Date ? dateValue : new Date(dateValue);
+                if (Number.isNaN(date.getTime())) return '';
+                return date.toLocaleString(dateTimeLocale);
+            };
             const headerSlogans = useMemo(() => HEADER_SLOGANS[pageLanguage] || HEADER_SLOGANS['zh-Hant'], [pageLanguage]);
             const idleHintLines = useMemo(() => IDLE_HINT_LINES[pageLanguage] || IDLE_HINT_LINES['zh-Hant'], [pageLanguage]);
             const currentHeaderSlogan = headerSlogans[headerSloganIndex % Math.max(headerSlogans.length, 1)] || '';
@@ -1299,7 +1056,7 @@
                 const observer = new MutationObserver(() => applyFullPageTranslation());
                 observer.observe(root, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['placeholder', 'title', 'aria-label'] });
                 return () => observer.disconnect();
-            }, [pageLanguage, assets, cashflowEntries, financeSectionTab, isModalOpen, editingId, editingCashflowId, showSettings]);
+            }, [pageLanguage, assets, cashflowEntries, financeSectionTab, isModalOpen, isCashflowModalOpen, editingId, editingCashflowId, showSettings]);
 
             useEffect(() => {
                 setHeaderSloganIndex(0);
@@ -1321,33 +1078,21 @@
             }, [idleHintLines]);
 
             const princeHintMessage = useMemo(() => {
-                if (isGeneratingPdf) {
-                    return pageLanguage === 'en-US' ? '📜 The Prince is preparing your PDF report...' : (pageLanguage === 'ja-JP' ? '📜 王子がPDFレポートを作成中です…' : '📜 王子正在整理你的 PDF 報表，請稍候～');
-                }
-                if (isUpdatingPrice) {
-                    return pageLanguage === 'en-US' ? '📈 Fetching latest market prices.' : (pageLanguage === 'ja-JP' ? '📈 最新の価格を取得中です。' : '📈 王子正在召喚最新股價與幣價。');
-                }
-                if (isUpdatingRates) {
-                    return pageLanguage === 'en-US' ? '💱 Updating exchange rates.' : (pageLanguage === 'ja-JP' ? '💱 為替レートを更新中です。' : '💱 王子正在更新匯率魔法。');
-                }
-                if (isCloudSyncing) {
-                    return pageLanguage === 'en-US' ? '☁️ Syncing data to cloud now.' : (pageLanguage === 'ja-JP' ? '☁️ クラウドへ同期中です。' : '☁️ 王子正在把資料同步到雲端。');
-                }
-                if (isModalOpen) {
-                    return pageLanguage === 'en-US' ? '📝 Fill the form and save the asset.' : (pageLanguage === 'ja-JP' ? '📝 フォーム入力後に保存してください。' : '📝 在表單填好資料後按「儲存資產」就完成囉！');
-                }
-                if (editingCashflowId) {
-                    return pageLanguage === 'en-US' ? '🔧 You are editing a rule. Remember to save.' : (pageLanguage === 'ja-JP' ? '🔧 ルール編集中です。保存を忘れずに。' : '🔧 你正在編輯規則，記得確認儲存。');
-                }
-                if (showSettings) {
-                    return pageLanguage === 'en-US' ? '⚙️ Settings opened. You can import/export and update data.' : (pageLanguage === 'ja-JP' ? '⚙️ 設定を開きました。インポート/エクスポート可能です。' : '⚙️ 設定選單已開啟，可匯入匯出與更新資料。');
-                }
-                if (financeSectionTab === 'CASHFLOW') {
-                    return pageLanguage === 'en-US' ? '📅 Use cashflow rules for auto posting.' : (pageLanguage === 'ja-JP' ? '📅 固定ルールで自動記帳できます。' : '📅 在現金流分頁可設定固定規則與自動入帳。');
-                }
-                if (priceStatus) return `📣 ${priceStatus}`;
-                return currentIdleHint;
-            }, [isGeneratingPdf, isUpdatingPrice, isUpdatingRates, isCloudSyncing, isModalOpen, editingCashflowId, showSettings, financeSectionTab, priceStatus, currentIdleHint, pageLanguage]);
+                return getPrinceHintMessage({
+                    pageLanguage,
+                    isGeneratingPdf,
+                    isUpdatingPrice,
+                    isUpdatingRates,
+                    isCloudSyncing,
+                    isModalOpen,
+                    isCashflowModalOpen,
+                    editingCashflowId,
+                    showSettings,
+                    financeSectionTab,
+                    priceStatus,
+                    currentIdleHint
+                });
+            }, [isGeneratingPdf, isUpdatingPrice, isUpdatingRates, isCloudSyncing, isModalOpen, isCashflowModalOpen, editingCashflowId, showSettings, financeSectionTab, priceStatus, currentIdleHint, pageLanguage]);
 
             const totals = useMemo(() => {
                 let assetsHKD = 0;
@@ -1498,7 +1243,7 @@
                     const valueHKD = Math.abs(totals.categoryBreakdownHKD[categoryKey] || 0);
                     return {
                         categoryKey,
-                        label: CATEGORIES[categoryKey].label,
+                        label: translate(CATEGORIES[categoryKey].label),
                         valueHKD,
                         amount: fromHKD(valueHKD, displayCurrency),
                         hex: categoryMixHexByKey[categoryKey] || getThemeToken('--primary', '#8B5CF6')
@@ -1526,7 +1271,7 @@
                     rows: rowsWithRatio,
                     gradient: segments.length ? `conic-gradient(${segments.join(', ')})` : `conic-gradient(${emptyColor} 0% 100%)`
                 };
-            }, [totals.categoryBreakdownHKD, displayCurrency, categoryMixHexByKey]);
+            }, [totals.categoryBreakdownHKD, displayCurrency, categoryMixHexByKey, pageLanguage, dictionary]);
 
             useEffect(() => {
                 const selectedExists = assetMix.rows.some(row => row.categoryKey === selectedMixCategory);
@@ -1560,7 +1305,7 @@
                     });
 
                 const rows = sortedEntries.map(([label, valueHKD], idx) => ({
-                    label,
+                    label: translate(label),
                     valueHKD,
                     amount: fromHKD(valueHKD, displayCurrency),
                     ratio: totalHKD > 0 ? (valueHKD / totalHKD) * 100 : 0,
@@ -1579,11 +1324,11 @@
                 const emptyColor = getThemeToken('--panel-soft', '#FCE7F3');
 
                 return {
-                    categoryLabel: CATEGORIES[category]?.label || '細項',
+                    categoryLabel: translate(CATEGORIES[category]?.label || '細項'),
                     rows,
                     gradient: segments.length ? `conic-gradient(${segments.join(', ')})` : `conic-gradient(${emptyColor} 0% 100%)`
                 };
-            }, [assets, selectedMixCategory, displayCurrency, currencyRates, detailMixPalette]);
+            }, [assets, selectedMixCategory, displayCurrency, currencyRates, detailMixPalette, pageLanguage, dictionary]);
 
             const accountStats = useMemo(() => {
                 const category = selectedStatsCategory;
@@ -1610,7 +1355,7 @@
                         grouped[`ACC:${accountName}`] = {
                             key: `ACC:${accountName}`,
                             label: accountName,
-                            subtype: CATEGORIES[category].label,
+                            subtype: translate(CATEGORIES[category].label),
                             symbol: '',
                             quantity: accountItems.length,
                             valueDisplay,
@@ -1683,7 +1428,7 @@
                     selectedItem,
                     mode: statsBreakdownMode
                 };
-            }, [assets, displayCurrency, selectedStatsCategory, selectedStatsAccount, selectedStatsSegmentKey, statsBreakdownMode, currencyRates, detailMixPalette]);
+            }, [assets, displayCurrency, selectedStatsCategory, selectedStatsAccount, selectedStatsSegmentKey, statsBreakdownMode, currencyRates, detailMixPalette, pageLanguage, dictionary]);
 
             const liquidAssetOptions = useMemo(() => {
                 return assets
@@ -1844,7 +1589,7 @@
                     setAssets(result.nextAssets);
                     setCashflowAppliedOccurrenceKeys(result.nextAppliedOccurrenceKeys);
                     setCashflowAppliedPostings(result.nextAppliedPostings);
-                    setPriceStatus(`已自動入帳/扣款 ${result.appliedCount} 筆現金流`);
+                    setPriceStatus(getCashflowAutoAppliedMessage(pageLanguage, result.appliedCount));
                 }
                 setCashflowLastAutoApplyDate(result.todayKey);
             }, [assets, cashflowEntries, cashflowAppliedOccurrenceKeys, cashflowAppliedPostings, cashflowLastAutoApplyDate, currencyRates]);
@@ -1880,6 +1625,14 @@
                 setSelectedCashflowMonth(toMonthKey(next));
             };
 
+            const startNewCashflowEntry = () => {
+                setEditingCashflowId('');
+                setCashflowForm(createInitialCashflowForm());
+                setFinanceSectionTab('CASHFLOW');
+                setPriceStatus(getCashflowStartNewMessage(pageLanguage));
+                setIsCashflowModalOpen(true);
+            };
+
             const startEditCashflowEntry = (entry) => {
                 setEditingCashflowId(entry.id);
                 setCashflowForm(buildCashflowFormFromEntry({
@@ -1889,10 +1642,8 @@
                     parseDateKey
                 }));
                 setFinanceSectionTab('CASHFLOW');
-                setPriceStatus('已載入規則，可修改後儲存');
-                requestAnimationFrame(() => {
-                    cashflowFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                });
+                setPriceStatus(getCashflowStartEditMessage(pageLanguage));
+                setIsCashflowModalOpen(true);
             };
 
             const handleCashflowSubmit = (event) => {
@@ -1902,15 +1653,83 @@
                     editingCashflowId,
                     liquidAssetOptions,
                     parseDateKey,
-                    getDefaultCashflowCategory
+                    getDefaultCashflowCategory,
+                    tByLang
                 });
 
                 if (!submission.ok) {
-                    alert(submission.error);
+                    showSubmissionErrorAlert(submission.error);
                     return;
                 }
 
                 if (submission.isEditing) {
+                    const prevEntry = cashflowEntries.find(item => item.id === editingCashflowId);
+                    const nextTargetId = submission.nextEntry.targetLiquidAssetId || '';
+                    const prevTargetId = prevEntry?.targetLiquidAssetId || '';
+
+                    if (prevEntry && prevTargetId !== nextTargetId) {
+                        const liquidAssetIndexMap = {};
+                        const nextAssets = [...assets];
+                        nextAssets.forEach((asset, index) => {
+                            if (asset.category === 'LIQUID') liquidAssetIndexMap[asset.id] = index;
+                        });
+
+                        const nextAppliedPostings = { ...cashflowAppliedPostings };
+                        const nextAppliedKeySet = new Set(cashflowAppliedOccurrenceKeys);
+
+                        Object.keys(cashflowAppliedPostings).forEach(postingKey => {
+                            const posting = cashflowAppliedPostings[postingKey];
+                            if (!posting || posting.entryId !== editingCashflowId) return;
+
+                            const oldTargetId = posting.targetLiquidAssetId || prevTargetId;
+                            const oldIndex = liquidAssetIndexMap[oldTargetId];
+                            if (Number.isInteger(oldIndex)) {
+                                const oldAsset = nextAssets[oldIndex];
+                                if (oldAsset && oldAsset.category === 'LIQUID') {
+                                    const nextQuantity = Number(oldAsset.quantity || 0) - Number(posting.signedAmount || 0);
+                                    nextAssets[oldIndex] = {
+                                        ...oldAsset,
+                                        quantity: Number(nextQuantity.toFixed(6))
+                                    };
+                                }
+                            }
+
+                            delete nextAppliedPostings[postingKey];
+                            nextAppliedKeySet.delete(postingKey);
+
+                            if (!nextTargetId) return;
+                            const nextIndex = liquidAssetIndexMap[nextTargetId];
+                            if (!Number.isInteger(nextIndex)) return;
+
+                            const nextAsset = nextAssets[nextIndex];
+                            if (!nextAsset || nextAsset.category !== 'LIQUID') return;
+
+                            const amountHKD = toHKD(Number(posting.signedAmount || 0), posting.targetCurrency || nextAsset.currency);
+                            const signedAmount = fromHKD(amountHKD, nextAsset.currency);
+                            const nextQuantity = Number(nextAsset.quantity || 0) + signedAmount;
+                            nextAssets[nextIndex] = {
+                                ...nextAsset,
+                                quantity: Number(nextQuantity.toFixed(6))
+                            };
+
+                            const dateKey = parseOccurrenceDateFromPostingKey(postingKey);
+                            const nextKey = dateKey
+                                ? `${editingCashflowId}@${dateKey}@${nextTargetId}`
+                                : `${editingCashflowId}@${nextTargetId}`;
+                            nextAppliedPostings[nextKey] = {
+                                ...posting,
+                                targetLiquidAssetId: nextTargetId,
+                                signedAmount: Number(signedAmount.toFixed(6)),
+                                targetCurrency: nextAsset.currency
+                            };
+                            nextAppliedKeySet.add(nextKey);
+                        });
+
+                        setAssets(nextAssets);
+                        setCashflowAppliedPostings(nextAppliedPostings);
+                        setCashflowAppliedOccurrenceKeys(Array.from(nextAppliedKeySet));
+                    }
+
                     setCashflowEntries(prev => sanitizeCashflowEntries(prev.map(item => item.id === editingCashflowId ? submission.nextEntry : item)));
                 } else {
                     setCashflowEntries(prev => sanitizeCashflowEntries([...prev, submission.nextEntry]));
@@ -1934,9 +1753,11 @@
                     toHKD,
                     fromHKD,
                     formatAmount,
-                    isEntryOnDate
+                    isEntryOnDate,
+                    tByLang
                 });
                 setPriceStatus(statusMessage);
+                setIsCashflowModalOpen(false);
             };
 
             const handleDeleteCashflowEntry = (id) => {
@@ -1953,17 +1774,18 @@
                 const rollbackPreviewLines = [];
                 if (targetPostingKeys.length > 0) {
                     rollbackByAsset.forEach(item => {
-                        const label = liquidAssetLabelById[item.assetId] || '已綁定帳戶';
+                        const label = liquidAssetLabelById[item.assetId] || getCashflowLinkedAccountLabel(pageLanguage);
                         const rollbackAmount = Number(item.amount || 0);
                         rollbackPreviewLines.push(`- ${label}：${rollbackAmount >= 0 ? '-' : '+'}${formatAmount(Math.abs(rollbackAmount))} ${item.currency}`);
                     });
                 }
 
-                const confirmMessage = rollbackPreviewLines.length > 0
-                    ? `確定要刪除規則「${targetRule?.title || '未命名規則'}」嗎？\n\n將同步沖銷已自動入帳/扣款：\n${rollbackPreviewLines.join('\n')}\n\n此動作無法復原。`
-                    : `確定要刪除規則「${targetRule?.title || '未命名規則'}」嗎？`;
+                const confirmMessage = getCashflowDeleteConfirmMessage(pageLanguage, {
+                    ruleTitle: targetRule?.title,
+                    rollbackPreviewLines
+                });
 
-                if (!confirm(confirmMessage)) return;
+                if (!showConfirmDialog(confirmMessage)) return;
 
                 const nextAppliedPostings = { ...cashflowAppliedPostings };
                 const nextAppliedKeySet = new Set(cashflowAppliedOccurrenceKeys);
@@ -1982,7 +1804,7 @@
                     setAssets(nextAssets);
                     setCashflowAppliedPostings(nextAppliedPostings);
                     setCashflowAppliedOccurrenceKeys(Array.from(nextAppliedKeySet));
-                    setPriceStatus(`規則已刪除，並已沖銷 ${revertedCount} 筆已入帳/扣款紀錄`);
+                    setPriceStatus(getCashflowDeleteRollbackMessage(pageLanguage, revertedCount));
                 } else {
                     if (targetPostingKeys.length > 0) {
                         targetPostingKeys.forEach(postingKey => {
@@ -1992,12 +1814,13 @@
                         setCashflowAppliedPostings(nextAppliedPostings);
                         setCashflowAppliedOccurrenceKeys(Array.from(nextAppliedKeySet));
                     }
-                    setPriceStatus('規則已刪除');
+                    setPriceStatus(getCashflowDeleteMessage(pageLanguage));
                 }
 
                 setCashflowEntries(prev => prev.filter(item => item.id !== id));
                 if (editingCashflowId === id) {
                     setEditingCashflowId('');
+                    setIsCashflowModalOpen(false);
                 }
             };
 
@@ -2010,7 +1833,8 @@
                     note: '',
                     oneTimeDates: []
                 }));
-                setPriceStatus('已取消編輯');
+                setIsCashflowModalOpen(false);
+                setPriceStatus(getCashflowEditCanceledMessage(pageLanguage));
             };
 
             const isCashflowOneTime = cashflowForm.scheduleType === 'ONE_TIME';
@@ -2018,15 +1842,15 @@
 
             const refreshCurrencyRates = async (showToast = true) => {
                 setIsUpdatingRates(true);
-                if (showToast) setPriceStatus('更新匯率中...');
+                if (showToast) setPriceStatus(getFxUpdatingMessage(pageLanguage));
                 try {
                     const { nextRates, stamp } = await refreshCurrencyRatesWithStamp({ fetchLatestCurrencyRates });
                     setCurrencyRates(nextRates);
                     setLastRateUpdate(stamp);
-                    if (showToast) setPriceStatus('已更新最新匯率');
+                    if (showToast) setPriceStatus(getFxUpdatedMessage(pageLanguage));
                     return nextRates;
                 } catch (error) {
-                    if (showToast) setPriceStatus('匯率更新失敗，已使用目前匯率');
+                    if (showToast) setPriceStatus(getFxUpdateFailedMessage(pageLanguage));
                     return null;
                 } finally {
                     setIsUpdatingRates(false);
@@ -2066,13 +1890,13 @@
                 } = buildMarketTargets({ assets: latestAssets, normalizeYahooSymbol });
 
                 if (!stockTargets.length && !cryptoTargets.length) {
-                    if (showToast) setPriceStatus(tByLang('沒有可更新的股票或加密貨幣代號', 'No stock or crypto symbols available to update', '更新可能な株式・暗号資産シンボルがありません'));
+                    if (showToast) setPriceStatus(getMarketNoSymbolsMessage(pageLanguage));
                     return;
                 }
 
                 setIsUpdatingPrice(true);
                 if (showToast) {
-                    setPriceStatus(tByLang('更新行情中...', 'Updating market prices...', '相場を更新中...'));
+                    setPriceStatus(getMarketUpdatingMessage(pageLanguage));
                 }
 
                 const [stockQuotes, cryptoQuotesUSD] = await Promise.all([
@@ -2102,14 +1926,14 @@
                 setIsUpdatingPrice(false);
                 if (showToast) {
                     setPriceStatus(finalUpdatedCount > 0
-                        ? tByLang(`已更新 ${finalUpdatedCount} 筆行情`, `Updated ${finalUpdatedCount} market entries`, `${finalUpdatedCount}件の相場を更新しました`)
-                        : tByLang('行情已是最新或資料源暫不可用', 'Market data is already up to date or source is temporarily unavailable', '相場は最新、またはデータソースが一時利用不可です'));
+                        ? getMarketUpdatedCountMessage(pageLanguage, finalUpdatedCount)
+                        : getMarketUpToDateMessage(pageLanguage));
                 }
             };
 
             const updateMarketAndRates = async ({ updateMarket = true, updateRates = true, showToast = true } = {}) => {
                 if (showToast) {
-                    setPriceStatus(tByLang('更新行情與匯率中...', 'Updating prices & exchange rates...', '相場と為替を更新中...'));
+                    setPriceStatus(getMarketAndFxUpdatingMessage(pageLanguage));
                 }
                 let latestRates = null;
                 if (updateRates) {
@@ -2119,7 +1943,7 @@
                     await updateMarketPrices(false, latestRates);
                 }
                 if (showToast) {
-                    setPriceStatus(tByLang('已更新行情與匯率', 'Prices & FX updated', '相場と為替を更新しました'));
+                    setPriceStatus(getMarketAndFxUpdatedMessage(pageLanguage));
                 }
             };
 
@@ -2131,18 +1955,24 @@
 
                 firebaseAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
                     .catch(() => {
-                        setCloudStatus('無法啟用登入持久化，請允許第三方 Cookie 或關閉隱私阻擋');
+                        setCloudStatusWithMode((lang) => getCloudPersistenceFailedMessage(lang), 'action');
                     });
 
                 firebaseAuth.getRedirectResult()
                     .then(result => {
                         if (result?.user) {
-                            setCloudStatus(`已登入 Google（${result.user.email || 'Google 帳號'}）`);
+                            setCloudAuthState({ status: 'signed-in', email: result.user.email || '' });
+                            setCloudStatusMode('auth');
                         }
                     })
                     .catch(error => {
                         const code = error?.code || 'unknown';
-                        setCloudStatus(`導頁登入失敗（${code}）`);
+                        const messageText = String(error?.message || '').toLowerCase();
+                        if (messageText.includes('redirect_uri_mismatch') || code === 'auth/invalid-credential') {
+                            setCloudStatusWithMode((lang) => getCloudRedirectUriMismatchHelpMessage(lang), 'action');
+                            return;
+                        }
+                        setCloudStatusWithMode((lang) => getCloudRedirectSignInFailedMessage(lang, code), 'action');
                     });
 
                 const unsubscribe = firebaseAuth.onAuthStateChanged(async (user) => {
@@ -2150,15 +1980,13 @@
                     setIsAuthLoading(false);
 
                     if (!user) {
-                        setCloudStatus('已登出 Google，資料僅存在此裝置');
+                        setCloudAuthState({ status: 'signed-out', email: '' });
+                        setCloudStatusMode('auth');
                         return;
                     }
 
-                    setCloudStatus(tByLang(
-                        `已登入 Google（${user.email || 'Google 帳號'}），請手動同步`,
-                        `Signed in as ${user.email || 'Google Account'}, sync manually`,
-                        `${user.email || 'Google アカウント'} でログイン済み。手動で同期してください`
-                    ));
+                    setCloudAuthState({ status: 'signed-in-manual', email: user.email || '' });
+                    setCloudStatusMode('auth');
                 });
 
                 return () => unsubscribe();
@@ -2166,16 +1994,16 @@
 
             const handleCloudDownload = async () => {
                 if (!isCloudEnabled) {
-                    setCloudStatus('尚未設定 Firebase，請先在 index.html 填入 Firebase 設定');
+                    setCloudStatusWithMode((lang) => getCloudFirebaseNotConfiguredMessage(lang), 'action');
                     return;
                 }
                 if (!authUser) {
-                    setCloudStatus('請先登入 Google 後再同步');
+                    setCloudStatusWithMode((lang) => getCloudSignInRequiredMessage(lang), 'action');
                     return;
                 }
 
                 setIsCloudSyncing(true);
-                setCloudStatus(tByLang('下載雲端中...', 'Downloading from cloud...', 'クラウドからダウンロード中...'));
+                setCloudStatusWithMode((lang) => getCloudDownloadingMessage(lang), 'action');
 
                 try {
                     const result = await downloadCloudData({
@@ -2197,26 +2025,14 @@
                             setCashflowAppliedPostings,
                             setCashflowLastAutoApplyDate
                         });
-                        setCloudStatus(tByLang(
-                            `已下載雲端資料（${authUser.email || 'Google 帳號'}）`,
-                            `Cloud data downloaded (${authUser.email || 'Google Account'})`,
-                            `クラウドデータをダウンロードしました（${authUser.email || 'Google アカウント'}）`
-                        ));
+                        setCloudStatusWithMode((lang) => getCloudDownloadedMessage(lang, authUser.email), 'action');
                     } else if (result.hasSnapshot) {
-                        setCloudStatus(tByLang(
-                            '雲端資料格式不完整，未覆蓋本機',
-                            'Cloud data is invalid, local data kept',
-                            'クラウドデータ形式が不正のため、ローカルデータを維持しました'
-                        ));
+                        setCloudStatusWithMode((lang) => getCloudInvalidDataMessage(lang), 'action');
                     } else {
-                        setCloudStatus(tByLang(
-                            '雲端目前沒有可下載資料',
-                            'No cloud data available to download',
-                            'ダウンロード可能なクラウドデータがありません'
-                        ));
+                        setCloudStatusWithMode((lang) => getCloudNoDataMessage(lang), 'action');
                     }
                 } catch (error) {
-                    setCloudStatus('雲端下載失敗，資料仍保留在本機');
+                    setCloudStatusWithMode((lang) => getCloudDownloadFailedMessage(lang), 'action');
                 } finally {
                     setIsCloudSyncing(false);
                 }
@@ -2224,16 +2040,16 @@
 
             const handleCloudUpload = async () => {
                 if (!isCloudEnabled) {
-                    setCloudStatus('尚未設定 Firebase，請先在 index.html 填入 Firebase 設定');
+                    setCloudStatusWithMode((lang) => getCloudFirebaseNotConfiguredMessage(lang), 'action');
                     return;
                 }
                 if (!authUser) {
-                    setCloudStatus('請先登入 Google 後再同步');
+                    setCloudStatusWithMode((lang) => getCloudSignInRequiredMessage(lang), 'action');
                     return;
                 }
 
                 setIsCloudSyncing(true);
-                setCloudStatus(tByLang('上載雲端中...', 'Uploading to cloud...', 'クラウドへアップロード中...'));
+                setCloudStatusWithMode((lang) => getCloudUploadingMessage(lang), 'action');
 
                 try {
                     const payload = buildCloudSyncPayload({
@@ -2254,24 +2070,33 @@
                         localPayload: payload
                     });
 
-                    setCloudStatus(tByLang(
-                        `已上載本機資料到雲端（${authUser.email || 'Google 帳號'}）`,
-                        `Local data uploaded to cloud (${authUser.email || 'Google Account'})`,
-                        `ローカルデータをクラウドへアップロードしました（${authUser.email || 'Google アカウント'}）`
-                    ));
+                    setCloudStatusWithMode((lang) => getCloudUploadedMessage(lang, authUser.email), 'action');
                 } catch (error) {
-                    setCloudStatus('雲端上載失敗，資料仍保留在本機');
+                    setCloudStatusWithMode((lang) => getCloudUploadFailedMessage(lang), 'action');
                 } finally {
                     setIsCloudSyncing(false);
                 }
             };
 
             const handleGoogleLogin = async () => {
-                await loginWithGoogle({ isCloudEnabled, firebaseAuth, firebase, onStatus: setCloudStatus });
+                await loginWithGoogle({
+                    isCloudEnabled,
+                    firebaseAuth,
+                    firebase,
+                    onStatus: (message) => setCloudStatusWithMode(message, 'action'),
+                    tByLang,
+                    tByLangBy
+                });
             };
 
             const handleGoogleLogout = async () => {
-                await logoutGoogle({ isCloudEnabled, firebaseAuth, onStatus: setCloudStatus });
+                await logoutGoogle({
+                    isCloudEnabled,
+                    firebaseAuth,
+                    onStatus: (message) => setCloudStatusWithMode(message, 'action'),
+                    tByLang,
+                    tByLangBy
+                });
             };
 
             const handleExportData = () => {
@@ -2287,9 +2112,9 @@
                     });
                     const fileName = `asset-tracker-backup-${new Date().toISOString().slice(0, 10)}.json`;
                     downloadJsonFile(payload, fileName);
-                    setPriceStatus('資料已成功匯出');
+                    setPriceStatus(getExportSuccessMessage(pageLanguage));
                 } catch (error) {
-                    setPriceStatus('匯出失敗，請稍後再試');
+                    setPriceStatus(getExportFailedMessage(pageLanguage));
                 }
             };
 
@@ -2299,7 +2124,7 @@
 
             const handleShareApp = async () => {
                 if (isGeneratingPdf) {
-                    setPriceStatus('PDF 仍在產生中，請稍候...');
+                    setPriceStatus(getPdfGeneratingBusyMessage(pageLanguage));
                     return;
                 }
                 let watchdogTimer = null;
@@ -2308,15 +2133,22 @@
 
                     watchdogTimer = setTimeout(() => {
                         setIsGeneratingPdf(false);
-                        setPriceStatus('PDF 產生逾時，請再試一次');
+                        setPriceStatus(getPdfTimeoutMessage(pageLanguage));
                     }, 20000);
 
                     await exportAssetReportPdf({
                         assets,
                         displayCurrency,
+                        pageLanguage,
                         totals,
                         assetMix,
                         groupedAssets,
+                        cashflowMonthData,
+                        cashflowYearData,
+                        cashflowEntries,
+                        liquidAssetLabelById,
+                        cashflowAppliedPostings,
+                        parseOccurrenceDateFromPostingKey,
                         themeTokens: exportThemeTokens,
                         categories: CATEGORIES,
                         formatAmount,
@@ -2327,9 +2159,9 @@
                         onProgress: (message) => setPriceStatus(message)
                     });
 
-                    setPriceStatus('PDF 已成功下載');
+                    setPriceStatus(getPdfDownloadedMessage(pageLanguage));
                 } catch (error) {
-                    setPriceStatus(`分享 PDF 失敗：${error?.message || '請稍後再試'}`);
+                    setPriceStatus(getPdfShareFailedMessage(pageLanguage, error?.message));
                 } finally {
                     if (watchdogTimer) clearTimeout(watchdogTimer);
                     setIsGeneratingPdf(false);
@@ -2373,9 +2205,9 @@
                     localStorage.setItem(STORAGE_KEYS.cashflowAppliedOccurrenceKeys, JSON.stringify(nextCashflowAppliedOccurrenceKeys));
                     localStorage.setItem(STORAGE_KEYS.cashflowAppliedPostings, JSON.stringify(nextCashflowAppliedPostings));
                     localStorage.setItem(STORAGE_KEYS.cashflowLastAutoApplyDate, JSON.stringify(nextCashflowLastAutoApplyDate));
-                    setPriceStatus(`匯入成功：${nextAssets.length} 筆資產資料`);
+                    setPriceStatus(getImportSuccessMessage(pageLanguage, nextAssets.length));
                 } catch (error) {
-                    setPriceStatus('匯入失敗：檔案格式不正確');
+                    setPriceStatus(getImportFailedMessage(pageLanguage));
                 } finally {
                     event.target.value = '';
                 }
@@ -2383,7 +2215,7 @@
 
             // 重設為範例資料（會覆蓋 localStorage）
             const resetToSeed = () => {
-                if (!confirm('要把小王子的帳本重設成範例資料嗎？\n這會清空你目前的資產、現金流與月度快照（本機資料會被覆蓋）。')) return;
+                if (!showConfirmDialog(getResetSeedConfirmMessage(pageLanguage))) return;
                 const normalized = seedAssets.map(normalizeAssetRecord);
 
                 setAssets(normalized);
@@ -2407,7 +2239,7 @@
                     // 忽略 storage 錯誤
                 }
 
-                setPriceStatus('已重設資料，準備重新開始記帳囉 ✨');
+                setPriceStatus(getDataResetMessage(pageLanguage));
             };
 
             useEffect(() => {
@@ -2457,7 +2289,7 @@
                 });
 
                 if (!submission.ok) {
-                    alert(submission.error);
+                    showSubmissionErrorAlert(submission.error);
                     return;
                 }
 
@@ -2474,7 +2306,7 @@
                 setFormData(createInitialAssetFormData());
             };
 
-            const netWorthTier = getNetWorthTier(totals.netWorthHKD, themeId);
+            const netWorthTier = getNetWorthTier(totals.netWorthHKD, themeId, pageLanguage);
             const netWorthTierIndex = Number.isInteger(netWorthTier?.tierIndex) ? netWorthTier.tierIndex : 0;
             const netWorthCardStyle = useMemo(() => buildNetworthCardStyle(themeId, netWorthTierIndex), [themeId, netWorthTierIndex]);
             const totalAssetsCardStyle = useMemo(() => buildSummaryCardStyle(themeId, netWorthTierIndex, 'asset'), [themeId, netWorthTierIndex]);
@@ -2502,1064 +2334,180 @@
                 };
             }, [themeId, netWorthTierIndex]);
 
-            const normalizeHexColor = (hex, fallback = '#8B5CF6') => {
-                const raw = String(hex || '').trim().replace('#', '');
-                if (raw.length === 3) {
-                    return `#${raw.split('').map(ch => ch + ch).join('')}`;
-                }
-                if (raw.length !== 6) return fallback;
-                return `#${raw}`;
-            };
-
-            const hexToRgbObject = (hex) => {
-                const normalized = normalizeHexColor(hex).replace('#', '');
-                const r = Number.parseInt(normalized.slice(0, 2), 16);
-                const g = Number.parseInt(normalized.slice(2, 4), 16);
-                const b = Number.parseInt(normalized.slice(4, 6), 16);
-                return {
-                    r: Number.isFinite(r) ? r : 139,
-                    g: Number.isFinite(g) ? g : 92,
-                    b: Number.isFinite(b) ? b : 246
-                };
-            };
-
-            const toRgba = (hex, alpha) => {
-                const { r, g, b } = hexToRgbObject(hex);
-                const safeAlpha = Math.max(0, Math.min(1, Number(alpha) || 0));
-                return `rgba(${r}, ${g}, ${b}, ${safeAlpha})`;
-            };
-
-            const buildCategoryChipStyle = (baseColor, isActive) => {
-                const normalized = normalizeHexColor(baseColor);
-                if (isActive) {
-                    return {
-                        '--chip-base': normalized,
-                        '--chip-bg': normalized,
-                        '--chip-text': '#ffffff',
-                        '--chip-border': normalized,
-                        '--chip-shadow': `0 4px 10px ${toRgba(normalized, 0.24)}`
-                    };
-                }
-                return {
-                    '--chip-base': normalized,
-                    '--chip-bg': toRgba(normalized, 0.14),
-                    '--chip-text': toRgba(normalized, 0.96),
-                    '--chip-border': toRgba(normalized, 0.42),
-                    '--chip-shadow': 'none'
-                };
-            };
-
             return (
                 <div className="max-w-6xl mx-auto p-4 md:p-8">
-                    <header className="mb-6">
-                        <div className="theme-header-card rounded-2xl p-4 md:p-5 shadow-sm">
-                            <div className="flex items-start gap-3">
-                                <div className="theme-crown w-11 h-11 rounded-xl flex items-center justify-center text-white shadow-sm">
-                                    <i data-lucide="crown" className="w-6 h-6"></i>
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                    <h1 className="theme-text-main text-2xl font-black tracking-tight">{appName}</h1>
-                                    <p className="theme-text-sub text-xs font-bold mt-1">{pageText.subtitle}</p>
-                                </div>
-                            </div>
+                    <AppHeaderView
+                        pageText={pageText}
+                        tByLang={tByLang}
+                        appName={appName}
+                        currentHeaderSlogan={currentHeaderSlogan}
+                        importInputRef={importInputRef}
+                        handleImportData={handleImportData}
+                        setEditingId={setEditingId}
+                        setIsModalOpen={setIsModalOpen}
+                        startNewCashflowEntry={startNewCashflowEntry}
+                        showSettings={showSettings}
+                        setShowSettings={setShowSettings}
+                        authUser={authUser}
+                        handleGoogleLogout={handleGoogleLogout}
+                        handleGoogleLogin={handleGoogleLogin}
+                        isAuthLoading={isAuthLoading}
+                        isCloudSyncing={isCloudSyncing}
+                        handleCloudDownload={handleCloudDownload}
+                        handleCloudUpload={handleCloudUpload}
+                        displayCurrency={displayCurrency}
+                        setDisplayCurrency={setDisplayCurrency}
+                        markRecentCurrency={markRecentCurrency}
+                        orderedCurrencies={orderedCurrencies}
+                        pageLanguage={pageLanguage}
+                        setPageLanguage={setPageLanguage}
+                        PAGE_LANGUAGE_OPTIONS={PAGE_LANGUAGE_OPTIONS}
+                        themeId={themeId}
+                        setThemeId={setThemeId}
+                        themeOptions={themeOptions}
+                        handleExportData={handleExportData}
+                        openImportPicker={openImportPicker}
+                        resetToSeed={resetToSeed}
+                        updateMarketAndRates={updateMarketAndRates}
+                        isUpdatingPrice={isUpdatingPrice}
+                        isUpdatingRates={isUpdatingRates}
+                        handleShareApp={handleShareApp}
+                        isGeneratingPdf={isGeneratingPdf}
+                        priceStatus={priceStatus}
+                        lastPriceUpdate={lastPriceUpdate}
+                        lastRateUpdate={lastRateUpdate}
+                        cloudStatus={cloudStatus}
+                        formatDateTime={formatDateTime}
+                    />
 
-                            <div className="theme-subcard mt-3 rounded-xl px-3 py-3 flex items-center gap-3">
-                                <div className="theme-crown w-9 h-9 rounded-xl flex items-center justify-center text-lg prince-float">🤴🏻</div>
-                                <div className="min-w-0">
-                                    <div className="theme-text-sub text-xs font-black prince-talk">{currentHeaderSlogan}</div>
-                                </div>
-                            </div>
+                    <OverviewSectionView
+                        pageText={pageText}
+                        displayCurrency={displayCurrency}
+                        netWorthCardStyle={netWorthCardStyle}
+                        totalAssetsCardStyle={totalAssetsCardStyle}
+                        totalLiabilitiesCardStyle={totalLiabilitiesCardStyle}
+                        totals={totals}
+                        formatAmount={formatAmount}
+                        netWorthTier={netWorthTier}
+                        overviewPanelCardStyle={overviewPanelCardStyle}
+                        assetMix={assetMix}
+                        selectedMixCategory={selectedMixCategory}
+                        setSelectedMixCategory={setSelectedMixCategory}
+                        selectedMixItemStyle={selectedMixItemStyle}
+                        detailMix={detailMix}
+                        detailDonutCenterCardStyle={detailDonutCenterCardStyle}
+                    />
 
-                            <input
-                                ref={importInputRef}
-                                type="file"
-                                accept="application/json,.json"
-                                className="hidden"
-                                onChange={handleImportData}
-                            />
-                            <div className="mt-4 pt-3 border-t border-white/70 flex flex-wrap items-center gap-2">
-                                <button onClick={() => { setEditingId(null); setIsModalOpen(true); }} className="bg-slate-900 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-slate-800 transition-all shadow-md flex items-center gap-2">
-                                    <i data-lucide="plus-circle" className="w-4 h-4"></i> {pageText.addAsset}
-                                </button>
+                    <FinanceSectionView
+                        financeSectionTab={financeSectionTab}
+                        setFinanceSectionTab={setFinanceSectionTab}
+                        pageText={pageText}
+                        selectedStatsCategory={selectedStatsCategory}
+                        setSelectedStatsCategory={setSelectedStatsCategory}
+                        setSelectedStatsAccount={setSelectedStatsAccount}
+                        setSelectedStatsSegmentKey={setSelectedStatsSegmentKey}
+                        CATEGORY_KEYS={CATEGORY_KEYS}
+                        translate={translate}
+                        CATEGORIES={CATEGORIES}
+                        statsBreakdownMode={statsBreakdownMode}
+                        setStatsBreakdownMode={setStatsBreakdownMode}
+                        accountStats={accountStats}
+                        tByLang={tByLang}
+                        accountChartCenterStyle={accountChartCenterStyle}
+                        describeArc={describeArc}
+                        selectedMixItemStyle={selectedMixItemStyle}
+                        overviewPanelCardStyle={overviewPanelCardStyle}
+                        formatAmount={formatAmount}
+                        displayCurrency={displayCurrency}
+                        MonthPicker={MonthPicker}
+                        selectedCashflowMonth={selectedCashflowMonth}
+                        setSelectedCashflowMonth={setSelectedCashflowMonth}
+                        toMonthKey={toMonthKey}
+                        pageLanguage={pageLanguage}
+                        moveCashflowMonth={moveCashflowMonth}
+                        CashflowOverviewView={CashflowOverviewView}
+                        cashflowMonthData={cashflowMonthData}
+                        cashflowYearData={cashflowYearData}
+                        cashflowView={cashflowView}
+                        setCashflowView={setCashflowView}
+                        WEEKDAY_LABELS={WEEKDAY_LABELS}
+                        CashflowRulesView={CashflowRulesView}
+                        cashflowEntries={cashflowEntries}
+                        filteredCashflowEntries={filteredCashflowEntries}
+                        cashflowRuleKeyword={cashflowRuleKeyword}
+                        setCashflowRuleKeyword={setCashflowRuleKeyword}
+                        cashflowRuleFilter={cashflowRuleFilter}
+                        setCashflowRuleFilter={setCashflowRuleFilter}
+                        cashflowRuleSortMode={cashflowRuleSortMode}
+                        setCashflowRuleSortMode={setCashflowRuleSortMode}
+                        editingCashflowId={editingCashflowId}
+                        cancelCashflowEdit={cancelCashflowEdit}
+                        setCashflowRulesVisibleCount={setCashflowRulesVisibleCount}
+                        cashflowRulesVisibleCount={cashflowRulesVisibleCount}
+                        CASHFLOW_TYPES={CASHFLOW_TYPES}
+                        CASHFLOW_FREQUENCIES={CASHFLOW_FREQUENCIES}
+                        liquidAssetLabelById={liquidAssetLabelById}
+                        cashflowTriggerInfoById={cashflowTriggerInfoById}
+                        fromHKD={fromHKD}
+                        toHKD={toHKD}
+                        startEditCashflowEntry={startEditCashflowEntry}
+                        handleDeleteCashflowEntry={handleDeleteCashflowEntry}
+                    />
 
-                                <button
-                                    onClick={resetToSeed}
-                                    title={tByLang('可愛重設：清空目前資料並回到範例帳本', 'Cute reset: clear current data and restore sample ledger', 'かわいくリセット：現在のデータを消去してサンプル台帳に戻します')}
-                                    className="theme-btn-danger text-white px-4 py-2 rounded-lg font-bold text-sm transition-all shadow-md"
-                                >
-                                    {pageText.resetData}
-                                </button>
-
-                                <div className="relative ml-auto">
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowSettings(prev => !prev)}
-                                        className="bg-white border border-slate-200 rounded-lg px-3 py-2 font-black text-sm shadow-sm flex items-center gap-2"
-                                    >
-                                        <i data-lucide="settings" className="w-4 h-4"></i>
-                                        {pageText.advanced}
-                                    </button>
-                                    {showSettings && (
-                                        <div className="absolute right-0 mt-2 w-64 bg-white border border-slate-100 rounded-xl shadow-lg p-3 space-y-2 z-20">
-                                            <div className="text-[10px] text-slate-400 font-black uppercase tracking-widest">{pageText.cloudAccount}</div>
-                                            <div className="text-xs font-bold text-slate-600 bg-slate-50 rounded-lg px-2 py-1">
-                                                {authUser ? (authUser.email || '已登入 Google') : '未登入 Google'}
-                                            </div>
-                                            <button
-                                                onClick={() => {
-                                                    if (authUser) handleGoogleLogout();
-                                                    else handleGoogleLogin();
-                                                    setShowSettings(false);
-                                                }}
-                                                disabled={isAuthLoading || isCloudSyncing}
-                                                className="w-full bg-slate-900 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-slate-800 transition-all disabled:opacity-60"
-                                            >
-                                                {isAuthLoading ? pageText.loginLoading : authUser ? pageText.logout : pageText.login}
-                                            </button>
-                                            <button
-                                                onClick={() => { handleCloudDownload(); setShowSettings(false); }}
-                                                disabled={!authUser || isAuthLoading || isCloudSyncing}
-                                                className="theme-btn-accent w-full text-white px-4 py-2 rounded-lg font-bold text-sm transition-all disabled:opacity-60"
-                                            >
-                                                {isCloudSyncing
-                                                    ? tByLang('同步中...', 'Syncing...', '同期中...')
-                                                    : tByLang('下載雲端資料', 'Download Cloud Data', 'クラウドデータをダウンロード')}
-                                            </button>
-                                            <button
-                                                onClick={() => { handleCloudUpload(); setShowSettings(false); }}
-                                                disabled={!authUser || isAuthLoading || isCloudSyncing}
-                                                className="theme-btn-accent w-full text-white px-4 py-2 rounded-lg font-bold text-sm transition-all disabled:opacity-60"
-                                            >
-                                                {isCloudSyncing
-                                                    ? tByLang('同步中...', 'Syncing...', '同期中...')
-                                                    : tByLang('上載本機資料', 'Upload Local Data', 'ローカルデータをアップロード')}
-                                            </button>
-                                            <div className="text-[10px] text-slate-400 font-black uppercase tracking-widest">{pageText.displayCurrency}</div>
-                                            <select
-                                                value={displayCurrency}
-                                                onChange={e => setDisplayCurrency(e.target.value)}
-                                                className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 font-bold text-sm shadow-sm outline-none"
-                                            >
-                                                {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
-                                            </select>
-                                            <div className="text-[10px] text-slate-400 font-black uppercase tracking-widest">{pageText.pageLanguage}</div>
-                                            <select
-                                                value={pageLanguage}
-                                                onChange={e => setPageLanguage(e.target.value)}
-                                                className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 font-bold text-sm shadow-sm outline-none"
-                                            >
-                                                {PAGE_LANGUAGE_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
-                                            </select>
-                                            <div className="text-[10px] text-slate-400 font-black uppercase tracking-widest">主題 Theme</div>
-                                            <select
-                                                value={themeId}
-                                                onChange={e => setThemeId(e.target.value)}
-                                                className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 font-bold text-sm shadow-sm outline-none"
-                                            >
-                                                {THEME_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
-                                            </select>
-                                            <button
-                                                onClick={() => { handleExportData(); setShowSettings(false); }}
-                                                className="theme-btn-gold w-full text-white px-4 py-2 rounded-lg font-bold text-sm transition-all"
-                                            >
-                                                {pageText.exportData}
-                                            </button>
-                                            <button
-                                                onClick={() => { openImportPicker(); setShowSettings(false); }}
-                                                className="w-full theme-tab-inactive px-4 py-2 rounded-lg font-bold text-sm transition-all"
-                                            >
-                                                {pageText.importData}
-                                            </button>
-                                            <button
-                                                onClick={() => { updateMarketAndRates({ updateMarket: true, updateRates: true, showToast: true }); setShowSettings(false); }}
-                                                disabled={isUpdatingPrice || isUpdatingRates}
-                                                className="theme-btn-accent w-full text-white px-4 py-2 rounded-lg font-bold text-sm transition-all disabled:opacity-60"
-                                            >
-                                                {(isUpdatingPrice || isUpdatingRates)
-                                                    ? pageText.updating
-                                                    : tByLang('更新行情與匯率', 'Update Prices & FX', '相場と為替を更新')}
-                                            </button>
-                                            <button
-                                                onClick={() => { handleShareApp(); setShowSettings(false); }}
-                                                disabled={isGeneratingPdf}
-                                                className="w-full theme-btn-primary text-white px-4 py-2 rounded-lg font-bold text-sm transition-all disabled:opacity-60"
-                                            >
-                                                {isGeneratingPdf ? pageText.generatingPdf : pageText.sharePdf}
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    </header>
-
-                    <div className="mb-8 text-xs theme-text-sub font-bold flex flex-wrap gap-x-4 gap-y-1">
-                        <span>{priceStatus || pageText.marketAutoUpdate}</span>
-                        <span>{lastPriceUpdate ? `${pageText.lastUpdated}：${lastPriceUpdate.toLocaleString()}` : pageText.noPriceYet}</span>
-                        <span>{lastRateUpdate ? `${pageText.rateUpdated}：${lastRateUpdate.toLocaleString()}` : pageText.fxDefault}</span>
-                        <span>{isCloudSyncing ? pageText.cloudSyncing : cloudStatus}</span>
-                    </div>
-
-                    <section className="theme-surface p-4 sm:p-6 rounded-2xl shadow-sm mb-8">
-                        <div className="theme-text-main font-black mb-4">{pageText.overviewTitle}</div>
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            <div className="space-y-4">
-                                <div className="theme-networth-card p-5 rounded-2xl text-white shadow-lg" style={netWorthCardStyle}>
-                                    <div className="theme-networth-caption text-[10px] font-black uppercase tracking-widest mb-1">{pageText.netWorth} ({displayCurrency})</div>
-                                    <div className="text-3xl font-black tracking-tighter">{formatAmount(totals.netWorth)}</div>
-                                    <div className="text-xs font-black theme-networth-caption mt-2">{netWorthTier.emoji} {netWorthTier.label}</div>
-                                </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3">
-                                    <div className="theme-summary-card p-4 rounded-xl" style={totalAssetsCardStyle}>
-                                        <div className="theme-text-sub text-[10px] font-black uppercase tracking-widest mb-1">{pageText.totalAssets}</div>
-                                        <div className="text-xl font-black theme-text-main">{formatAmount(totals.assets)}</div>
-                                    </div>
-                                    <div className="theme-summary-card p-4 rounded-xl" style={totalLiabilitiesCardStyle}>
-                                        <div className="theme-text-sub text-[10px] font-black uppercase tracking-widest mb-1">{pageText.totalLiabilities}</div>
-                                        <div className="text-xl font-black theme-negative">{formatAmount(totals.liabilities)}</div>
-                                        <div className="text-[10px] font-black theme-text-sub mt-1">{pageText.debtRatio} {totals.debtRatio.toFixed(1)}%</div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="lg:col-span-2 grid grid-cols-1 xl:grid-cols-2 gap-6 items-center">
-                                <details className="rounded-xl p-3 theme-summary-card" style={overviewPanelCardStyle} open>
-                                    <summary className="sm:hidden text-xs font-black theme-text-sub cursor-pointer list-none">{pageText.categoryMix}</summary>
-                                    <div className="space-y-3 mt-3 sm:mt-0">
-                                        {assetMix.rows.map(item => (
-                                            <button
-                                                type="button"
-                                                key={item.categoryKey}
-                                                onClick={() => setSelectedMixCategory(item.categoryKey)}
-                                                className="w-full text-left rounded-xl p-2 transition-all theme-mix-item"
-                                                style={selectedMixCategory === item.categoryKey ? selectedMixItemStyle : undefined}
-                                            >
-                                                <div className="flex justify-between items-center text-xs font-black theme-text-sub">
-                                                    <span className="flex items-center gap-2">
-                                                        <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.hex }}></span>
-                                                        <span>{item.label}</span>
-                                                    </span>
-                                                    <span>{item.ratio.toFixed(1)}% · {formatAmount(item.amount)} {displayCurrency}</span>
-                                                </div>
-                                            </button>
-                                        ))}
-                                    </div>
-                                </details>
-                                <div className="space-y-4">
-                                    <div className="flex items-center justify-center">
-                                        <div className="w-44 h-44 sm:w-52 sm:h-52 rounded-full relative" style={{ background: detailMix.gradient }}>
-                                            <div className="absolute inset-8 rounded-full flex items-center justify-center theme-summary-card" style={detailDonutCenterCardStyle}>
-                                                <div className="text-center">
-                                                    <div className="text-[10px] theme-text-sub font-black uppercase tracking-widest">{detailMix.categoryLabel}</div>
-                                                    <div className="text-sm font-black theme-text-main">{pageText.detailMix}</div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <details className="rounded-xl p-3 theme-summary-card" style={overviewPanelCardStyle} open>
-                                        <summary className="sm:hidden text-xs font-black theme-text-sub cursor-pointer list-none">{pageText.detailMix}</summary>
-                                        <div className="space-y-2 mt-3 sm:mt-0">
-                                            {detailMix.rows.length ? detailMix.rows.map(row => (
-                                                <div key={row.label} className="flex items-center justify-between text-xs font-black theme-text-sub">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: row.color }}></span>
-                                                        <span>{row.label}</span>
-                                                    </div>
-                                                    <span>{row.ratio.toFixed(1)}% · {formatAmount(row.amount)} {displayCurrency}</span>
-                                                </div>
-                                            )) : (
-                                                <p className="text-sm theme-text-sub font-bold text-center">{pageText.noDetailItems}</p>
-                                            )}
-                                        </div>
-                                    </details>
-                                </div>
-                            </div>
-                        </div>
-                    </section>
-
-                    <div className="mb-4 flex items-center gap-2">
-                        <button
-                            type="button"
-                            onClick={() => setFinanceSectionTab('ASSET_ACCOUNT')}
-                            className={`px-4 py-2 rounded-lg text-sm font-black ${financeSectionTab === 'ASSET_ACCOUNT' ? 'theme-tab-active' : 'theme-tab-inactive'}`}
-                        >
-                            {pageText.tabAssetAccount}
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setFinanceSectionTab('CASHFLOW')}
-                            className={`px-4 py-2 rounded-lg text-sm font-black ${financeSectionTab === 'CASHFLOW' ? 'theme-tab-active' : 'theme-tab-inactive'}`}
-                        >
-                            {pageText.tabCashflow}
-                        </button>
-                    </div>
-
-                    {financeSectionTab === 'ASSET_ACCOUNT' && (
-                    <section className="theme-surface p-4 sm:p-6 rounded-2xl shadow-sm mb-8">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-                            <div className="theme-text-main font-black">{pageText.tabAssetAccount}</div>
-                            <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2">
-                                <select
-                                    value={selectedStatsCategory}
-                                    onChange={e => {
-                                        setSelectedStatsCategory(e.target.value);
-                                        setSelectedStatsAccount('');
-                                        setSelectedStatsSegmentKey('');
-                                    }}
-                                    className="theme-input rounded-lg px-3 py-2 font-bold text-sm shadow-sm outline-none w-full sm:w-auto"
-                                >
-                                    {CATEGORY_KEYS.map(categoryKey => <option key={categoryKey} value={categoryKey}>{CATEGORIES[categoryKey].label}</option>)}
-                                </select>
-                                <select
-                                    value={statsBreakdownMode}
-                                    onChange={e => {
-                                        setStatsBreakdownMode(e.target.value);
-                                        setSelectedStatsSegmentKey('');
-                                    }}
-                                    className="theme-input rounded-lg px-3 py-2 font-bold text-sm shadow-sm outline-none w-full sm:w-auto"
-                                >
-                                    <option value="ACCOUNT">按帳戶佔比</option>
-                                    <option value="ITEM">按帳戶內細項</option>
-                                </select>
-                                {statsBreakdownMode === 'ITEM' && (
-                                    <select
-                                        value={accountStats.currentAccount}
-                                        onChange={e => {
-                                            setSelectedStatsAccount(e.target.value);
-                                            setSelectedStatsSegmentKey('');
-                                        }}
-                                        className="theme-input rounded-lg px-3 py-2 font-bold text-sm shadow-sm outline-none w-full sm:w-auto"
-                                    >
-                                        {accountStats.accountNames.length ? (
-                                            accountStats.accountNames.map(account => <option key={account} value={account}>{account}</option>)
-                                        ) : (
-                                            <option value="">尚無帳戶</option>
-                                        )}
-                                    </select>
-                                )}
-                            </div>
-                        </div>
-
-                        {!accountStats.accountNames.length ? (
-                            <p className="text-sm theme-text-sub font-bold">目前此類別沒有可統計資料</p>
-                        ) : (
-                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-                                <div className="flex justify-center">
-                                    <svg viewBox="0 0 260 260" className="w-48 h-48 sm:w-56 sm:h-56">
-                                        {accountStats.segments.length === 1 ? (
-                                            <circle
-                                                cx="130"
-                                                cy="130"
-                                                r="110"
-                                                fill={accountStats.segments[0].color}
-                                                stroke={accountChartCenterStyle.ringStroke}
-                                                strokeWidth="2"
-                                                className="cursor-pointer"
-                                                onClick={() => setSelectedStatsSegmentKey(accountStats.segments[0].key)}
-                                            />
-                                        ) : (
-                                            accountStats.segments.map(segment => (
-                                                <path
-                                                    key={segment.key}
-                                                    d={describeArc(130, 130, 110, segment.startAngle, segment.endAngle)}
-                                                    fill={segment.color}
-                                                    stroke={accountChartCenterStyle.ringStroke}
-                                                    strokeWidth="2"
-                                                    className="cursor-pointer"
-                                                    opacity={accountStats.selectedItem?.key === segment.key ? 1 : 0.8}
-                                                    onClick={() => setSelectedStatsSegmentKey(segment.key)}
-                                                />
-                                            ))
-                                        )}
-                                        <circle cx="130" cy="130" r="62" fill={accountChartCenterStyle.holeFill} />
-                                        <text x="130" y="116" textAnchor="middle" style={{ fontSize: '10px', fontWeight: 800, fill: accountChartCenterStyle.labelFill }}>
-                                            {accountStats.selectedItem ? accountStats.selectedItem.label : (statsBreakdownMode === 'ACCOUNT' ? CATEGORIES[selectedStatsCategory].label : accountStats.currentAccount)}
-                                        </text>
-                                        <text x="130" y="136" textAnchor="middle" style={{ fontSize: '13px', fontWeight: 900, fill: accountChartCenterStyle.valueFill }}>
-                                            {accountStats.selectedItem ? `${formatAmount(accountStats.selectedItem.valueDisplay)} ${displayCurrency}` : `${formatAmount(accountStats.total)} ${displayCurrency}`}
-                                        </text>
-                                        <text x="130" y="154" textAnchor="middle" style={{ fontSize: '10px', fontWeight: 800, fill: accountChartCenterStyle.hintFill }}>
-                                            {accountStats.selectedItem ? `${accountStats.selectedItem.ratio.toFixed(1)}%` : tByLang('點擊區塊查看佔比', 'Click a segment to view ratio', 'セグメントをクリックして比率を表示')}
-                                        </text>
-                                    </svg>
-                                </div>
-
-                                <div className="lg:col-span-2 space-y-3">
-                                    <div className="space-y-2">
-                                        {accountStats.segments.map(segment => (
-                                            <button
-                                                key={segment.key}
-                                                type="button"
-                                                onClick={() => setSelectedStatsSegmentKey(segment.key)}
-                                                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-left transition-all ${accountStats.selectedItem?.key === segment.key ? 'theme-mix-item' : 'theme-surface theme-mix-item'}`}
-                                                style={accountStats.selectedItem?.key === segment.key ? selectedMixItemStyle : undefined}
-                                            >
-                                                <div className="flex items-center gap-2 min-w-0">
-                                                    <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: segment.color }}></span>
-                                                    <span className="text-sm font-bold theme-text-main truncate">{segment.label}</span>
-                                                    <span className="text-[10px] theme-text-sub font-black">{segment.symbol ? `(${segment.symbol})` : ''}</span>
-                                                </div>
-                                                <div className="text-xs font-black theme-text-sub whitespace-nowrap text-right">
-                                                    <div>{formatAmount(segment.valueDisplay)} {displayCurrency}</div>
-                                                    <div>{segment.ratio.toFixed(1)}%</div>
-                                                </div>
-                                            </button>
-                                        ))}
-                                    </div>
-
-                                    {accountStats.selectedItem && (
-                                        <details className="rounded-xl p-4 theme-summary-card" style={overviewPanelCardStyle} open>
-                                            <summary className="md:hidden text-xs theme-text-sub font-black cursor-pointer list-none">已選擇項目細節</summary>
-                                            <div className="mt-3 md:mt-0">
-                                                <div className="text-xs theme-text-sub font-black mb-2">已選擇項目</div>
-                                                <div className="text-base font-black theme-text-main mb-1">{accountStats.selectedItem.label}</div>
-                                                <div className="text-xs theme-text-sub font-bold mb-2">
-                                                    {statsBreakdownMode === 'ACCOUNT'
-                                                        ? tByLang(
-                                                            `帳戶資產項目：${accountStats.selectedItem.members?.length || 0} 筆`,
-                                                            `Account Asset Items: ${accountStats.selectedItem.members?.length || 0}`,
-                                                            `口座資産項目：${accountStats.selectedItem.members?.length || 0}件`
-                                                        )
-                                                        : (accountStats.selectedItem.subtype || CATEGORIES[selectedStatsCategory].label)}
-                                                    {accountStats.selectedItem.symbol ? ` · ${accountStats.selectedItem.symbol}` : ''}
-                                                </div>
-                                                <div className="text-sm font-bold theme-text-main">名稱：{accountStats.selectedItem.label}</div>
-                                                <div className="text-sm font-bold theme-text-main">金額：{formatAmount(accountStats.selectedItem.valueDisplay)} {displayCurrency}</div>
-                                                <div className="text-sm font-bold theme-text-main">百分比：{accountStats.selectedItem.ratio.toFixed(2)}%</div>
-                                            </div>
-                                        </details>
-                                    )}
-                                </div>
-                            </div>
-                        )}
-                    </section>
-                    )}
-
-                    {financeSectionTab === 'CASHFLOW' && (
-                    <section className="theme-surface p-4 sm:p-6 rounded-2xl shadow-sm mb-8">
-                        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-4">
-                            <div>
-                                <div className="text-slate-800 font-black">{pageText.tabCashflow}</div>
-                                <p className="text-xs text-slate-400 font-bold mt-1">{pageText.cashflowDesc}</p>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <button
-                                    type="button"
-                                    onClick={() => moveCashflowMonth(-1)}
-                                    className="px-3 py-2 rounded-lg text-xs font-black theme-tab-inactive"
-                                >
-                                    {pageText.prevMonth}
-                                </button>
-                                <input
-                                    type="month"
-                                    value={selectedCashflowMonth}
-                                    onChange={e => setSelectedCashflowMonth(e.target.value || toMonthKey(new Date()))}
-                                    className="px-3 py-2 rounded-lg text-xs font-black theme-input outline-none"
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => moveCashflowMonth(1)}
-                                    className="px-3 py-2 rounded-lg text-xs font-black theme-tab-inactive"
-                                >
-                                    {pageText.nextMonth}
-                                </button>
-                            </div>
-                        </div>
-
-                        <div className="flex flex-col gap-5">
-
-                        <CashflowRuleForm
-                            cashflowFormRef={cashflowFormRef}
-                            handleCashflowSubmit={handleCashflowSubmit}
-                            editingCashflowId={editingCashflowId}
-                            cashflowEntries={cashflowEntries}
-                            cashflowAccountOptions={cashflowAccountOptions}
-                            FIELD_LABEL_CLASS={FIELD_LABEL_CLASS}
-                            CASHFLOW_INPUT_CLASS={CASHFLOW_INPUT_CLASS}
-                            CASHFLOW_INPUT_FOCUS_CLASS={CASHFLOW_INPUT_FOCUS_CLASS}
-                            cashflowForm={cashflowForm}
-                            updateCashflowField={updateCashflowField}
-                            toggleCashflowOneTimeDate={toggleCashflowOneTimeDate}
-                            updateCashflowOneTimeMonth={updateCashflowOneTimeMonth}
-                            applyCashflowOneTimeMonthPreset={applyCashflowOneTimeMonthPreset}
-                            clearCashflowOneTimeDates={clearCashflowOneTimeDates}
-                            updateCashflowType={updateCashflowType}
-                            updateCashflowTargetLiquidAsset={updateCashflowTargetLiquidAsset}
-                            CASHFLOW_TYPES={CASHFLOW_TYPES}
-                            CASHFLOW_SCHEDULE_TYPES={CASHFLOW_SCHEDULE_TYPES}
-                            liquidAssetOptions={liquidAssetOptions}
-                            CURRENCIES={CURRENCIES}
-                            isCashflowOneTime={isCashflowOneTime}
-                            isCashflowMonthlyRecurring={isCashflowMonthlyRecurring}
-                            CASHFLOW_FREQUENCIES={CASHFLOW_FREQUENCIES}
-                            availableCashflowCategories={availableCashflowCategories}
-                            parseDateKey={parseDateKey}
-                            toDateKey={toDateKey}
-                        />
-
-                        <CashflowOverviewView
-                            cashflowMonthData={cashflowMonthData}
-                            cashflowYearData={cashflowYearData}
-                            displayCurrency={displayCurrency}
-                            formatAmount={formatAmount}
-                            cashflowView={cashflowView}
-                            setCashflowView={setCashflowView}
-                            WEEKDAY_LABELS={WEEKDAY_LABELS}
-                        />
-
-                        <CashflowRulesView
-                            cashflowEntries={cashflowEntries}
-                            filteredCashflowEntries={filteredCashflowEntries}
-                            cashflowRuleKeyword={cashflowRuleKeyword}
-                            setCashflowRuleKeyword={setCashflowRuleKeyword}
-                            cashflowRuleFilter={cashflowRuleFilter}
-                            setCashflowRuleFilter={setCashflowRuleFilter}
-                            cashflowRuleSortMode={cashflowRuleSortMode}
-                            setCashflowRuleSortMode={setCashflowRuleSortMode}
-                            editingCashflowId={editingCashflowId}
-                            cancelCashflowEdit={cancelCashflowEdit}
-                            setCashflowRulesVisibleCount={setCashflowRulesVisibleCount}
-                            cashflowRulesVisibleCount={cashflowRulesVisibleCount}
-                            CASHFLOW_TYPES={CASHFLOW_TYPES}
-                            CASHFLOW_FREQUENCIES={CASHFLOW_FREQUENCIES}
-                            liquidAssetLabelById={liquidAssetLabelById}
-                            cashflowTriggerInfoById={cashflowTriggerInfoById}
-                            formatAmount={formatAmount}
-                            fromHKD={fromHKD}
-                            toHKD={toHKD}
-                            displayCurrency={displayCurrency}
-                            startEditCashflowEntry={startEditCashflowEntry}
-                            handleDeleteCashflowEntry={handleDeleteCashflowEntry}
-                        />
-                        </div>
-                    </section>
-                    )}
-
-                    <div className="mb-6 flex md:flex-wrap items-center gap-2 overflow-x-auto -mx-2 px-2">
-                        <button
-                            onClick={() => setSelectedCategories(CATEGORY_KEYS)}
-                            className="category-filter-chip px-4 py-1.5 rounded-full text-xs font-black transition-all whitespace-nowrap shrink-0"
-                            data-active={selectedCategories.length === CATEGORY_KEYS.length ? 'true' : 'false'}
-                            style={buildCategoryChipStyle(getThemeTokenByTheme('--primary', '#8B5CF6'), selectedCategories.length === CATEGORY_KEYS.length)}
-                        >
-                            全部項目
-                        </button>
-                        {CATEGORY_KEYS.map(categoryKey => (
-                            <button
-                                key={categoryKey}
-                                onClick={() => toggleCategory(categoryKey)}
-                                className="category-filter-chip px-4 py-1.5 rounded-full text-xs font-black transition-all whitespace-nowrap shrink-0"
-                                data-active={selectedCategories.includes(categoryKey) ? 'true' : 'false'}
-                                style={buildCategoryChipStyle(categoryMixHexByKey[categoryKey], selectedCategories.includes(categoryKey))}
-                            >
-                                <span>{CATEGORIES[categoryKey].label}</span>
-                            </button>
-                        ))}
-                        <select
-                            value={sortMode}
-                            onChange={e => setSortMode(e.target.value)}
-                            className="theme-input rounded-lg px-3 py-1.5 font-bold text-xs shadow-sm outline-none shrink-0"
-                        >
-                            <option value="AMOUNT_DESC">按金額排序（大到小）</option>
-                            <option value="NAME_ASC">按名稱排序（A-Z）</option>
-                        </select>
-                        <select
-                            value={viewMode}
-                            onChange={e => setViewMode(e.target.value)}
-                            className="theme-input rounded-lg px-3 py-1.5 font-bold text-xs shadow-sm outline-none shrink-0"
-                        >
-                            <option value="DETAIL">詳細模式</option>
-                            <option value="SUMMARY">匯總模式</option>
-                        </select>
-                    </div>
+                    <AssetFilterBarView
+                        setSelectedCategories={setSelectedCategories}
+                        CATEGORY_KEYS={CATEGORY_KEYS}
+                        selectedCategories={selectedCategories}
+                        buildCategoryChipStyle={buildCategoryChipStyle}
+                        getThemeTokenByTheme={getThemeTokenByTheme}
+                        tByLang={tByLang}
+                        toggleCategory={toggleCategory}
+                        categoryMixHexByKey={categoryMixHexByKey}
+                        translate={translate}
+                        CATEGORIES={CATEGORIES}
+                        sortMode={sortMode}
+                        setSortMode={setSortMode}
+                        viewMode={viewMode}
+                        setViewMode={setViewMode}
+                    />
 
                     {viewMode === 'SUMMARY' ? (
-                        <div className="space-y-6">
-                            {groupedAssets.map(({ categoryKey: catKey, accounts }) => {
-                                const categoryTotalHKD = accounts.reduce((sum, account) => {
-                                    const accountTotal = account.items.reduce((itemSum, item) => itemSum + toHKD(item.quantity * item.currentPrice, item.currency), 0);
-                                    return sum + accountTotal;
-                                }, 0);
-                                const categoryTotalDisplay = fromHKD(categoryTotalHKD, displayCurrency);
-                                const isLiabilityCategory = Boolean(CATEGORIES[catKey].isNegative);
-
-                                return (
-                                    <section key={catKey} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                                        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-1.5 h-6 rounded-full" style={{ backgroundColor: categoryMixHexByKey[catKey] }}></div>
-                                                <h2 className="text-base font-black text-slate-800">{CATEGORIES[catKey].label}</h2>
-                                            </div>
-                                            <div className={`text-sm font-black ${isLiabilityCategory ? 'text-rose-500' : 'text-emerald-600'}`}>
-                                                {isLiabilityCategory ? '-' : ''}{formatAmount(Math.abs(categoryTotalDisplay))} {displayCurrency}
-                                            </div>
-                                        </div>
-                                        <div className="divide-y divide-slate-100">
-                                            {accounts.map(({ accountName, items }) => {
-                                                const accountTotalHKD = items.reduce((sum, item) => sum + toHKD(item.quantity * item.currentPrice, item.currency), 0);
-                                                const accountTotalDisplay = fromHKD(accountTotalHKD, displayCurrency);
-                                                return (
-                                                    <div key={accountName} className="px-6 py-3 flex items-center justify-between">
-                                                        <div className="text-sm font-bold text-slate-700">{accountName}</div>
-                                                        <div className={`text-sm font-black ${isLiabilityCategory ? 'text-rose-500' : 'text-emerald-600'}`}>
-                                                            {isLiabilityCategory ? '-' : ''}{formatAmount(Math.abs(accountTotalDisplay))} {displayCurrency}
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    </section>
-                                );
-                            })}
-                        </div>
+                        <AssetSummaryListView
+                            groupedAssets={groupedAssets}
+                            toHKD={toHKD}
+                            fromHKD={fromHKD}
+                            displayCurrency={displayCurrency}
+                            CATEGORIES={CATEGORIES}
+                            categoryMixHexByKey={categoryMixHexByKey}
+                            translate={translate}
+                            formatAmount={formatAmount}
+                        />
                     ) : (
-                        <div className="space-y-10">
-                            {groupedAssets.map(({ categoryKey: catKey, accounts }) => (
-                                <div key={catKey} className="space-y-4">
-                                    <div className="flex items-center gap-2 px-2">
-                                        <div className="w-1.5 h-6 rounded-full" style={{ backgroundColor: categoryMixHexByKey[catKey] }}></div>
-                                        <h2 className="text-lg font-black text-slate-800">{CATEGORIES[catKey].label}</h2>
-                                    </div>
-
-                                    {accounts.map(({ accountName, items }) => {
-                                        const accountTotalHKD = items.reduce((sum, item) => sum + toHKD(item.quantity * item.currentPrice, item.currency), 0);
-                                        const accountTotalDisplay = fromHKD(accountTotalHKD, displayCurrency);
-                                        const isLiabilityCategory = Boolean(CATEGORIES[catKey].isNegative);
-                                        const isInvestCategory = catKey === 'INVEST';
-                                        const isLiquidCategory = catKey === 'LIQUID';
-                                        const isInsuranceCategory = catKey === 'INSURANCE';
-                                        const isReceivableCategory = catKey === 'RECEIVABLE';
-                                        const isFixedCategory = catKey === 'FIXED';
-                                        const accountKey = `${catKey}::${accountName}`;
-                                        const isExpanded = expandedAccounts[accountKey] ?? true;
-
-                                        return (
-                                        <div key={accountName} className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm">
-                                            <button
-                                                type="button"
-                                                onClick={() => toggleAccountExpand(catKey, accountName)}
-                                                className="w-full bg-slate-50/50 px-6 py-3 border-b border-slate-100 flex items-center justify-between gap-3 text-left"
-                                            >
-                                                <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest">{accountName}</h3>
-                                                <div className="text-right flex items-center gap-3">
-                                                    <div>
-                                                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">帳戶匯總</div>
-                                                    <div className={`text-sm font-black ${isLiabilityCategory ? 'text-rose-500' : 'text-emerald-600'}`}>
-                                                        {isLiabilityCategory ? '-' : ''}{formatAmount(Math.abs(accountTotalDisplay))} {displayCurrency}
-                                                    </div>
-                                                    </div>
-                                                </div>
-                                            </button>
-                                            {isExpanded && (
-                                            <>
-                                                <div className="md:hidden px-4 pt-4 pb-4 space-y-3">
-                                                    {items.map(item => {
-                                                        const mktValOrig = item.quantity * item.currentPrice;
-                                                        const mktValDisplay = fromHKD(toHKD(mktValOrig, item.currency), displayCurrency);
-                                                        const isMortgageLiability = isLiabilityCategory && item.subtype === '房貸';
-                                                        const isLoanLiability = isLiabilityCategory && item.subtype === '貸款';
-                                                        const isCreditCardLiability = isLiabilityCategory && item.subtype === '信用卡';
-                                                        const isPayableLiability = isLiabilityCategory && item.subtype === '應付款';
-                                                        const isOtherLiability = isLiabilityCategory && item.subtype === '其他負債';
-                                                        const isReceivableItem = isReceivableCategory;
-                                                        const isFixedItem = isFixedCategory;
-                                                        const amountPrefix = isLiabilityCategory ? '-' : '';
-                                                        const highlightClass = isLiabilityCategory ? 'text-rose-500' : 'text-emerald-600';
-
-                                                        return (
-                                                            <div key={item.id} onClick={() => openEdit(item)} className="rounded-xl border border-slate-100 bg-white shadow-sm p-4 space-y-2">
-                                                                <div className="flex items-start justify-between gap-3">
-                                                                    <div>
-                                                                        <div className="font-black text-slate-800">{item.name}</div>
-                                                                        <div className="text-[10px] text-slate-400 font-bold">{CATEGORIES[item.category].label} / {item.subtype}</div>
-                                                                    </div>
-                                                                    <div className={`text-base font-black ${highlightClass}`}>
-                                                                        {amountPrefix}{formatAmount(mktValDisplay)} {displayCurrency}
-                                                                    </div>
-                                                                </div>
-                                                                {isInsuranceCategory && (
-                                                                    <div className="text-xs text-slate-500 font-bold">
-                                                                        保費 {formatAmount(item.premiumAmount || 0)} {item.currency} · 已繳 {Number(item.premiumPaidCount || 0)} 期
-                                                                    </div>
-                                                                )}
-                                                                {isMortgageLiability && (
-                                                                    <div className="text-xs text-slate-500 font-bold">
-                                                                        每月還款 {formatAmount(item.monthlyPayment || 0)} {item.currency} · 已還 {Number(item.paidPeriods || 0)} 期
-                                                                    </div>
-                                                                )}
-                                                                {isLoanLiability && (
-                                                                    <div className="text-xs text-slate-500 font-bold">
-                                                                        每月還款 {formatAmount(item.loanMonthlyPayment || 0)} {item.currency} · 已還 {Number(item.loanPaidPeriods || 0)} 期
-                                                                    </div>
-                                                                )}
-                                                                {isCreditCardLiability && (
-                                                                    <div className="text-xs text-slate-500 font-bold">
-                                                                        最低還款 {formatAmount(item.creditCardMinPayment || 0)} {item.currency} · 到期 {item.creditCardDueDate || '未設定'}
-                                                                    </div>
-                                                                )}
-                                                                {isPayableLiability && (
-                                                                    <div className="text-xs text-slate-500 font-bold">
-                                                                        到期 {item.payableDueDate || '未設定'} · {Number(item.payableInstallments || 0) ? `分期 ${item.payableInstallments} 期` : '一次性'}
-                                                                    </div>
-                                                                )}
-                                                                {isOtherLiability && (
-                                                                    <div className="text-xs text-slate-500 font-bold">
-                                                                        年息 {Number(item.otherAnnualRate || 0).toFixed(2)}% · 到期 {item.otherDueDate || '未設定'}
-                                                                    </div>
-                                                                )}
-                                                                {isReceivableItem && (
-                                                                    <div className="text-xs text-slate-500 font-bold">
-                                                                        到期 {item.receivableDueDate || '未設定'} · {item.receivableParty ? `對象 ${item.receivableParty}` : '未填對象'}
-                                                                    </div>
-                                                                )}
-                                                                {isFixedItem && (
-                                                                    <div className="text-xs text-slate-500 font-bold">
-                                                                        購入 {item.fixedPurchaseDate || '未設定'} · {item.fixedNote ? item.fixedNote : '未填備註'}
-                                                                    </div>
-                                                                )}
-                                                                {isLiquidCategory && (
-                                                                    <div className="space-y-1">
-                                                                        <div className="text-xs text-slate-500 font-bold flex items-center gap-2">
-                                                                            <span>餘額 {formatAmount(item.quantity)}</span>
-                                                                            <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600">{item.currency}</span>
-                                                                        </div>
-                                                                        {cashflowAutoRulesByLiquidAssetId[item.id]?.length > 0 && (
-                                                                            <div className="text-[10px] text-indigo-500 font-black">
-                                                                                自動規則：{cashflowAutoRulesByLiquidAssetId[item.id].slice(0, 2).map(rule => {
-                                                                                    const modeLabel = rule.frequency === 'MONTHLY'
-                                                                                        ? `每月${rule.payday || rule.monthday || '--'}號`
-                                                                                        : (rule.frequency === 'ONE_TIME' ? '單次' : (CASHFLOW_FREQUENCIES.find(entry => entry.value === rule.frequency)?.label || rule.frequency));
-                                                                                    return `${rule.title}（${modeLabel}）`;
-                                                                                }).join('、')}
-                                                                                {cashflowAutoRulesByLiquidAssetId[item.id].length > 2 ? ` 等 ${cashflowAutoRulesByLiquidAssetId[item.id].length} 筆` : ''}
-                                                                            </div>
-                                                                        )}
-                                                                    </div>
-                                                                )}
-                                                                {isInvestCategory && (() => {
-                                                                    const costValOrig = item.quantity * item.costBasis;
-                                                                    const profitOrig = mktValOrig - costValOrig;
-                                                                    const profitDisplay = fromHKD(toHKD(profitOrig, item.currency), displayCurrency);
-                                                                    const perf = costValOrig > 0 ? (profitOrig / costValOrig) * 100 : 0;
-                                                                    const isFixedDepositItem = item.subtype === '定期存款';
-                                                                    const fixedDepositMonths = Number(item.fixedDepositMonths || 0);
-                                                                    const fixedDepositRate = Number(item.fixedDepositAnnualRate || 0);
-                                                                    const fixedDepositStartDate = item.fixedDepositStartDate || '';
-
-                                                                    return (
-                                                                        <div className="space-y-1 text-xs font-bold">
-                                                                            <div className="text-slate-500">市值 {formatAmount(mktValDisplay)} {displayCurrency} · 數量 {formatAmount(item.quantity)} {item.symbol ? `(${item.symbol})` : ''}</div>
-                                                                            <div className="text-slate-500">現價 {formatAmount(item.currentPrice)} · 成本 {formatAmount(item.costBasis)} {item.currency}</div>
-                                                                            {isFixedDepositItem && (
-                                                                                <div className="text-slate-500">定期 {fixedDepositMonths || '--'} 個月 · 年利率 {fixedDepositRate.toFixed(2)}% {fixedDepositStartDate ? `· 起存 ${fixedDepositStartDate}` : ''}</div>
-                                                                            )}
-                                                                            <div className={`${profitOrig >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                                                                                <div className="font-black text-sm">持倉盈虧 {profitOrig >= 0 ? '+' : ''}{formatAmount(profitDisplay)} {displayCurrency}</div>
-                                                                                <div className="font-bold text-xs">績效 {perf >= 0 ? '+' : ''}{perf.toFixed(2)}%</div>
-                                                                            </div>
-                                                                        </div>
-                                                                    );
-                                                                })()}
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                                <div className="hidden md:block overflow-x-auto -mx-4 sm:mx-0">
-                                                    <div className="px-4 sm:px-0">
-                                                        <div className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-2 md:hidden">左右滑動查看完整欄位</div>
-                                                <table className={`w-full text-left ${isInvestCategory ? 'min-w-[780px]' : isInsuranceCategory ? 'min-w-[700px]' : 'min-w-[620px]'}`}>
-                                                    {isLiquidCategory && (
-                                                        <colgroup>
-                                                            <col style={{ width: '60%' }} />
-                                                            <col style={{ width: '20%' }} />
-                                                            <col style={{ width: '20%' }} />
-                                                        </colgroup>
-                                                    )}
-                                                    {isInsuranceCategory && (
-                                                        <colgroup>
-                                                            <col style={{ width: '40%' }} />
-                                                            <col style={{ width: '20%' }} />
-                                                            <col style={{ width: '20%' }} />
-                                                            <col style={{ width: '20%' }} />
-                                                        </colgroup>
-                                                    )}
-                                                    {isInvestCategory && (
-                                                        <colgroup>
-                                                            <col style={{ width: '30%' }} />
-                                                            <col style={{ width: '20%' }} />
-                                                            <col style={{ width: '15%' }} />
-                                                            <col style={{ width: '20%' }} />
-                                                            <col style={{ width: '15%' }} />
-                                                        </colgroup>
-                                                    )}
-                                                    <thead className="text-[10px] font-black text-slate-400 uppercase tracking-tighter bg-slate-50/30">
-                                                        <tr>
-                                                            <th className="px-6 py-3">名稱 / 細項</th>
-                                                            <th className="px-6 py-3 text-right">{isInsuranceCategory ? '保費設定' : isLiquidCategory ? '數量 / 幣別' : isLiabilityCategory ? '金額 / 期數' : isReceivableCategory ? '應收金額 / 期數' : isFixedCategory ? '估值 / 成本' : '市值 / 數量'}</th>
-                                                            <th className="px-6 py-3 text-right">{isInsuranceCategory ? '已繳期數' : isLiquidCategory ? '餘額' : isLiabilityCategory ? '利率 / 到期' : isReceivableCategory ? '到期 / 對象' : isFixedCategory ? '購入日 / 備註' : '現價 / 成本'}</th>
-                                                            {isInsuranceCategory && <th className="px-6 py-3 text-right">保單價值</th>}
-                                                            {isInvestCategory && <th className="px-6 py-3 text-right">持倉盈虧</th>}
-                                                            {isInvestCategory && <th className="px-6 py-3 text-right">績效</th>}
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody className="divide-y divide-slate-50">
-                                                        {items.map(item => {
-                                                            const mktValOrig = item.quantity * item.currentPrice;
-                                                            const costValOrig = item.quantity * item.costBasis;
-                                                            const profitOrig = mktValOrig - costValOrig;
-                                                            const mktValDisplay = fromHKD(toHKD(mktValOrig, item.currency), displayCurrency);
-                                                            const profitDisplay = fromHKD(toHKD(profitOrig, item.currency), displayCurrency);
-                                                            const perf = costValOrig > 0 ? (profitOrig / costValOrig) * 100 : 0;
-                                                            const premiumAmount = Number(item.premiumAmount || 0);
-                                                            const premiumPaidCount = Number(item.premiumPaidCount || 0);
-                                                            const hasPremiumPlan = premiumAmount > 0 && premiumPaidCount >= 0;
-                                                            const premiumTotalOrig = premiumAmount * premiumPaidCount;
-                                                            const premiumTotalDisplay = fromHKD(toHKD(premiumTotalOrig, item.currency), displayCurrency);
-                                                            const isMortgageLiability = isLiabilityCategory && item.subtype === '房貸';
-                                                            const isLoanLiability = isLiabilityCategory && item.subtype === '貸款';
-                                                            const isCreditCardLiability = isLiabilityCategory && item.subtype === '信用卡';
-                                                            const isPayableLiability = isLiabilityCategory && item.subtype === '應付款';
-                                                            const isOtherLiability = isLiabilityCategory && item.subtype === '其他負債';
-                                                            const isReceivableItem = isReceivableCategory;
-                                                            const isFixedItem = isFixedCategory;
-                                                            const mortgageDownPaymentDisplay = fromHKD(toHKD(Number(item.downPayment || 0), item.currency), displayCurrency);
-                                                            const mortgageLoanDisplay = fromHKD(toHKD(Number(item.loanAmount || costValOrig), item.currency), displayCurrency);
-                                                            const mortgageInterestDisplay = fromHKD(toHKD(Number(item.totalInterest || 0), item.currency), displayCurrency);
-                                                            const mortgageMonthlyDisplay = fromHKD(toHKD(Number(item.monthlyPayment || 0), item.currency), displayCurrency);
-                                                            const mortgageOutstandingDisplay = fromHKD(toHKD(Number(item.outstandingPrincipal || mktValOrig), item.currency), displayCurrency);
-                                                            const mortgageAnnualRate = Number(item.annualInterestRate || 0);
-                                                            const mortgagePaidPeriods = Number(item.paidPeriods || 0);
-                                                            const mortgageTotalPeriods = Number(item.totalPeriods || 0);
-                                                            const mortgageRemainingPeriods = Number(item.remainingPeriods || Math.max(0, mortgageTotalPeriods - mortgagePaidPeriods));
-                                                            const loanMonthlyDisplay = fromHKD(toHKD(Number(item.loanMonthlyPayment || 0), item.currency), displayCurrency);
-                                                            const loanOutstandingDisplay = fromHKD(toHKD(Number(item.loanOutstandingPrincipal || 0), item.currency), displayCurrency);
-                                                            const loanTotalInterestDisplay = fromHKD(toHKD(Number(item.loanTotalInterest || 0), item.currency), displayCurrency);
-                                                            const loanAnnualRate = Number(item.loanAnnualInterestRate || 0);
-                                                            const loanPaidPeriods = Number(item.loanPaidPeriods || 0);
-                                                            const loanTotalPeriods = Number(item.loanTotalPeriods || 0);
-                                                            const loanRemainingPeriods = Number(item.loanRemainingPeriods || Math.max(0, loanTotalPeriods - loanPaidPeriods));
-                                                            const creditCardBalanceDisplay = fromHKD(toHKD(Number(item.creditCardBalance || 0), item.currency), displayCurrency);
-                                                            const creditCardMinPaymentDisplay = fromHKD(toHKD(Number(item.creditCardMinPayment || 0), item.currency), displayCurrency);
-                                                            const creditCardAnnualRate = Number(item.creditCardAnnualRate || 0);
-                                                            const payableAmountDisplay = fromHKD(toHKD(Number(item.payableAmount || 0), item.currency), displayCurrency);
-                                                            const payableInstallments = Number(item.payableInstallments || 0);
-                                                            const otherOutstandingDisplay = fromHKD(toHKD(Number(item.otherOutstanding || 0), item.currency), displayCurrency);
-                                                            const otherAnnualRate = Number(item.otherAnnualRate || 0);
-                                                            const receivableAmountDisplay = fromHKD(toHKD(Number(item.receivableAmount || mktValOrig), item.currency), displayCurrency);
-                                                            const receivableInstallments = Number(item.receivableInstallments || 0);
-                                                            const fixedPurchaseDisplay = fromHKD(toHKD(Number(item.fixedPurchasePrice || costValOrig), item.currency), displayCurrency);
-                                                            const fixedCurrentDisplay = fromHKD(toHKD(Number(item.fixedCurrentValue || mktValOrig), item.currency), displayCurrency);
-                                                            const isPerfPositive = perf > 0;
-                                                            const isPerfNegative = perf < 0;
-                                                            const perfClass = isPerfPositive
-                                                                ? 'text-emerald-700 bg-emerald-50 ring-emerald-100'
-                                                                : isPerfNegative
-                                                                    ? 'text-rose-700 bg-rose-50 ring-rose-100'
-                                                                    : 'text-slate-600 bg-slate-100 ring-slate-200';
-                                                            const perfIcon = isPerfPositive ? '↗' : isPerfNegative ? '↘' : '•';
-
-                                                            return (
-                                                                <tr key={item.id} onClick={() => openEdit(item)} className="hover:bg-indigo-50/30 cursor-pointer transition-colors group">
-                                                                    <td className="px-6 py-4">
-                                                                        <div className="font-bold text-slate-800">{item.name}</div>
-                                                                        <div className="text-[10px] text-slate-400 font-medium">{CATEGORIES[item.category].label} / {item.subtype}</div>
-                                                                        {isMortgageLiability && (
-                                                                            <div className="text-[10px] text-slate-500 font-medium mt-1">
-                                                                                首期 {formatAmount(mortgageDownPaymentDisplay)} {displayCurrency} · 貸款 {formatAmount(mortgageLoanDisplay)} {displayCurrency} · 利息 {formatAmount(mortgageInterestDisplay)} {displayCurrency}
-                                                                            </div>
-                                                                        )}
-                                                                        {isLoanLiability && (
-                                                                            <div className="text-[10px] text-slate-500 font-medium mt-1">
-                                                                                未償本金 {formatAmount(loanOutstandingDisplay)} {displayCurrency} · 利息 {formatAmount(loanTotalInterestDisplay)} {displayCurrency}
-                                                                            </div>
-                                                                        )}
-                                                                        {isReceivableItem && (
-                                                                            <div className="text-[10px] text-slate-500 font-medium mt-1">
-                                                                                {item.receivableParty ? `對象 ${item.receivableParty}` : '未填對象'}
-                                                                            </div>
-                                                                        )}
-                                                                        {isFixedItem && item.fixedNote && (
-                                                                            <div className="text-[10px] text-slate-500 font-medium mt-1">
-                                                                                {item.fixedNote}
-                                                                            </div>
-                                                                        )}
-                                                                    </td>
-                                                                    <td className="px-6 py-4 text-right">
-                                                                        {isInsuranceCategory ? (
-                                                                            hasPremiumPlan ? (
-                                                                                <div className="font-bold text-slate-700">
-                                                                                    {formatAmount(premiumAmount)} {item.currency}
-                                                                                    <div className="text-[10px] text-slate-400">/{item.premiumFrequency === 'yearly' ? '每年' : '每月'}</div>
-                                                                                </div>
-                                                                            ) : (
-                                                                                <div className="font-bold text-slate-400">--</div>
-                                                                            )
-                                                                        ) : isLiquidCategory ? (
-                                                                            <div className="flex items-center justify-end gap-2">
-                                                                                <span className="font-bold text-slate-800 tabular-nums text-right">{formatAmount(item.quantity)}</span>
-                                                                                <span className="text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-full bg-emerald-50 text-emerald-600 w-12 text-center">{item.currency}</span>
-                                                                            </div>
-                                                                        ) : isMortgageLiability ? (
-                                                                            <>
-                                                                                <div className="font-bold text-slate-800">{formatAmount(mortgageMonthlyDisplay)} <span className="text-[9px] text-slate-400">{displayCurrency}</span></div>
-                                                                                <div className="text-[10px] text-slate-400">{formatAmount(Number(item.monthlyPayment || 0))} {item.currency} · 共 {mortgageTotalPeriods} 期</div>
-                                                                            </>
-                                                                        ) : isLoanLiability ? (
-                                                                            <>
-                                                                                <div className="font-bold text-slate-800">{formatAmount(loanMonthlyDisplay)} <span className="text-[9px] text-slate-400">{displayCurrency}</span></div>
-                                                                                <div className="text-[10px] text-slate-400">{formatAmount(Number(item.loanMonthlyPayment || 0))} {item.currency} · 共 {loanTotalPeriods} 期</div>
-                                                                            </>
-                                                                        ) : isCreditCardLiability ? (
-                                                                            <>
-                                                                                <div className="font-bold text-slate-800">{formatAmount(creditCardBalanceDisplay)} <span className="text-[9px] text-slate-400">{displayCurrency}</span></div>
-                                                                                <div className="text-[10px] text-slate-400">最低還款 {formatAmount(creditCardMinPaymentDisplay)} {displayCurrency}</div>
-                                                                            </>
-                                                                        ) : isPayableLiability ? (
-                                                                            <>
-                                                                                <div className="font-bold text-slate-800">{formatAmount(payableAmountDisplay)} <span className="text-[9px] text-slate-400">{displayCurrency}</span></div>
-                                                                                <div className="text-[10px] text-slate-400">{payableInstallments ? `分期 ${payableInstallments} 期` : '一次性'}</div>
-                                                                            </>
-                                                                        ) : isOtherLiability ? (
-                                                                            <>
-                                                                                <div className="font-bold text-slate-800">{formatAmount(otherOutstandingDisplay)} <span className="text-[9px] text-slate-400">{displayCurrency}</span></div>
-                                                                                <div className="text-[10px] text-slate-400">{item.otherDueDate ? `到期 ${item.otherDueDate}` : '未設定到期日'}</div>
-                                                                            </>
-                                                                        ) : isReceivableItem ? (
-                                                                            <>
-                                                                                <div className="font-bold text-slate-800">{formatAmount(receivableAmountDisplay)} <span className="text-[9px] text-slate-400">{displayCurrency}</span></div>
-                                                                                <div className="text-[10px] text-slate-400">{receivableInstallments ? `分期 ${receivableInstallments} 期` : '一次性'}</div>
-                                                                            </>
-                                                                        ) : isFixedItem ? (
-                                                                            <>
-                                                                                <div className="font-bold text-slate-800">{formatAmount(fixedCurrentDisplay)} <span className="text-[9px] text-slate-400">{displayCurrency}</span></div>
-                                                                                <div className="text-[10px] text-slate-400">成本 {formatAmount(fixedPurchaseDisplay)} {displayCurrency}</div>
-                                                                            </>
-                                                                        ) : (
-                                                                            <>
-                                                                                <div className="font-bold text-slate-800">{formatAmount(mktValDisplay)} <span className="text-[9px] text-slate-400">{displayCurrency}</span></div>
-                                                                                <div className="text-[10px] text-slate-400">{item.quantity.toLocaleString()} {item.symbol ? `(${item.symbol})` : ''}</div>
-                                                                            </>
-                                                                        )}
-                                                                    </td>
-                                                                    <td className="px-6 py-4 text-right">
-                                                                        {isInsuranceCategory ? (
-                                                                            hasPremiumPlan ? (
-                                                                                <div className="font-medium text-slate-700">{premiumPaidCount.toLocaleString()} 期</div>
-                                                                            ) : (
-                                                                                <div className="font-medium text-slate-400">--</div>
-                                                                            )
-                                                                        ) : isLiquidCategory ? (
-                                                                            <>
-                                                                                <div className="font-medium text-slate-700">{formatAmount(mktValDisplay)} <span className="text-[9px]">{displayCurrency}</span></div>
-                                                                                {cashflowAutoRulesByLiquidAssetId[item.id]?.length > 0 && (
-                                                                                    <div className="text-[10px] text-indigo-500 font-black mt-1">
-                                                                                        已綁定 {cashflowAutoRulesByLiquidAssetId[item.id].length} 筆自動入帳/扣款規則
-                                                                                    </div>
-                                                                                )}
-                                                                            </>
-                                                                        ) : isMortgageLiability ? (
-                                                                            <>
-                                                                                <div className="font-medium text-slate-700">年息 {mortgageAnnualRate.toFixed(2)}%</div>
-                                                                                <div className="text-[10px] text-slate-400">已還 {mortgagePaidPeriods} 期 · 尚餘 {mortgageRemainingPeriods} 期</div>
-                                                                                <div className="text-[10px] text-slate-400">未償本金 {formatAmount(mortgageOutstandingDisplay)} {displayCurrency}</div>
-                                                                            </>
-                                                                        ) : isLoanLiability ? (
-                                                                            <>
-                                                                                <div className="font-medium text-slate-700">年息 {loanAnnualRate.toFixed(2)}%</div>
-                                                                                <div className="text-[10px] text-slate-400">已還 {loanPaidPeriods} 期 · 尚餘 {loanRemainingPeriods} 期</div>
-                                                                                <div className="text-[10px] text-slate-400">未償本金 {formatAmount(loanOutstandingDisplay)} {displayCurrency}</div>
-                                                                            </>
-                                                                        ) : isCreditCardLiability ? (
-                                                                            <>
-                                                                                <div className="font-medium text-slate-700">年息 {creditCardAnnualRate.toFixed(2)}%</div>
-                                                                                <div className="text-[10px] text-slate-400">到期 {item.creditCardDueDate || '未設定'}</div>
-                                                                            </>
-                                                                        ) : isPayableLiability ? (
-                                                                            <>
-                                                                                <div className="font-medium text-slate-700">到期 {item.payableDueDate || '未設定'}</div>
-                                                                                {payableInstallments ? (
-                                                                                    <div className="text-[10px] text-slate-400">每期約 {formatAmount(payableAmountDisplay / payableInstallments)} {displayCurrency}</div>
-                                                                                ) : (
-                                                                                    <div className="text-[10px] text-slate-400">一次性支付</div>
-                                                                                )}
-                                                                            </>
-                                                                        ) : isOtherLiability ? (
-                                                                            <>
-                                                                                <div className="font-medium text-slate-700">年息 {otherAnnualRate.toFixed(2)}%</div>
-                                                                                <div className="text-[10px] text-slate-400">到期 {item.otherDueDate || '未設定'}</div>
-                                                                            </>
-                                                                        ) : isReceivableItem ? (
-                                                                            <>
-                                                                                <div className="font-medium text-slate-700">到期 {item.receivableDueDate || '未設定'}</div>
-                                                                                <div className="text-[10px] text-slate-400">{item.receivableParty ? `對象 ${item.receivableParty}` : '未填對象'}</div>
-                                                                            </>
-                                                                        ) : isFixedItem ? (
-                                                                            <>
-                                                                                <div className="font-medium text-slate-700">購入 {item.fixedPurchaseDate || '未設定'}</div>
-                                                                                <div className="text-[10px] text-slate-400">{item.fixedNote ? `備註 ${item.fixedNote}` : '未填備註'}</div>
-                                                                            </>
-                                                                        ) : (
-                                                                            <>
-                                                                                <div className="font-medium text-slate-700">{formatAmount(item.currentPrice)}</div>
-                                                                                <div className="text-[10px] text-slate-400">{formatAmount(item.costBasis)} <span className="text-[9px]">{item.currency}</span></div>
-                                                                            </>
-                                                                        )}
-                                                                    </td>
-                                                                    {isInsuranceCategory && (
-                                                                        <td className="px-6 py-4 text-right">
-                                                                            {hasPremiumPlan ? (
-                                                                                <>
-                                                                                    <div className="font-bold text-slate-800">{formatAmount(premiumTotalDisplay)} <span className="text-[9px] text-slate-400">{displayCurrency}</span></div>
-                                                                                    <div className="text-[10px] text-slate-400">{formatAmount(premiumTotalOrig)} {item.currency}</div>
-                                                                                </>
-                                                                            ) : (
-                                                                                <>
-                                                                                    <div className="font-bold text-slate-800">{formatAmount(mktValDisplay)} <span className="text-[9px] text-slate-400">{displayCurrency}</span></div>
-                                                                                    <div className="text-[10px] text-slate-400">{formatAmount(mktValOrig)} {item.currency}</div>
-                                                                                </>
-                                                                            )}
-                                                                        </td>
-                                                                    )}
-                                                                    {isInvestCategory && (
-                                                                        <td className="px-6 py-4 text-right">
-                                                                            <>
-                                                                                <div className={`font-bold ${profitOrig >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                                                                                    {profitOrig >= 0 ? '+' : ''}{formatAmount(profitOrig)} {item.currency}
-                                                                                </div>
-                                                                                <div className="text-[10px] text-slate-400">
-                                                                                    約 {formatAmount(profitDisplay)} {displayCurrency}
-                                                                                </div>
-                                                                            </>
-                                                                        </td>
-                                                                    )}
-                                                                    {isInvestCategory && (
-                                                                        <td className="px-6 py-4 text-right">
-                                                                            <div className={`inline-flex items-center gap-1.5 text-xs font-black px-2.5 py-1.5 rounded-full ring-1 ${perfClass}`}>
-                                                                                <span className="text-[11px] leading-none">{perfIcon}</span>
-                                                                                <span>{perf >= 0 ? '+' : ''}{perf.toFixed(2)}%</span>
-                                                                            </div>
-                                                                        </td>
-                                                                    )}
-                                                                </tr>
-                                                            );
-                                                        })}
-                                                    </tbody>
-                                                </table>
-                                                </div>
-                                            </div>
-                                            </>
-                                            )}
-                                        </div>
-                                    )})}
-                                </div>
-                            ))}
-                        </div>
+                        <AssetDetailListView
+                            groupedAssets={groupedAssets}
+                            categoryMixHexByKey={categoryMixHexByKey}
+                            translate={translate}
+                            CATEGORIES={CATEGORIES}
+                            toHKD={toHKD}
+                            fromHKD={fromHKD}
+                            displayCurrency={displayCurrency}
+                            expandedAccounts={expandedAccounts}
+                            toggleAccountExpand={toggleAccountExpand}
+                            formatAmount={formatAmount}
+                            openEdit={openEdit}
+                            tByLang={tByLang}
+                            cashflowAutoRulesByLiquidAssetId={cashflowAutoRulesByLiquidAssetId}
+                            CASHFLOW_FREQUENCIES={CASHFLOW_FREQUENCIES}
+                        />
                     )}
 
-                    <AssetModalView
+                    <AppModalsView
+                        AssetModalView={AssetModalView}
+                        CashflowModalView={CashflowModalView}
+                        CashflowRuleForm={CashflowRuleForm}
                         isModalOpen={isModalOpen}
                         editingId={editingId}
-                        onClose={() => setIsModalOpen(false)}
+                        setIsModalOpen={setIsModalOpen}
                         handleSubmit={handleSubmit}
                         FIELD_LABEL_CLASS={FIELD_LABEL_CLASS}
                         MODAL_INPUT_CLASS={MODAL_INPUT_CLASS}
@@ -3585,30 +2533,46 @@
                         updateFormField={updateFormField}
                         updateFormFieldUpper={updateFormFieldUpper}
                         CATEGORIES={CATEGORIES}
-                        onCategoryChange={handleAssetCategoryChange}
-                        onSubtypeChange={handleAssetSubtypeChange}
+                        handleAssetCategoryChange={handleAssetCategoryChange}
+                        handleAssetSubtypeChange={handleAssetSubtypeChange}
                         fixedDepositMetrics={fixedDepositMetrics}
                         mortgageMetrics={mortgageMetrics}
                         loanMetrics={loanMetrics}
                         formatAmount={formatAmount}
                         premiumTotal={premiumTotal}
-                        CURRENCIES={CURRENCIES}
+                        orderedCurrencies={orderedCurrencies}
                         handleDelete={handleDelete}
+                        pageLanguage={pageLanguage}
+                        isCashflowModalOpen={isCashflowModalOpen}
+                        setIsCashflowModalOpen={setIsCashflowModalOpen}
+                        editingCashflowId={editingCashflowId}
+                        setEditingCashflowId={setEditingCashflowId}
+                        cashflowFormRef={cashflowFormRef}
+                        handleCashflowSubmit={handleCashflowSubmit}
+                        cashflowEntries={cashflowEntries}
+                        cashflowAccountOptions={cashflowAccountOptions}
+                        CASHFLOW_INPUT_CLASS={CASHFLOW_INPUT_CLASS}
+                        CASHFLOW_INPUT_FOCUS_CLASS={CASHFLOW_INPUT_FOCUS_CLASS}
+                        cashflowForm={cashflowForm}
+                        updateCashflowField={updateCashflowField}
+                        toggleCashflowOneTimeDate={toggleCashflowOneTimeDate}
+                        updateCashflowOneTimeMonth={updateCashflowOneTimeMonth}
+                        applyCashflowOneTimeMonthPreset={applyCashflowOneTimeMonthPreset}
+                        clearCashflowOneTimeDates={clearCashflowOneTimeDates}
+                        updateCashflowType={updateCashflowType}
+                        updateCashflowTargetLiquidAsset={updateCashflowTargetLiquidAsset}
+                        CASHFLOW_TYPES={CASHFLOW_TYPES}
+                        CASHFLOW_SCHEDULE_TYPES={CASHFLOW_SCHEDULE_TYPES}
+                        liquidAssetOptions={liquidAssetOptions}
+                        isCashflowOneTime={isCashflowOneTime}
+                        isCashflowMonthlyRecurring={isCashflowMonthlyRecurring}
+                        CASHFLOW_FREQUENCIES={CASHFLOW_FREQUENCIES}
+                        availableCashflowCategories={availableCashflowCategories}
+                        parseDateKey={parseDateKey}
+                        toDateKey={toDateKey}
                     />
 
-                    <div className="hidden md:block fixed right-4 bottom-5 z-30 pointer-events-none">
-                        <div className="max-w-[250px] rounded-2xl theme-surface backdrop-blur-sm shadow-lg px-3 py-2 prince-talk">
-                            <div className="text-[11px] leading-5 font-black theme-text-main">{princeHintMessage}</div>
-                        </div>
-                        <div className="mt-2 flex items-end justify-end gap-1">
-                            <div className="text-2xl prince-sparkle">✨</div>
-                            <div className="prince-float w-16 h-16 rounded-2xl theme-prince-avatar shadow-md flex items-center justify-center text-3xl">🤴🏻</div>
-                        </div>
-                    </div>
-
-                    <footer className="mt-20 text-center theme-text-sub text-[10px] font-bold uppercase tracking-[0.22em] pb-10">
-                        {appName}
-                    </footer>
+                    <AppFooterView princeHintMessage={princeHintMessage} appName={appName} />
                 </div>
             );
         }
