@@ -58,22 +58,56 @@
     };
 
     const WEALTH_THRESHOLDS = [0, 100000, 300000, 780000, 1000000, 2000000, 5000000, 8000000, 10000000, 20000000, 50000000, 100000000, 500000000, Infinity];
-    const WEALTH_RANKS = [
-        '負資產',
-        '基層 / 下層階層',
-        '初入社會 / 剛起步',
-        '小康 / 穩定發展',
-        '大眾富裕 / 上層工人階級',
-        '新晉中產',
-        '中產階級',
-        '中上階層',
-        '富裕階層 / 中上階層',
-        '準高淨值人士',
-        '高淨值富豪',
-        '超高淨值人士',
-        '超級富豪階層',
-        '頂級富豪 / 世界級'
-    ];
+    const WEALTH_RANKS_BY_LANGUAGE = {
+        'zh-Hant': [
+            '負資產',
+            '基層 / 下層階層',
+            '初入社會 / 剛起步',
+            '小康 / 穩定發展',
+            '大眾富裕 / 上層工人階級',
+            '新晉中產',
+            '中產階級',
+            '中上階層',
+            '富裕階層 / 中上階層',
+            '準高淨值人士',
+            '高淨值富豪',
+            '超高淨值人士',
+            '超級富豪階層',
+            '頂級富豪 / 世界級'
+        ],
+        'en-US': [
+            'Negative Net Worth',
+            'Working / Lower Class',
+            'Early Career',
+            'Stable Living',
+            'Mass Affluent',
+            'New Middle Class',
+            'Middle Class',
+            'Upper-Middle Class',
+            'Affluent / Upper-Middle',
+            'Pre-HNWI',
+            'HNWI',
+            'Ultra-HNWI',
+            'Super Rich',
+            'Top Wealth / Global Tier'
+        ],
+        'ja-JP': [
+            '負資産',
+            '基層 / 下層階層',
+            '社会人初期',
+            '安定成長',
+            '大衆富裕層',
+            '新興中間層',
+            '中間層',
+            '中上層',
+            '富裕層 / 中上層',
+            '準富裕層',
+            '富裕層',
+            '超富裕層',
+            '超富豪層',
+            '世界級富豪'
+        ]
+    };
 
     const THEME_WEALTH_TITLES = {
         'macaron-prince': [
@@ -206,50 +240,42 @@
         ]
     };
 
-    const buildThemeWealthTitles = (themeId) => {
-        const rows = THEME_WEALTH_TITLES[themeId] || THEME_WEALTH_TITLES['macaron-prince'];
-        return WEALTH_THRESHOLDS.map((max, index) => {
-            const row = rows[index] || rows[rows.length - 1];
-            const rank = WEALTH_RANKS[index] || WEALTH_RANKS[WEALTH_RANKS.length - 1];
-            return {
-                max,
-                tierIndex: index,
-                emoji: row.emoji || '',
-                label: `${rank} - ${row.suffix}`
-            };
-        });
-    };
-
-    const WEALTH_TITLE_BY_THEME = Object.keys(THEME_WEALTH_TITLES).reduce((result, themeId) => {
-        result[themeId] = buildThemeWealthTitles(themeId);
-        return result;
-    }, {});
-
     const WEALTH_THEME_ALIAS = {};
 
     const resolveThemeIdForWealthTitle = (themeId) => {
         if (typeof themeId === 'string') {
-            if (WEALTH_TITLE_BY_THEME[themeId]) return themeId;
+            if (THEME_WEALTH_TITLES[themeId]) return themeId;
             const aliased = WEALTH_THEME_ALIAS[themeId];
-            if (aliased && WEALTH_TITLE_BY_THEME[aliased]) return aliased;
+            if (aliased && THEME_WEALTH_TITLES[aliased]) return aliased;
         }
         const domTheme = typeof document !== 'undefined' ? document.documentElement?.getAttribute('data-theme') : '';
         if (domTheme) {
-            if (WEALTH_TITLE_BY_THEME[domTheme]) return domTheme;
+            if (THEME_WEALTH_TITLES[domTheme]) return domTheme;
             const aliased = WEALTH_THEME_ALIAS[domTheme];
-            if (aliased && WEALTH_TITLE_BY_THEME[aliased]) return aliased;
+            if (aliased && THEME_WEALTH_TITLES[aliased]) return aliased;
         }
         return 'macaron-prince';
     };
 
-    const getWealthTitle = (value, themeId) => {
+    const getWealthTitle = (value, themeId, pageLanguage = 'zh-Hant') => {
         const numericValue = Number(value) || 0;
         const resolvedTheme = resolveThemeIdForWealthTitle(themeId);
-        const tiers = WEALTH_TITLE_BY_THEME[resolvedTheme] || WEALTH_TITLE_BY_THEME['macaron-prince'];
-        return tiers.find(tier => numericValue < tier.max) || tiers[tiers.length - 1];
+        const rows = THEME_WEALTH_TITLES[resolvedTheme] || THEME_WEALTH_TITLES['macaron-prince'];
+        const rankRows = WEALTH_RANKS_BY_LANGUAGE[pageLanguage] || WEALTH_RANKS_BY_LANGUAGE['zh-Hant'];
+        const tierIndex = WEALTH_THRESHOLDS.findIndex(max => numericValue < max);
+        const safeTierIndex = tierIndex >= 0 ? tierIndex : (WEALTH_THRESHOLDS.length - 1);
+        const row = rows[safeTierIndex] || rows[rows.length - 1];
+        const rank = rankRows[safeTierIndex] || rankRows[rankRows.length - 1];
+        const label = pageLanguage === 'zh-Hant' ? `${rank} - ${row.suffix}` : rank;
+        return {
+            max: WEALTH_THRESHOLDS[safeTierIndex],
+            tierIndex: safeTierIndex,
+            emoji: row.emoji || '',
+            label
+        };
     };
 
-    const getNetWorthTier = (netWorthHKD, themeId) => getWealthTitle(netWorthHKD, themeId);
+    const getNetWorthTier = (netWorthHKD, themeId, pageLanguage = 'zh-Hant') => getWealthTitle(netWorthHKD, themeId, pageLanguage);
 
     const calculateMortgageMetrics = ({ propertyPrice, ltvRatio, annualInterestRate, mortgageYears, paidPeriods }) => {
         const price = Number(propertyPrice) || 0;

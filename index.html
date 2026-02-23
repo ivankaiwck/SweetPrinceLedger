@@ -1266,6 +1266,16 @@
                 if (pageLanguage === 'ja-JP') return '王子あま帳';
                 return 'SweetPrinceLedger';
             }, [pageLanguage]);
+            const dateTimeLocale = useMemo(() => {
+                if (pageLanguage === 'ja-JP') return 'ja-JP';
+                if (pageLanguage === 'en-US') return 'en-US';
+                return 'zh-Hant-TW';
+            }, [pageLanguage]);
+            const formatDateTime = (dateValue) => {
+                const date = dateValue instanceof Date ? dateValue : new Date(dateValue);
+                if (Number.isNaN(date.getTime())) return '';
+                return date.toLocaleString(dateTimeLocale);
+            };
             const headerSlogans = useMemo(() => HEADER_SLOGANS[pageLanguage] || HEADER_SLOGANS['zh-Hant'], [pageLanguage]);
             const idleHintLines = useMemo(() => IDLE_HINT_LINES[pageLanguage] || IDLE_HINT_LINES['zh-Hant'], [pageLanguage]);
             const currentHeaderSlogan = headerSlogans[headerSloganIndex % Math.max(headerSlogans.length, 1)] || '';
@@ -1882,7 +1892,11 @@
                     setAssets(result.nextAssets);
                     setCashflowAppliedOccurrenceKeys(result.nextAppliedOccurrenceKeys);
                     setCashflowAppliedPostings(result.nextAppliedPostings);
-                    setPriceStatus(`已自動入帳/扣款 ${result.appliedCount} 筆現金流`);
+                    setPriceStatus(tByLang(
+                        `已自動入帳/扣款 ${result.appliedCount} 筆現金流`,
+                        `Auto-applied ${result.appliedCount} cashflow entries`,
+                        `${result.appliedCount}件のキャッシュフローを自動適用しました`
+                    ));
                 }
                 setCashflowLastAutoApplyDate(result.todayKey);
             }, [assets, cashflowEntries, cashflowAppliedOccurrenceKeys, cashflowAppliedPostings, cashflowLastAutoApplyDate, currencyRates]);
@@ -1927,7 +1941,7 @@
                     parseDateKey
                 }));
                 setFinanceSectionTab('CASHFLOW');
-                setPriceStatus('已載入規則，可修改後儲存');
+                setPriceStatus(tByLang('已載入規則，可修改後儲存', 'Rule loaded. You can edit and save it', 'ルールを読み込みました。編集して保存できます'));
                 requestAnimationFrame(() => {
                     cashflowFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 });
@@ -1940,7 +1954,8 @@
                     editingCashflowId,
                     liquidAssetOptions,
                     parseDateKey,
-                    getDefaultCashflowCategory
+                    getDefaultCashflowCategory,
+                    tByLang
                 });
 
                 if (!submission.ok) {
@@ -1972,7 +1987,8 @@
                     toHKD,
                     fromHKD,
                     formatAmount,
-                    isEntryOnDate
+                    isEntryOnDate,
+                    tByLang
                 });
                 setPriceStatus(statusMessage);
             };
@@ -1991,15 +2007,23 @@
                 const rollbackPreviewLines = [];
                 if (targetPostingKeys.length > 0) {
                     rollbackByAsset.forEach(item => {
-                        const label = liquidAssetLabelById[item.assetId] || '已綁定帳戶';
+                        const label = liquidAssetLabelById[item.assetId] || tByLang('已綁定帳戶', 'Linked Account', '連携済み口座');
                         const rollbackAmount = Number(item.amount || 0);
                         rollbackPreviewLines.push(`- ${label}：${rollbackAmount >= 0 ? '-' : '+'}${formatAmount(Math.abs(rollbackAmount))} ${item.currency}`);
                     });
                 }
 
                 const confirmMessage = rollbackPreviewLines.length > 0
-                    ? `確定要刪除規則「${targetRule?.title || '未命名規則'}」嗎？\n\n將同步沖銷已自動入帳/扣款：\n${rollbackPreviewLines.join('\n')}\n\n此動作無法復原。`
-                    : `確定要刪除規則「${targetRule?.title || '未命名規則'}」嗎？`;
+                    ? tByLang(
+                        `確定要刪除規則「${targetRule?.title || '未命名規則'}」嗎？\n\n將同步沖銷已自動入帳/扣款：\n${rollbackPreviewLines.join('\n')}\n\n此動作無法復原。`,
+                        `Delete rule "${targetRule?.title || 'Untitled Rule'}"?\n\nThe following auto postings will be rolled back:\n${rollbackPreviewLines.join('\n')}\n\nThis action cannot be undone.`,
+                        `ルール「${targetRule?.title || '無題ルール'}」を削除しますか？\n\n以下の自動入出金を取り消します：\n${rollbackPreviewLines.join('\n')}\n\nこの操作は元に戻せません。`
+                    )
+                    : tByLang(
+                        `確定要刪除規則「${targetRule?.title || '未命名規則'}」嗎？`,
+                        `Delete rule "${targetRule?.title || 'Untitled Rule'}"?`,
+                        `ルール「${targetRule?.title || '無題ルール'}」を削除しますか？`
+                    );
 
                 if (!confirm(confirmMessage)) return;
 
@@ -2020,7 +2044,11 @@
                     setAssets(nextAssets);
                     setCashflowAppliedPostings(nextAppliedPostings);
                     setCashflowAppliedOccurrenceKeys(Array.from(nextAppliedKeySet));
-                    setPriceStatus(`規則已刪除，並已沖銷 ${revertedCount} 筆已入帳/扣款紀錄`);
+                    setPriceStatus(tByLang(
+                        `規則已刪除，並已沖銷 ${revertedCount} 筆已入帳/扣款紀錄`,
+                        `Rule deleted and ${revertedCount} posted entries were rolled back`,
+                        `ルールを削除し、${revertedCount}件の入出金記録を取り消しました`
+                    ));
                 } else {
                     if (targetPostingKeys.length > 0) {
                         targetPostingKeys.forEach(postingKey => {
@@ -2030,7 +2058,7 @@
                         setCashflowAppliedPostings(nextAppliedPostings);
                         setCashflowAppliedOccurrenceKeys(Array.from(nextAppliedKeySet));
                     }
-                    setPriceStatus('規則已刪除');
+                    setPriceStatus(tByLang('規則已刪除', 'Rule deleted', 'ルールを削除しました'));
                 }
 
                 setCashflowEntries(prev => prev.filter(item => item.id !== id));
@@ -2175,12 +2203,20 @@
                 firebaseAuth.getRedirectResult()
                     .then(result => {
                         if (result?.user) {
-                            setCloudStatus(`已登入 Google（${result.user.email || 'Google 帳號'}）`);
+                            setCloudStatus(tByLang(
+                                `已登入 Google（${result.user.email || 'Google 帳號'}）`,
+                                `Signed in with Google (${result.user.email || 'Google Account'})`,
+                                `Google にログインしました（${result.user.email || 'Google アカウント'}）`
+                            ));
                         }
                     })
                     .catch(error => {
                         const code = error?.code || 'unknown';
-                        setCloudStatus(`導頁登入失敗（${code}）`);
+                        setCloudStatus(tByLang(
+                            `導頁登入失敗（${code}）`,
+                            `Redirect sign-in failed (${code})`,
+                            `リダイレクトログインに失敗しました（${code}）`
+                        ));
                     });
 
                 const unsubscribe = firebaseAuth.onAuthStateChanged(async (user) => {
@@ -2188,7 +2224,11 @@
                     setIsAuthLoading(false);
 
                     if (!user) {
-                        setCloudStatus('已登出 Google，資料僅存在此裝置');
+                        setCloudStatus(tByLang(
+                            '已登出 Google，資料僅存在此裝置',
+                            'Signed out from Google. Data is only stored on this device',
+                            'Google からログアウトしました。データはこの端末にのみ保存されています'
+                        ));
                         return;
                     }
 
@@ -2204,11 +2244,15 @@
 
             const handleCloudDownload = async () => {
                 if (!isCloudEnabled) {
-                    setCloudStatus('尚未設定 Firebase，請先在 index.html 填入 Firebase 設定');
+                    setCloudStatus(tByLang(
+                        '尚未設定 Firebase，請先在 index.html 填入 Firebase 設定',
+                        'Firebase is not configured yet. Please fill FIREBASE_CONFIG in index.html first',
+                        'Firebase が未設定です。先に index.html の FIREBASE_CONFIG を設定してください'
+                    ));
                     return;
                 }
                 if (!authUser) {
-                    setCloudStatus('請先登入 Google 後再同步');
+                    setCloudStatus(tByLang('請先登入 Google 後再同步', 'Please sign in to Google before syncing', '同期前に Google にログインしてください'));
                     return;
                 }
 
@@ -2254,7 +2298,7 @@
                         ));
                     }
                 } catch (error) {
-                    setCloudStatus('雲端下載失敗，資料仍保留在本機');
+                    setCloudStatus(tByLang('雲端下載失敗，資料仍保留在本機', 'Cloud download failed. Local data is kept', 'クラウドのダウンロードに失敗しました。ローカルデータは保持されています'));
                 } finally {
                     setIsCloudSyncing(false);
                 }
@@ -2262,11 +2306,15 @@
 
             const handleCloudUpload = async () => {
                 if (!isCloudEnabled) {
-                    setCloudStatus('尚未設定 Firebase，請先在 index.html 填入 Firebase 設定');
+                    setCloudStatus(tByLang(
+                        '尚未設定 Firebase，請先在 index.html 填入 Firebase 設定',
+                        'Firebase is not configured yet. Please fill FIREBASE_CONFIG in index.html first',
+                        'Firebase が未設定です。先に index.html の FIREBASE_CONFIG を設定してください'
+                    ));
                     return;
                 }
                 if (!authUser) {
-                    setCloudStatus('請先登入 Google 後再同步');
+                    setCloudStatus(tByLang('請先登入 Google 後再同步', 'Please sign in to Google before syncing', '同期前に Google にログインしてください'));
                     return;
                 }
 
@@ -2298,18 +2346,18 @@
                         `ローカルデータをクラウドへアップロードしました（${authUser.email || 'Google アカウント'}）`
                     ));
                 } catch (error) {
-                    setCloudStatus('雲端上載失敗，資料仍保留在本機');
+                    setCloudStatus(tByLang('雲端上載失敗，資料仍保留在本機', 'Cloud upload failed. Local data is kept', 'クラウドへのアップロードに失敗しました。ローカルデータは保持されています'));
                 } finally {
                     setIsCloudSyncing(false);
                 }
             };
 
             const handleGoogleLogin = async () => {
-                await loginWithGoogle({ isCloudEnabled, firebaseAuth, firebase, onStatus: setCloudStatus });
+                await loginWithGoogle({ isCloudEnabled, firebaseAuth, firebase, onStatus: setCloudStatus, tByLang });
             };
 
             const handleGoogleLogout = async () => {
-                await logoutGoogle({ isCloudEnabled, firebaseAuth, onStatus: setCloudStatus });
+                await logoutGoogle({ isCloudEnabled, firebaseAuth, onStatus: setCloudStatus, tByLang });
             };
 
             const handleExportData = () => {
@@ -2337,7 +2385,7 @@
 
             const handleShareApp = async () => {
                 if (isGeneratingPdf) {
-                    setPriceStatus('PDF 仍在產生中，請稍候...');
+                    setPriceStatus(tByLang('PDF 仍在產生中，請稍候...', 'PDF is still generating. Please wait...', 'PDFを生成中です。しばらくお待ちください...'));
                     return;
                 }
                 let watchdogTimer = null;
@@ -2346,15 +2394,20 @@
 
                     watchdogTimer = setTimeout(() => {
                         setIsGeneratingPdf(false);
-                        setPriceStatus('PDF 產生逾時，請再試一次');
+                        setPriceStatus(tByLang('PDF 產生逾時，請再試一次', 'PDF generation timed out. Please try again', 'PDF生成がタイムアウトしました。再度お試しください'));
                     }, 20000);
 
                     await exportAssetReportPdf({
                         assets,
                         displayCurrency,
+                        pageLanguage,
                         totals,
                         assetMix,
                         groupedAssets,
+                        cashflowMonthData,
+                        cashflowYearData,
+                        cashflowEntries,
+                        liquidAssetLabelById,
                         themeTokens: exportThemeTokens,
                         categories: CATEGORIES,
                         formatAmount,
@@ -2365,9 +2418,13 @@
                         onProgress: (message) => setPriceStatus(message)
                     });
 
-                    setPriceStatus('PDF 已成功下載');
+                    setPriceStatus(tByLang('PDF 已成功下載', 'PDF downloaded successfully', 'PDFのダウンロードが完了しました'));
                 } catch (error) {
-                    setPriceStatus(`分享 PDF 失敗：${error?.message || '請稍後再試'}`);
+                    setPriceStatus(tByLang(
+                        `分享 PDF 失敗：${error?.message || '請稍後再試'}`,
+                        `PDF share failed: ${error?.message || 'Please try again later'}`,
+                        `PDF共有に失敗しました：${error?.message || 'しばらくしてから再試行してください'}`
+                    ));
                 } finally {
                     if (watchdogTimer) clearTimeout(watchdogTimer);
                     setIsGeneratingPdf(false);
@@ -2411,7 +2468,11 @@
                     localStorage.setItem(STORAGE_KEYS.cashflowAppliedOccurrenceKeys, JSON.stringify(nextCashflowAppliedOccurrenceKeys));
                     localStorage.setItem(STORAGE_KEYS.cashflowAppliedPostings, JSON.stringify(nextCashflowAppliedPostings));
                     localStorage.setItem(STORAGE_KEYS.cashflowLastAutoApplyDate, JSON.stringify(nextCashflowLastAutoApplyDate));
-                    setPriceStatus(`匯入成功：${nextAssets.length} 筆資產資料`);
+                    setPriceStatus(tByLang(
+                        `匯入成功：${nextAssets.length} 筆資產資料`,
+                        `Import successful: ${nextAssets.length} asset records`,
+                        `インポート成功：${nextAssets.length}件の資産データ`
+                    ));
                 } catch (error) {
                     setPriceStatus('匯入失敗：檔案格式不正確');
                 } finally {
@@ -2445,7 +2506,7 @@
                     // 忽略 storage 錯誤
                 }
 
-                setPriceStatus('已重設資料，準備重新開始記帳囉 ✨');
+                setPriceStatus(tByLang('已重設資料，準備重新開始記帳囉 ✨', 'Data reset complete. Ready for a fresh start ✨', 'データをリセットしました。新しく記帳を始めましょう ✨'));
             };
 
             useEffect(() => {
@@ -2512,7 +2573,7 @@
                 setFormData(createInitialAssetFormData());
             };
 
-            const netWorthTier = getNetWorthTier(totals.netWorthHKD, themeId);
+            const netWorthTier = getNetWorthTier(totals.netWorthHKD, themeId, pageLanguage);
             const netWorthTierIndex = Number.isInteger(netWorthTier?.tierIndex) ? netWorthTier.tierIndex : 0;
             const netWorthCardStyle = useMemo(() => buildNetworthCardStyle(themeId, netWorthTierIndex), [themeId, netWorthTierIndex]);
             const totalAssetsCardStyle = useMemo(() => buildSummaryCardStyle(themeId, netWorthTierIndex, 'asset'), [themeId, netWorthTierIndex]);
@@ -2737,8 +2798,8 @@
 
                     <div className="mb-8 text-xs theme-text-sub font-bold flex flex-wrap gap-x-4 gap-y-1">
                         <span>{priceStatus || pageText.marketAutoUpdate}</span>
-                        <span>{lastPriceUpdate ? `${pageText.lastUpdated}：${lastPriceUpdate.toLocaleString()}` : pageText.noPriceYet}</span>
-                        <span>{lastRateUpdate ? `${pageText.rateUpdated}：${lastRateUpdate.toLocaleString()}` : pageText.fxDefault}</span>
+                        <span>{lastPriceUpdate ? `${pageText.lastUpdated}：${formatDateTime(lastPriceUpdate)}` : pageText.noPriceYet}</span>
+                        <span>{lastRateUpdate ? `${pageText.rateUpdated}：${formatDateTime(lastRateUpdate)}` : pageText.fxDefault}</span>
                         <span>{isCloudSyncing ? pageText.cloudSyncing : cloudStatus}</span>
                     </div>
 
@@ -2965,9 +3026,9 @@
                                                         : (accountStats.selectedItem.subtype || CATEGORIES[selectedStatsCategory].label)}
                                                     {accountStats.selectedItem.symbol ? ` · ${accountStats.selectedItem.symbol}` : ''}
                                                 </div>
-                                                <div className="text-sm font-bold theme-text-main">名稱：{accountStats.selectedItem.label}</div>
-                                                <div className="text-sm font-bold theme-text-main">金額：{formatAmount(accountStats.selectedItem.valueDisplay)} {displayCurrency}</div>
-                                                <div className="text-sm font-bold theme-text-main">百分比：{accountStats.selectedItem.ratio.toFixed(2)}%</div>
+                                                <div className="text-sm font-bold theme-text-main">{tByLang('名稱：', 'Name:', '名称：')}{accountStats.selectedItem.label}</div>
+                                                <div className="text-sm font-bold theme-text-main">{tByLang('金額：', 'Amount:', '金額：')}{formatAmount(accountStats.selectedItem.valueDisplay)} {displayCurrency}</div>
+                                                <div className="text-sm font-bold theme-text-main">{tByLang('百分比：', 'Ratio:', '比率：')}{accountStats.selectedItem.ratio.toFixed(2)}%</div>
                                             </div>
                                         </details>
                                     )}
@@ -3037,6 +3098,7 @@
                             availableCashflowCategories={availableCashflowCategories}
                             parseDateKey={parseDateKey}
                             toDateKey={toDateKey}
+                            pageLanguage={pageLanguage}
                         />
 
                         <CashflowOverviewView
@@ -3047,6 +3109,7 @@
                             cashflowView={cashflowView}
                             setCashflowView={setCashflowView}
                             WEEKDAY_LABELS={WEEKDAY_LABELS}
+                            pageLanguage={pageLanguage}
                         />
 
                         <CashflowRulesView
@@ -3070,6 +3133,7 @@
                             fromHKD={fromHKD}
                             toHKD={toHKD}
                             displayCurrency={displayCurrency}
+                            pageLanguage={pageLanguage}
                             startEditCashflowEntry={startEditCashflowEntry}
                             handleDeleteCashflowEntry={handleDeleteCashflowEntry}
                         />
@@ -3084,7 +3148,7 @@
                             data-active={selectedCategories.length === CATEGORY_KEYS.length ? 'true' : 'false'}
                             style={buildCategoryChipStyle(getThemeTokenByTheme('--primary', '#8B5CF6'), selectedCategories.length === CATEGORY_KEYS.length)}
                         >
-                            全部項目
+                            {tByLang('全部項目', 'All Items', 'すべての項目')}
                         </button>
                         {CATEGORY_KEYS.map(categoryKey => (
                             <button
@@ -3102,16 +3166,16 @@
                             onChange={e => setSortMode(e.target.value)}
                             className="theme-input rounded-lg px-3 py-1.5 font-bold text-xs shadow-sm outline-none shrink-0"
                         >
-                            <option value="AMOUNT_DESC">按金額排序（大到小）</option>
-                            <option value="NAME_ASC">按名稱排序（A-Z）</option>
+                            <option value="AMOUNT_DESC">{tByLang('按金額排序（大到小）', 'Sort by Amount (High to Low)', '金額順（大→小）')}</option>
+                            <option value="NAME_ASC">{tByLang('按名稱排序（A-Z）', 'Sort by Name (A-Z)', '名称順（A-Z）')}</option>
                         </select>
                         <select
                             value={viewMode}
                             onChange={e => setViewMode(e.target.value)}
                             className="theme-input rounded-lg px-3 py-1.5 font-bold text-xs shadow-sm outline-none shrink-0"
                         >
-                            <option value="DETAIL">詳細模式</option>
-                            <option value="SUMMARY">匯總模式</option>
+                            <option value="DETAIL">{tByLang('詳細模式', 'Detail Mode', '詳細モード')}</option>
+                            <option value="SUMMARY">{tByLang('匯總模式', 'Summary Mode', 'サマリーモード')}</option>
                         </select>
                     </div>
 
@@ -3241,7 +3305,9 @@
                                                                 )}
                                                                 {isPayableLiability && (
                                                                     <div className="text-xs text-slate-500 font-bold">
-                                                                        到期 {item.payableDueDate || '未設定'} · {Number(item.payableInstallments || 0) ? `分期 ${item.payableInstallments} 期` : '一次性'}
+                                                                        {tByLang('到期', 'Due', '期限')} {item.payableDueDate || tByLang('未設定', 'Not set', '未設定')} · {Number(item.payableInstallments || 0)
+                                                                            ? tByLang(`分期 ${item.payableInstallments} 期`, `${item.payableInstallments} installments`, `${item.payableInstallments}回分割`)
+                                                                            : tByLang('一次性', 'One-time', '単発')}
                                                                     </div>
                                                                 )}
                                                                 {isOtherLiability && (
@@ -3251,12 +3317,14 @@
                                                                 )}
                                                                 {isReceivableItem && (
                                                                     <div className="text-xs text-slate-500 font-bold">
-                                                                        到期 {item.receivableDueDate || '未設定'} · {item.receivableParty ? `對象 ${item.receivableParty}` : '未填對象'}
+                                                                        {tByLang('到期', 'Due', '期限')} {item.receivableDueDate || tByLang('未設定', 'Not set', '未設定')} · {item.receivableParty
+                                                                            ? tByLang(`對象 ${item.receivableParty}`, `Counterparty ${item.receivableParty}`, `相手 ${item.receivableParty}`)
+                                                                            : tByLang('未填對象', 'No counterparty', '相手先未入力')}
                                                                     </div>
                                                                 )}
                                                                 {isFixedItem && (
                                                                     <div className="text-xs text-slate-500 font-bold">
-                                                                        購入 {item.fixedPurchaseDate || '未設定'} · {item.fixedNote ? item.fixedNote : '未填備註'}
+                                                                        {tByLang('購入', 'Purchased', '購入')} {item.fixedPurchaseDate || tByLang('未設定', 'Not set', '未設定')} · {item.fixedNote ? item.fixedNote : tByLang('未填備註', 'No note', '備考未入力')}
                                                                     </div>
                                                                 )}
                                                                 {isLiquidCategory && (
@@ -3269,11 +3337,13 @@
                                                                             <div className="text-[10px] text-indigo-500 font-black">
                                                                                 自動規則：{cashflowAutoRulesByLiquidAssetId[item.id].slice(0, 2).map(rule => {
                                                                                     const modeLabel = rule.frequency === 'MONTHLY'
-                                                                                        ? `每月${rule.payday || rule.monthday || '--'}號`
-                                                                                        : (rule.frequency === 'ONE_TIME' ? '單次' : (CASHFLOW_FREQUENCIES.find(entry => entry.value === rule.frequency)?.label || rule.frequency));
+                                                                                        ? tByLang(`每月${rule.payday || rule.monthday || '--'}號`, `Monthly ${rule.payday || rule.monthday || '--'}`, `毎月${rule.payday || rule.monthday || '--'}日`)
+                                                                                        : (rule.frequency === 'ONE_TIME' ? tByLang('單次', 'One-time', '単発') : (CASHFLOW_FREQUENCIES.find(entry => entry.value === rule.frequency)?.label || rule.frequency));
                                                                                     return `${rule.title}（${modeLabel}）`;
                                                                                 }).join('、')}
-                                                                                {cashflowAutoRulesByLiquidAssetId[item.id].length > 2 ? ` 等 ${cashflowAutoRulesByLiquidAssetId[item.id].length} 筆` : ''}
+                                                                                {cashflowAutoRulesByLiquidAssetId[item.id].length > 2
+                                                                                    ? tByLang(` 等 ${cashflowAutoRulesByLiquidAssetId[item.id].length} 筆`, ` and ${cashflowAutoRulesByLiquidAssetId[item.id].length} more`, ` ほか ${cashflowAutoRulesByLiquidAssetId[item.id].length} 件`)
+                                                                                    : ''}
                                                                             </div>
                                                                         )}
                                                                     </div>
@@ -3459,17 +3529,17 @@
                                                                         ) : isPayableLiability ? (
                                                                             <>
                                                                                 <div className="font-bold text-slate-800">{formatAmount(payableAmountDisplay)} <span className="text-[9px] text-slate-400">{displayCurrency}</span></div>
-                                                                                <div className="text-[10px] text-slate-400">{payableInstallments ? `分期 ${payableInstallments} 期` : '一次性'}</div>
+                                                                                <div className="text-[10px] text-slate-400">{payableInstallments ? tByLang(`分期 ${payableInstallments} 期`, `${payableInstallments} installments`, `${payableInstallments}回分割`) : tByLang('一次性', 'One-time', '単発')}</div>
                                                                             </>
                                                                         ) : isOtherLiability ? (
                                                                             <>
                                                                                 <div className="font-bold text-slate-800">{formatAmount(otherOutstandingDisplay)} <span className="text-[9px] text-slate-400">{displayCurrency}</span></div>
-                                                                                <div className="text-[10px] text-slate-400">{item.otherDueDate ? `到期 ${item.otherDueDate}` : '未設定到期日'}</div>
+                                                                                <div className="text-[10px] text-slate-400">{item.otherDueDate ? tByLang(`到期 ${item.otherDueDate}`, `Due ${item.otherDueDate}`, `期限 ${item.otherDueDate}`) : tByLang('未設定到期日', 'No due date set', '期限未設定')}</div>
                                                                             </>
                                                                         ) : isReceivableItem ? (
                                                                             <>
                                                                                 <div className="font-bold text-slate-800">{formatAmount(receivableAmountDisplay)} <span className="text-[9px] text-slate-400">{displayCurrency}</span></div>
-                                                                                <div className="text-[10px] text-slate-400">{receivableInstallments ? `分期 ${receivableInstallments} 期` : '一次性'}</div>
+                                                                                <div className="text-[10px] text-slate-400">{receivableInstallments ? tByLang(`分期 ${receivableInstallments} 期`, `${receivableInstallments} installments`, `${receivableInstallments}回分割`) : tByLang('一次性', 'One-time', '単発')}</div>
                                                                             </>
                                                                         ) : isFixedItem ? (
                                                                             <>
@@ -3514,31 +3584,31 @@
                                                                         ) : isCreditCardLiability ? (
                                                                             <>
                                                                                 <div className="font-medium text-slate-700">年息 {creditCardAnnualRate.toFixed(2)}%</div>
-                                                                                <div className="text-[10px] text-slate-400">到期 {item.creditCardDueDate || '未設定'}</div>
+                                                                                <div className="text-[10px] text-slate-400">{tByLang('到期', 'Due', '期限')} {item.creditCardDueDate || tByLang('未設定', 'Not set', '未設定')}</div>
                                                                             </>
                                                                         ) : isPayableLiability ? (
                                                                             <>
-                                                                                <div className="font-medium text-slate-700">到期 {item.payableDueDate || '未設定'}</div>
+                                                                                <div className="font-medium text-slate-700">{tByLang('到期', 'Due', '期限')} {item.payableDueDate || tByLang('未設定', 'Not set', '未設定')}</div>
                                                                                 {payableInstallments ? (
                                                                                     <div className="text-[10px] text-slate-400">每期約 {formatAmount(payableAmountDisplay / payableInstallments)} {displayCurrency}</div>
                                                                                 ) : (
-                                                                                    <div className="text-[10px] text-slate-400">一次性支付</div>
+                                                                                    <div className="text-[10px] text-slate-400">{tByLang('一次性支付', 'One-time payment', '一括払い')}</div>
                                                                                 )}
                                                                             </>
                                                                         ) : isOtherLiability ? (
                                                                             <>
                                                                                 <div className="font-medium text-slate-700">年息 {otherAnnualRate.toFixed(2)}%</div>
-                                                                                <div className="text-[10px] text-slate-400">到期 {item.otherDueDate || '未設定'}</div>
+                                                                                <div className="text-[10px] text-slate-400">{tByLang('到期', 'Due', '期限')} {item.otherDueDate || tByLang('未設定', 'Not set', '未設定')}</div>
                                                                             </>
                                                                         ) : isReceivableItem ? (
                                                                             <>
-                                                                                <div className="font-medium text-slate-700">到期 {item.receivableDueDate || '未設定'}</div>
-                                                                                <div className="text-[10px] text-slate-400">{item.receivableParty ? `對象 ${item.receivableParty}` : '未填對象'}</div>
+                                                                                <div className="font-medium text-slate-700">{tByLang('到期', 'Due', '期限')} {item.receivableDueDate || tByLang('未設定', 'Not set', '未設定')}</div>
+                                                                                <div className="text-[10px] text-slate-400">{item.receivableParty ? tByLang(`對象 ${item.receivableParty}`, `Counterparty ${item.receivableParty}`, `相手 ${item.receivableParty}`) : tByLang('未填對象', 'No counterparty', '相手先未入力')}</div>
                                                                             </>
                                                                         ) : isFixedItem ? (
                                                                             <>
-                                                                                <div className="font-medium text-slate-700">購入 {item.fixedPurchaseDate || '未設定'}</div>
-                                                                                <div className="text-[10px] text-slate-400">{item.fixedNote ? `備註 ${item.fixedNote}` : '未填備註'}</div>
+                                                                                <div className="font-medium text-slate-700">{tByLang('購入', 'Purchased', '購入')} {item.fixedPurchaseDate || tByLang('未設定', 'Not set', '未設定')}</div>
+                                                                                <div className="text-[10px] text-slate-400">{item.fixedNote ? tByLang(`備註 ${item.fixedNote}`, `Note ${item.fixedNote}`, `備考 ${item.fixedNote}`) : tByLang('未填備註', 'No note', '備考未入力')}</div>
                                                                             </>
                                                                         ) : (
                                                                             <>
@@ -3636,6 +3706,7 @@
                         premiumTotal={premiumTotal}
                         CURRENCIES={orderedCurrencies}
                         handleDelete={handleDelete}
+                        pageLanguage={pageLanguage}
                     />
 
                     <div className="hidden md:block fixed right-4 bottom-5 z-30 pointer-events-none">
