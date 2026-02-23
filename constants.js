@@ -1,6 +1,25 @@
 (() => {
-    const CURRENCIES = ['HKD', 'MOP', 'TWD', 'USD', 'CNY', 'JPY', 'EUR', 'GBP'];
-    const DEFAULT_RATES = { HKD: 1, MOP: 1.03, TWD: 4.15, USD: 0.128, CNY: 0.92, JPY: 19.2, EUR: 0.118, GBP: 0.101 };
+    const CURRENCIES = ['HKD', 'USD', 'CNY', 'TWD', 'MOP', 'JPY', 'EUR', 'GBP', 'SGD', 'AUD', 'CAD', 'CHF', 'NZD', 'KRW', 'THB', 'MYR', 'INR', 'AED'];
+    const DEFAULT_RATES = {
+        HKD: 1,
+        USD: 0.128,
+        CNY: 0.92,
+        TWD: 4.15,
+        MOP: 1.03,
+        JPY: 19.2,
+        EUR: 0.118,
+        GBP: 0.101,
+        SGD: 0.172,
+        AUD: 0.197,
+        CAD: 0.174,
+        CHF: 0.112,
+        NZD: 0.212,
+        KRW: 184,
+        THB: 4.6,
+        MYR: 0.59,
+        INR: 10.7,
+        AED: 0.47
+    };
     const STORAGE_KEYS = {
         assets: 'assetTracker.assets.v2',
         displayCurrency: 'assetTracker.displayCurrency.v2',
@@ -12,14 +31,15 @@
         cashflowLastAutoApplyDate: 'assetTracker.cashflowLastAutoApplyDate.v1',
         cashflowAppliedPostings: 'assetTracker.cashflowAppliedPostings.v1',
         pageLanguage: 'assetTracker.pageLanguage.v1',
-        themeId: 'assetTracker.themeId.v1'
+        themeId: 'assetTracker.themeId.v1',
+        recentCurrencies: 'assetTracker.recentCurrencies.v1'
     };
     const FIREBASE_CONFIG = window.__FIREBASE_CONFIG__ || {
         apiKey: 'AIzaSyBBXQq6K6dBZCL4t8ieyH_QB2TmAW4b8P0',
-        authDomain: 'myassetmanagement-3acb9.firebaseapp.com',
-        databaseURL: 'https://myassetmanagement-3acb9-default-rtdb.asia-southeast1.firebasedatabase.app',
-        projectId: 'myassetmanagement-3acb9',
-        storageBucket: 'myassetmanagement-3acb9.firebasestorage.app',
+        authDomain: 'sweetprinceledger-3acb9.firebaseapp.com',
+        databaseURL: 'https://sweetprinceledger-3acb9-default-rtdb.asia-southeast1.firebasedatabase.app',
+        projectId: 'sweetprinceledger-3acb9',
+        storageBucket: 'sweetprinceledger-3acb9.firebasestorage.app',
         messagingSenderId: '197674917932',
         appId: '1:197674917932:web:6aaa35121062d4b3f4b189',
         measurementId: 'G-R0BJT35WPE'

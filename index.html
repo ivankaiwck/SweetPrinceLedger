@@ -530,7 +530,37 @@
             const MODAL_INPUT_FOCUS_CLASS = MODAL_INPUT_CLASS;
             const MODAL_OUTPUT_CLASS = 'w-full p-3 theme-form-output rounded-xl font-black';
             const MODAL_GROUP_CLASS = 'theme-form-group';
-            const updateFormField = (field) => (event) => setFormData(prev => ({ ...prev, [field]: event.target.value }));
+            const sanitizeRecentCurrencies = (rawList) => {
+                if (!Array.isArray(rawList)) return [];
+                const unique = [];
+                rawList.forEach(item => {
+                    const currency = typeof item === 'string' ? item : '';
+                    if (!CURRENCIES.includes(currency)) return;
+                    if (unique.includes(currency)) return;
+                    unique.push(currency);
+                });
+                return unique.slice(0, 6);
+            };
+            const [recentCurrencies, setRecentCurrencies] = useState(() => {
+                const saved = sanitizeRecentCurrencies(parseStorage(STORAGE_KEYS.recentCurrencies, []));
+                if (saved.length) return saved;
+                const savedDisplayCurrency = parseStorage(STORAGE_KEYS.displayCurrency, 'HKD');
+                return CURRENCIES.includes(savedDisplayCurrency) ? [savedDisplayCurrency] : ['HKD'];
+            });
+            const markRecentCurrency = (currency) => {
+                if (!CURRENCIES.includes(currency)) return;
+                setRecentCurrencies(prev => sanitizeRecentCurrencies([currency, ...prev]));
+            };
+            const orderedCurrencies = useMemo(() => {
+                const preferred = sanitizeRecentCurrencies(recentCurrencies);
+                const rest = CURRENCIES.filter(currency => !preferred.includes(currency));
+                return [...preferred, ...rest];
+            }, [recentCurrencies]);
+            const updateFormField = (field) => (event) => {
+                const value = event.target.value;
+                if (field === 'currency') markRecentCurrency(value);
+                setFormData(prev => ({ ...prev, [field]: value }));
+            };
             const updateFormFieldUpper = (field) => (event) => setFormData(prev => ({ ...prev, [field]: event.target.value.toUpperCase() }));
 
             const createInitialAssetFormData = () => ({
@@ -716,7 +746,11 @@
                     note: ''
                 };
             });
-            const updateCashflowField = (field) => (event) => setCashflowForm(prev => ({ ...prev, [field]: event.target.value }));
+            const updateCashflowField = (field) => (event) => {
+                const value = event.target.value;
+                if (field === 'currency') markRecentCurrency(value);
+                setCashflowForm(prev => ({ ...prev, [field]: value }));
+            };
             const normalizeOneTimeDateList = (rawList) => {
                 const unique = new Set();
                 (Array.isArray(rawList) ? rawList : []).forEach(item => {
@@ -1143,6 +1177,10 @@
             useEffect(() => {
                 localStorage.setItem(STORAGE_KEYS.displayCurrency, JSON.stringify(displayCurrency));
             }, [displayCurrency]);
+
+            useEffect(() => {
+                localStorage.setItem(STORAGE_KEYS.recentCurrencies, JSON.stringify(sanitizeRecentCurrencies(recentCurrencies)));
+            }, [recentCurrencies]);
 
             useEffect(() => {
                 localStorage.setItem(STORAGE_KEYS.currencyRates, JSON.stringify(currencyRates));
@@ -2637,10 +2675,14 @@
                                             <div className="text-[10px] text-slate-400 font-black uppercase tracking-widest">{pageText.displayCurrency}</div>
                                             <select
                                                 value={displayCurrency}
-                                                onChange={e => setDisplayCurrency(e.target.value)}
+                                                onChange={e => {
+                                                    const next = e.target.value;
+                                                    setDisplayCurrency(next);
+                                                    markRecentCurrency(next);
+                                                }}
                                                 className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 font-bold text-sm shadow-sm outline-none"
                                             >
-                                                {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+                                                {orderedCurrencies.map(c => <option key={c} value={c}>{c}</option>)}
                                             </select>
                                             <div className="text-[10px] text-slate-400 font-black uppercase tracking-widest">{pageText.pageLanguage}</div>
                                             <select
@@ -2988,7 +3030,7 @@
                             CASHFLOW_TYPES={CASHFLOW_TYPES}
                             CASHFLOW_SCHEDULE_TYPES={CASHFLOW_SCHEDULE_TYPES}
                             liquidAssetOptions={liquidAssetOptions}
-                            CURRENCIES={CURRENCIES}
+                            CURRENCIES={orderedCurrencies}
                             isCashflowOneTime={isCashflowOneTime}
                             isCashflowMonthlyRecurring={isCashflowMonthlyRecurring}
                             CASHFLOW_FREQUENCIES={CASHFLOW_FREQUENCIES}
@@ -3592,7 +3634,7 @@
                         loanMetrics={loanMetrics}
                         formatAmount={formatAmount}
                         premiumTotal={premiumTotal}
-                        CURRENCIES={CURRENCIES}
+                        CURRENCIES={orderedCurrencies}
                         handleDelete={handleDelete}
                     />
 
