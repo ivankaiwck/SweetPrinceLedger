@@ -46,7 +46,11 @@
             displayCurrency: 'assetTracker.displayCurrency.v2',
             monthlySnapshots: 'assetTracker.monthlySnapshots.v2',
             currencyRates: 'assetTracker.currencyRates.v1',
-            currencyRatesUpdatedAt: 'assetTracker.currencyRatesUpdatedAt.v1'
+            currencyRatesUpdatedAt: 'assetTracker.currencyRatesUpdatedAt.v1',
+            cashflowEntries: 'assetTracker.cashflowEntries.v1',
+            cashflowAppliedOccurrenceKeys: 'assetTracker.cashflowAppliedOccurrenceKeys.v1',
+            cashflowLastAutoApplyDate: 'assetTracker.cashflowLastAutoApplyDate.v1',
+            cashflowAppliedPostings: 'assetTracker.cashflowAppliedPostings.v1'
         };
         const FIREBASE_CONFIG = window.__FIREBASE_CONFIG__ || {
             apiKey: 'AIzaSyBBXQq6K6dBZCL4t8ieyH_QB2TmAW4b8P0',
@@ -95,6 +99,58 @@
         };
         const CATEGORY_KEYS = Object.keys(CATEGORIES);
         const INVEST_CHART_COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#6366F1', '#F43F5E', '#0EA5E9', '#8B5CF6', '#14B8A6'];
+        const CASHFLOW_TYPES = {
+            INCOME: { label: '收入', tone: 'text-emerald-600' },
+            EXPENSE: { label: '支出', tone: 'text-rose-600' }
+        };
+        const CASHFLOW_SCHEDULE_TYPES = [
+            { value: 'ONE_TIME', label: '單次性' },
+            { value: 'RECURRING', label: '固定' }
+        ];
+        const CASHFLOW_FREQUENCIES = [
+            { value: 'DAILY', label: '每日' },
+            { value: 'WEEKLY', label: '每週' },
+            { value: 'MONTHLY', label: '每月' },
+            { value: 'YEARLY', label: '每年' }
+        ];
+        const WEEKDAY_LABELS = ['日', '一', '二', '三', '四', '五', '六'];
+        const CASHFLOW_CATEGORY_OPTIONS = [
+            '收入-薪金',
+            '收入-獎金',
+            '收入-佣金',
+            '收入-租金',
+            '收入-股息',
+            '收入-利息',
+            '收入-兼職',
+            '收入-生意',
+            '收入-退款/補貼',
+            '收入-其他',
+            '費用-餐飲',
+            '費用-交通',
+            '費用-電費',
+            '費用-水費',
+            '費用-煤氣費',
+            '費用-網絡/電話',
+            '費用-房租/管理費',
+            '費用-保險',
+            '費用-醫療',
+            '費用-教育',
+            '費用-娛樂',
+            '費用-購物',
+            '費用-家庭',
+            '費用-稅費',
+            '費用-其他',
+            '轉帳-儲蓄'
+        ];
+        const CASHFLOW_CATEGORY_BY_TYPE = {
+            INCOME: CASHFLOW_CATEGORY_OPTIONS.filter(item => item.startsWith('收入-')),
+            EXPENSE: CASHFLOW_CATEGORY_OPTIONS.filter(item => item.startsWith('費用-')).concat(['轉帳-儲蓄'])
+        };
+        const getDefaultCashflowCategory = (type) => {
+            const options = CASHFLOW_CATEGORY_BY_TYPE[type] || CASHFLOW_CATEGORY_BY_TYPE.EXPENSE;
+            return options[0] || '費用-其他';
+        };
+        const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
         const polarToCartesian = (centerX, centerY, radius, angleInDegrees) => {
             const angleInRadians = (angleInDegrees - 90) * Math.PI / 180;
@@ -274,6 +330,133 @@
                 maturityAmount,
                 interestAmount
             };
+        };
+
+        const pad2 = (value) => String(value).padStart(2, '0');
+        const toDateKey = (date) => `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+        const toMonthKey = (date) => `${date.getFullYear()}-${pad2(date.getMonth() + 1)}`;
+        const parseDateKey = (dateKey) => {
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey || '')) return null;
+            const [year, month, day] = dateKey.split('-').map(Number);
+            const date = new Date(year, month - 1, day);
+            if (date.getFullYear() !== year || date.getMonth() !== (month - 1) || date.getDate() !== day) return null;
+            return date;
+        };
+        const normalizeDateKeyOrFallback = (rawValue, fallbackDate) => {
+            const parsed = parseDateKey(rawValue || '');
+            return parsed ? toDateKey(parsed) : toDateKey(fallbackDate);
+        };
+        const parseOccurrenceDateFromPostingKey = (occurrenceKey) => {
+            if (typeof occurrenceKey !== 'string') return '';
+            const parts = occurrenceKey.split('@');
+            return parts.length >= 3 ? parts[1] : '';
+        };
+
+        const sanitizeCashflowEntries = (entries) => {
+            if (!Array.isArray(entries)) return [];
+            const validTypes = Object.keys(CASHFLOW_TYPES);
+            const validFrequencies = CASHFLOW_FREQUENCIES.map(item => item.value);
+            const validScheduleTypes = CASHFLOW_SCHEDULE_TYPES.map(item => item.value);
+
+            return entries
+                .filter(item => item && typeof item === 'object')
+                .map(item => {
+                    const amount = Number(item.amount);
+                    const startDate = typeof item.startDate === 'string' ? item.startDate : '';
+                    const parsedStart = parseDateKey(startDate);
+                    if (!parsedStart || !Number.isFinite(amount) || amount <= 0) return null;
+
+                    const type = validTypes.includes(item.type) ? item.type : 'EXPENSE';
+                    const inferredScheduleType = item.frequency === 'ONE_TIME' ? 'ONE_TIME' : 'RECURRING';
+                    const scheduleType = validScheduleTypes.includes(item.scheduleType) ? item.scheduleType : inferredScheduleType;
+                    const frequency = scheduleType === 'ONE_TIME'
+                        ? 'ONE_TIME'
+                        : (validFrequencies.includes(item.frequency) && item.frequency !== 'ONE_TIME' ? item.frequency : 'MONTHLY');
+                    const currency = CURRENCIES.includes(item.currency) ? item.currency : 'HKD';
+                    const weekday = Number.isInteger(item.weekday) && item.weekday >= 0 && item.weekday <= 6
+                        ? item.weekday
+                        : parsedStart.getDay();
+                    const monthday = Number.isInteger(item.monthday) && item.monthday >= 1 && item.monthday <= 31
+                        ? item.monthday
+                        : parsedStart.getDate();
+                    const payday = Number.isInteger(item.payday) && item.payday >= 1 && item.payday <= 31
+                        ? item.payday
+                        : monthday;
+
+                    let endDate = typeof item.endDate === 'string' ? item.endDate : '';
+                    const parsedEnd = parseDateKey(endDate);
+                    if (!parsedEnd || parsedEnd.getTime() < parsedStart.getTime()) endDate = '';
+
+                    const categoryPool = CASHFLOW_CATEGORY_BY_TYPE[type] || CASHFLOW_CATEGORY_BY_TYPE.EXPENSE;
+                    const rawCategory = typeof item.category === 'string' ? item.category.trim() : '';
+                    const normalizedCategory = categoryPool.includes(rawCategory)
+                        ? rawCategory
+                        : getDefaultCashflowCategory(type);
+
+                    return {
+                        id: typeof item.id === 'string' && item.id ? item.id : `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+                        title: typeof item.title === 'string' && item.title.trim() ? item.title.trim() : '未命名現金流',
+                        account: typeof item.account === 'string' ? item.account.trim() : '',
+                        category: normalizedCategory,
+                        note: typeof item.note === 'string' ? item.note.trim() : '',
+                        type,
+                        amount,
+                        currency,
+                        startDate,
+                        endDate: scheduleType === 'ONE_TIME' ? '' : endDate,
+                        scheduleType,
+                        frequency,
+                        weekday,
+                        monthday,
+                        payday,
+                        targetLiquidAssetId: typeof item.targetLiquidAssetId === 'string' ? item.targetLiquidAssetId : ''
+                    };
+                })
+                .filter(Boolean)
+                .sort((a, b) => a.startDate.localeCompare(b.startDate));
+        };
+
+        const isEntryOnDate = (entry, date) => {
+            const start = parseDateKey(entry.startDate);
+            if (!start) return false;
+            if (date.getTime() < start.getTime()) return false;
+
+            const scheduleType = entry.scheduleType || (entry.frequency === 'ONE_TIME' ? 'ONE_TIME' : 'RECURRING');
+            if (scheduleType === 'ONE_TIME') {
+                return toDateKey(date) === entry.startDate;
+            }
+
+            const end = parseDateKey(entry.endDate);
+            if (end && date.getTime() > end.getTime()) return false;
+
+            if (entry.frequency === 'DAILY') return true;
+            if (entry.frequency === 'WEEKLY') return date.getDay() === (Number(entry.weekday) || start.getDay());
+            if (entry.frequency === 'MONTHLY') {
+                const configuredDay = Number(entry.monthday) || start.getDate();
+                const daysInCurrentMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+                const targetDay = Math.min(configuredDay, daysInCurrentMonth);
+                return date.getDate() === targetDay;
+            }
+            if (entry.frequency === 'YEARLY') return date.getDate() === start.getDate() && date.getMonth() === start.getMonth();
+            return false;
+        };
+
+        const findNextOccurrenceDateKey = (entry, fromDate = new Date(), maxLookAheadDays = 3650) => {
+            const base = new Date(fromDate.getFullYear(), fromDate.getMonth(), fromDate.getDate());
+            for (let offset = 0; offset <= maxLookAheadDays; offset += 1) {
+                const candidate = new Date(base.getFullYear(), base.getMonth(), base.getDate() + offset);
+                if (isEntryOnDate(entry, candidate)) return toDateKey(candidate);
+            }
+            return '';
+        };
+
+        const findLastOccurrenceDateKey = (entry, fromDate = new Date(), maxLookBackDays = 3650) => {
+            const base = new Date(fromDate.getFullYear(), fromDate.getMonth(), fromDate.getDate());
+            for (let offset = 0; offset <= maxLookBackDays; offset += 1) {
+                const candidate = new Date(base.getFullYear(), base.getMonth(), base.getDate() - offset);
+                if (isEntryOnDate(entry, candidate)) return toDateKey(candidate);
+            }
+            return '';
         };
 
         const normalizeYahooSymbol = (symbol) => {
@@ -545,6 +728,33 @@
             const [assets, setAssets] = useState(() => parseStorage(STORAGE_KEYS.assets, seedAssets));
             const [displayCurrency, setDisplayCurrency] = useState(() => parseStorage(STORAGE_KEYS.displayCurrency, 'HKD'));
             const [monthlySnapshots, setMonthlySnapshots] = useState(() => parseStorage(STORAGE_KEYS.monthlySnapshots, {}));
+            const [cashflowEntries, setCashflowEntries] = useState(() => sanitizeCashflowEntries(parseStorage(STORAGE_KEYS.cashflowEntries, [])));
+            const [cashflowAppliedOccurrenceKeys, setCashflowAppliedOccurrenceKeys] = useState(() => {
+                const raw = parseStorage(STORAGE_KEYS.cashflowAppliedOccurrenceKeys, []);
+                return Array.isArray(raw) ? raw.filter(item => typeof item === 'string') : [];
+            });
+            const [cashflowAppliedPostings, setCashflowAppliedPostings] = useState(() => {
+                const raw = parseStorage(STORAGE_KEYS.cashflowAppliedPostings, {});
+                if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+                const next = {};
+                Object.entries(raw).forEach(([key, value]) => {
+                    if (!key || !value || typeof value !== 'object') return;
+                    const signedAmount = Number(value.signedAmount);
+                    if (!Number.isFinite(signedAmount)) return;
+                    next[key] = {
+                        entryId: typeof value.entryId === 'string' ? value.entryId : '',
+                        targetLiquidAssetId: typeof value.targetLiquidAssetId === 'string' ? value.targetLiquidAssetId : '',
+                        signedAmount,
+                        targetCurrency: typeof value.targetCurrency === 'string' ? value.targetCurrency : '',
+                        type: value.type === 'INCOME' ? 'INCOME' : 'EXPENSE'
+                    };
+                });
+                return next;
+            });
+            const [cashflowLastAutoApplyDate, setCashflowLastAutoApplyDate] = useState(() => normalizeDateKeyOrFallback(
+                parseStorage(STORAGE_KEYS.cashflowLastAutoApplyDate, ''),
+                new Date(Date.now() - ONE_DAY_MS)
+            ));
             const [currencyRates, setCurrencyRates] = useState(() => sanitizeCurrencyRates(parseStorage(STORAGE_KEYS.currencyRates, DEFAULT_RATES)));
             const [lastRateUpdate, setLastRateUpdate] = useState(() => {
                 const saved = Number(parseStorage(STORAGE_KEYS.currencyRatesUpdatedAt, 0));
@@ -572,6 +782,32 @@
             const [selectedStatsAccount, setSelectedStatsAccount] = useState('');
             const [selectedStatsSegmentKey, setSelectedStatsSegmentKey] = useState('');
             const [statsBreakdownMode, setStatsBreakdownMode] = useState('ACCOUNT');
+            const [financeSectionTab, setFinanceSectionTab] = useState('ASSET_ACCOUNT');
+            const [cashflowView, setCashflowView] = useState('MONTH');
+            const [selectedCashflowMonth, setSelectedCashflowMonth] = useState(() => toMonthKey(new Date()));
+            const [editingCashflowId, setEditingCashflowId] = useState('');
+            const [cashflowRuleKeyword, setCashflowRuleKeyword] = useState('');
+            const [cashflowRuleFilter, setCashflowRuleFilter] = useState('ALL');
+            const [cashflowRuleSortMode, setCashflowRuleSortMode] = useState('START_DESC');
+            const [cashflowRulesVisibleCount, setCashflowRulesVisibleCount] = useState(20);
+            const [cashflowForm, setCashflowForm] = useState(() => {
+                const today = toDateKey(new Date());
+                return {
+                    title: '',
+                    account: '',
+                    category: getDefaultCashflowCategory('INCOME'),
+                    type: 'INCOME',
+                    scheduleType: 'RECURRING',
+                    amount: '',
+                    currency: 'HKD',
+                    frequency: 'MONTHLY',
+                    startDate: today,
+                    endDate: '',
+                    payday: '25',
+                    targetLiquidAssetId: '',
+                    note: ''
+                };
+            });
 
             const [formData, setFormData] = useState({
                 account: '',
@@ -618,6 +854,7 @@
                 fixedDepositStartDate: ''
             });
             const importInputRef = useRef(null);
+            const cashflowFormRef = useRef(null);
             const cloudHydratedRef = useRef(false);
             const cloudSaveTimerRef = useRef(null);
 
@@ -657,6 +894,8 @@
             useEffect(() => { displayCurrencyRef.current = displayCurrency; }, [displayCurrency]);
             const monthlySnapshotsRef = useRef(monthlySnapshots);
             useEffect(() => { monthlySnapshotsRef.current = monthlySnapshots; }, [monthlySnapshots]);
+            const cashflowEntriesRef = useRef(cashflowEntries);
+            useEffect(() => { cashflowEntriesRef.current = cashflowEntries; }, [cashflowEntries]);
 
             const toHKD = (amount, currency) => amount / (currencyRates[currency] || 1);
             const fromHKD = (amountHKD, currency) => amountHKD * (currencyRates[currency] || 1);
@@ -672,6 +911,22 @@
             useEffect(() => {
                 localStorage.setItem(STORAGE_KEYS.currencyRates, JSON.stringify(currencyRates));
             }, [currencyRates]);
+
+            useEffect(() => {
+                localStorage.setItem(STORAGE_KEYS.cashflowEntries, JSON.stringify(cashflowEntries));
+            }, [cashflowEntries]);
+
+            useEffect(() => {
+                localStorage.setItem(STORAGE_KEYS.cashflowAppliedOccurrenceKeys, JSON.stringify(cashflowAppliedOccurrenceKeys));
+            }, [cashflowAppliedOccurrenceKeys]);
+
+            useEffect(() => {
+                localStorage.setItem(STORAGE_KEYS.cashflowAppliedPostings, JSON.stringify(cashflowAppliedPostings));
+            }, [cashflowAppliedPostings]);
+
+            useEffect(() => {
+                localStorage.setItem(STORAGE_KEYS.cashflowLastAutoApplyDate, JSON.stringify(cashflowLastAutoApplyDate));
+            }, [cashflowLastAutoApplyDate]);
 
             useEffect(() => {
                 const stamp = lastRateUpdate instanceof Date ? lastRateUpdate.getTime() : 0;
@@ -1009,6 +1264,553 @@
                 };
             }, [assets, displayCurrency, selectedStatsCategory, selectedStatsAccount, selectedStatsSegmentKey, statsBreakdownMode, currencyRates]);
 
+            const liquidAssetOptions = useMemo(() => {
+                return assets
+                    .filter(item => item.category === 'LIQUID')
+                    .map(item => ({
+                        id: item.id,
+                        account: item.account,
+                        name: item.name,
+                        currency: item.currency,
+                        label: `${item.account}｜${item.name}（${item.currency}）`
+                    }))
+                    .sort((a, b) => a.label.localeCompare(b.label, 'zh-Hant', { sensitivity: 'base' }));
+            }, [assets]);
+
+            const liquidAssetLabelById = useMemo(() => {
+                const map = {};
+                liquidAssetOptions.forEach(option => {
+                    map[option.id] = option.label;
+                });
+                return map;
+            }, [liquidAssetOptions]);
+
+            const cashflowRulesByLiquidAssetId = useMemo(() => {
+                const grouped = {};
+                cashflowEntries.forEach(entry => {
+                    if (!entry.targetLiquidAssetId) return;
+                    if (!grouped[entry.targetLiquidAssetId]) grouped[entry.targetLiquidAssetId] = [];
+                    grouped[entry.targetLiquidAssetId].push(entry);
+                });
+                Object.keys(grouped).forEach(key => {
+                    grouped[key].sort((a, b) => a.title.localeCompare(b.title, 'zh-Hant', { sensitivity: 'base' }));
+                });
+                return grouped;
+            }, [cashflowEntries]);
+
+            const cashflowAutoRulesByLiquidAssetId = useMemo(() => {
+                const grouped = {};
+                cashflowEntries.forEach(entry => {
+                    if (!entry.targetLiquidAssetId) return;
+                    if (entry.scheduleType === 'ONE_TIME') return;
+                    if (!grouped[entry.targetLiquidAssetId]) grouped[entry.targetLiquidAssetId] = [];
+                    grouped[entry.targetLiquidAssetId].push(entry);
+                });
+                Object.keys(grouped).forEach(key => {
+                    grouped[key].sort((a, b) => a.title.localeCompare(b.title, 'zh-Hant', { sensitivity: 'base' }));
+                });
+                return grouped;
+            }, [cashflowEntries]);
+
+            const cashflowAccountOptions = useMemo(() => {
+                return [...new Set(assets.map(item => (item.account || '').trim()).filter(Boolean))]
+                    .sort((a, b) => a.localeCompare(b, 'zh-Hant', { sensitivity: 'base' }));
+            }, [assets]);
+
+            const availableCashflowCategories = useMemo(() => {
+                return CASHFLOW_CATEGORY_BY_TYPE[cashflowForm.type] || CASHFLOW_CATEGORY_BY_TYPE.EXPENSE;
+            }, [cashflowForm.type]);
+
+            const filteredCashflowEntries = useMemo(() => {
+                const keyword = (cashflowRuleKeyword || '').trim().toLowerCase();
+                const byFilter = cashflowEntries.filter(item => {
+                    if (cashflowRuleFilter === 'ALL') return true;
+                    if (cashflowRuleFilter === 'AUTO') return item.scheduleType !== 'ONE_TIME';
+                    if (cashflowRuleFilter === 'ONE_TIME') return item.scheduleType === 'ONE_TIME';
+                    if (cashflowRuleFilter === 'INCOME') return item.type === 'INCOME';
+                    if (cashflowRuleFilter === 'EXPENSE') return item.type === 'EXPENSE';
+                    return true;
+                });
+
+                const byKeyword = keyword
+                    ? byFilter.filter(item => {
+                        const fullText = [item.title, item.category, item.account, item.note, item.startDate, item.endDate]
+                            .filter(Boolean)
+                            .join(' ')
+                            .toLowerCase();
+                        return fullText.includes(keyword);
+                    })
+                    : byFilter;
+
+                if (cashflowRuleSortMode === 'NEXT_TRIGGER_ASC') {
+                    return [...byKeyword].sort((a, b) => {
+                        const aNext = findNextOccurrenceDateKey(a, new Date());
+                        const bNext = findNextOccurrenceDateKey(b, new Date());
+                        if (!aNext && !bNext) return (a.title || '').localeCompare((b.title || ''), 'zh-Hant', { sensitivity: 'base' });
+                        if (!aNext) return 1;
+                        if (!bNext) return -1;
+                        const byNext = aNext.localeCompare(bNext);
+                        if (byNext !== 0) return byNext;
+                        return (a.title || '').localeCompare((b.title || ''), 'zh-Hant', { sensitivity: 'base' });
+                    });
+                }
+
+                return [...byKeyword].sort((a, b) => {
+                    const byStart = b.startDate.localeCompare(a.startDate);
+                    if (byStart !== 0) return byStart;
+                    return (a.title || '').localeCompare((b.title || ''), 'zh-Hant', { sensitivity: 'base' });
+                });
+            }, [cashflowEntries, cashflowRuleFilter, cashflowRuleKeyword, cashflowRuleSortMode]);
+
+            const cashflowTriggerInfoById = useMemo(() => {
+                const map = {};
+                const today = new Date();
+                filteredCashflowEntries.slice(0, cashflowRulesVisibleCount).forEach(entry => {
+                    const lastScheduled = findLastOccurrenceDateKey(entry, today);
+                    const nextScheduled = findNextOccurrenceDateKey(entry, today);
+
+                    let lastApplied = '';
+                    Object.keys(cashflowAppliedPostings).forEach(postingKey => {
+                        const posting = cashflowAppliedPostings[postingKey];
+                        if (!posting || posting.entryId !== entry.id) return;
+                        const dateKey = parseOccurrenceDateFromPostingKey(postingKey);
+                        if (!dateKey) return;
+                        if (!lastApplied || dateKey > lastApplied) lastApplied = dateKey;
+                    });
+
+                    map[entry.id] = {
+                        lastDateKey: lastApplied || lastScheduled || '',
+                        nextDateKey: nextScheduled || ''
+                    };
+                });
+                return map;
+            }, [filteredCashflowEntries, cashflowRulesVisibleCount, cashflowAppliedPostings]);
+
+            useEffect(() => {
+                setCashflowRulesVisibleCount(20);
+            }, [cashflowRuleFilter, cashflowRuleKeyword, cashflowRuleSortMode]);
+
+            useEffect(() => {
+                if (availableCashflowCategories.includes(cashflowForm.category)) return;
+                setCashflowForm(prev => ({
+                    ...prev,
+                    category: getDefaultCashflowCategory(prev.type)
+                }));
+            }, [availableCashflowCategories, cashflowForm.category]);
+
+            useEffect(() => {
+                if (!cashflowForm.targetLiquidAssetId) return;
+                if (liquidAssetOptions.some(option => option.id === cashflowForm.targetLiquidAssetId)) return;
+                setCashflowForm(prev => ({
+                    ...prev,
+                    targetLiquidAssetId: ''
+                }));
+            }, [cashflowForm.targetLiquidAssetId, liquidAssetOptions]);
+
+            useEffect(() => {
+                const todayKey = toDateKey(new Date());
+                const lastAppliedDate = parseDateKey(cashflowLastAutoApplyDate) || new Date(Date.now() - ONE_DAY_MS);
+                const todayDate = parseDateKey(todayKey);
+                if (!todayDate) return;
+
+                const targetEntries = cashflowEntries.filter(entry => entry.targetLiquidAssetId);
+                if (!targetEntries.length) {
+                    setCashflowLastAutoApplyDate(todayKey);
+                    return;
+                }
+
+                const liquidAssetIndexMap = {};
+                assets.forEach((asset, index) => {
+                    if (asset.category === 'LIQUID') liquidAssetIndexMap[asset.id] = index;
+                });
+
+                const appliedKeySet = new Set(cashflowAppliedOccurrenceKeys);
+                const appliedPostingKeySet = new Set(Object.keys(cashflowAppliedPostings));
+                const nextAppliedPostings = { ...cashflowAppliedPostings };
+                const nextAssets = [...assets];
+                let updated = false;
+                let appliedCount = 0;
+
+                const shouldReplayFromTomorrow = lastAppliedDate.getTime() < todayDate.getTime();
+                const cursor = shouldReplayFromTomorrow
+                    ? new Date(lastAppliedDate.getFullYear(), lastAppliedDate.getMonth(), lastAppliedDate.getDate() + 1)
+                    : new Date(todayDate.getFullYear(), todayDate.getMonth(), todayDate.getDate());
+                while (cursor.getTime() <= todayDate.getTime()) {
+                    const currentDate = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate());
+                    const dateKey = toDateKey(currentDate);
+
+                    targetEntries.forEach(entry => {
+                        if (!isEntryOnDate(entry, currentDate)) return;
+
+                        const targetIndex = liquidAssetIndexMap[entry.targetLiquidAssetId];
+                        if (!Number.isInteger(targetIndex)) return;
+
+                        const occurrenceKey = `${entry.id}@${dateKey}@${entry.targetLiquidAssetId}`;
+                        if (appliedKeySet.has(occurrenceKey) || appliedPostingKeySet.has(occurrenceKey)) return;
+
+                        const targetAsset = nextAssets[targetIndex];
+                        if (!targetAsset || targetAsset.category !== 'LIQUID') return;
+
+                        const amountHKD = toHKD(entry.amount, entry.currency);
+                        const amountInTargetCurrency = fromHKD(amountHKD, targetAsset.currency);
+                        const signedAmount = entry.type === 'INCOME' ? amountInTargetCurrency : -amountInTargetCurrency;
+                        const nextQuantity = Number(targetAsset.quantity || 0) + signedAmount;
+
+                        nextAssets[targetIndex] = {
+                            ...targetAsset,
+                            quantity: Number(nextQuantity.toFixed(6))
+                        };
+
+                        appliedKeySet.add(occurrenceKey);
+                        nextAppliedPostings[occurrenceKey] = {
+                            entryId: entry.id,
+                            targetLiquidAssetId: entry.targetLiquidAssetId,
+                            signedAmount: Number(signedAmount.toFixed(6)),
+                            targetCurrency: targetAsset.currency,
+                            type: entry.type
+                        };
+                        appliedCount += 1;
+                        updated = true;
+                    });
+
+                    cursor.setDate(cursor.getDate() + 1);
+                }
+
+                if (updated) {
+                    setAssets(nextAssets);
+                    setCashflowAppliedOccurrenceKeys(Array.from(appliedKeySet));
+                    setCashflowAppliedPostings(nextAppliedPostings);
+                    setPriceStatus(`已自動入帳/扣款 ${appliedCount} 筆現金流`);
+                }
+                setCashflowLastAutoApplyDate(todayKey);
+            }, [assets, cashflowEntries, cashflowAppliedOccurrenceKeys, cashflowAppliedPostings, cashflowLastAutoApplyDate, currencyRates]);
+
+            const selectedCashflowDate = useMemo(() => {
+                if (!/^\d{4}-\d{2}$/.test(selectedCashflowMonth || '')) return new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+                const [year, month] = selectedCashflowMonth.split('-').map(Number);
+                return new Date(year, month - 1, 1);
+            }, [selectedCashflowMonth]);
+
+            const cashflowMonthData = useMemo(() => {
+                const year = selectedCashflowDate.getFullYear();
+                const month = selectedCashflowDate.getMonth();
+                const firstDay = new Date(year, month, 1).getDay();
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+                const dayRows = [];
+
+                let monthIncomeHKD = 0;
+                let monthExpenseHKD = 0;
+
+                for (let day = 1; day <= daysInMonth; day += 1) {
+                    const date = new Date(year, month, day);
+                    const dateKey = toDateKey(date);
+                    const rows = [];
+                    let incomeHKD = 0;
+                    let expenseHKD = 0;
+
+                    cashflowEntries.forEach(entry => {
+                        if (!isEntryOnDate(entry, date)) return;
+                        const amountHKD = toHKD(entry.amount, entry.currency);
+                        if (entry.type === 'INCOME') incomeHKD += amountHKD;
+                        else expenseHKD += amountHKD;
+
+                        rows.push({
+                            id: `${entry.id}-${dateKey}`,
+                            title: entry.title,
+                            account: entry.account,
+                            type: entry.type,
+                            amountDisplay: fromHKD(amountHKD, displayCurrency),
+                            currency: displayCurrency,
+                            category: entry.category
+                        });
+                    });
+
+                    monthIncomeHKD += incomeHKD;
+                    monthExpenseHKD += expenseHKD;
+
+                    dayRows.push({
+                        dateKey,
+                        day,
+                        incomeDisplay: fromHKD(incomeHKD, displayCurrency),
+                        expenseDisplay: fromHKD(expenseHKD, displayCurrency),
+                        netDisplay: fromHKD(incomeHKD - expenseHKD, displayCurrency),
+                        entries: rows.sort((a, b) => b.amountDisplay - a.amountDisplay)
+                    });
+                }
+
+                return {
+                    year,
+                    month,
+                    firstDay,
+                    dayRows,
+                    monthIncomeDisplay: fromHKD(monthIncomeHKD, displayCurrency),
+                    monthExpenseDisplay: fromHKD(monthExpenseHKD, displayCurrency),
+                    monthNetDisplay: fromHKD(monthIncomeHKD - monthExpenseHKD, displayCurrency)
+                };
+            }, [cashflowEntries, selectedCashflowDate, displayCurrency, currencyRates]);
+
+            const cashflowYearData = useMemo(() => {
+                const year = selectedCashflowDate.getFullYear();
+                const months = [];
+                let yearIncomeHKD = 0;
+                let yearExpenseHKD = 0;
+
+                for (let month = 0; month < 12; month += 1) {
+                    const daysInMonth = new Date(year, month + 1, 0).getDate();
+                    let incomeHKD = 0;
+                    let expenseHKD = 0;
+
+                    for (let day = 1; day <= daysInMonth; day += 1) {
+                        const date = new Date(year, month, day);
+                        cashflowEntries.forEach(entry => {
+                            if (!isEntryOnDate(entry, date)) return;
+                            const amountHKD = toHKD(entry.amount, entry.currency);
+                            if (entry.type === 'INCOME') incomeHKD += amountHKD;
+                            else expenseHKD += amountHKD;
+                        });
+                    }
+
+                    yearIncomeHKD += incomeHKD;
+                    yearExpenseHKD += expenseHKD;
+
+                    months.push({
+                        month,
+                        label: `${month + 1} 月`,
+                        incomeDisplay: fromHKD(incomeHKD, displayCurrency),
+                        expenseDisplay: fromHKD(expenseHKD, displayCurrency),
+                        netDisplay: fromHKD(incomeHKD - expenseHKD, displayCurrency)
+                    });
+                }
+
+                return {
+                    year,
+                    months,
+                    yearIncomeDisplay: fromHKD(yearIncomeHKD, displayCurrency),
+                    yearExpenseDisplay: fromHKD(yearExpenseHKD, displayCurrency),
+                    yearNetDisplay: fromHKD(yearIncomeHKD - yearExpenseHKD, displayCurrency)
+                };
+            }, [cashflowEntries, selectedCashflowDate, displayCurrency, currencyRates]);
+
+            const moveCashflowMonth = (delta) => {
+                const next = new Date(cashflowMonthData.year, cashflowMonthData.month + delta, 1);
+                setSelectedCashflowMonth(toMonthKey(next));
+            };
+
+            const startEditCashflowEntry = (entry) => {
+                setEditingCashflowId(entry.id);
+                setCashflowForm({
+                    title: entry.title || '',
+                    account: entry.account || '',
+                    category: entry.category || getDefaultCashflowCategory(entry.type || 'EXPENSE'),
+                    type: entry.type || 'EXPENSE',
+                    scheduleType: entry.scheduleType || (entry.frequency === 'ONE_TIME' ? 'ONE_TIME' : 'RECURRING'),
+                    amount: String(Number(entry.amount || 0)),
+                    currency: entry.currency || 'HKD',
+                    frequency: entry.frequency === 'ONE_TIME' ? 'MONTHLY' : (entry.frequency || 'MONTHLY'),
+                    startDate: entry.startDate || toDateKey(new Date()),
+                    endDate: entry.endDate || '',
+                    payday: String(entry.payday || entry.monthday || 1),
+                    targetLiquidAssetId: entry.targetLiquidAssetId || '',
+                    note: entry.note || ''
+                });
+                setFinanceSectionTab('CASHFLOW');
+                setPriceStatus('已載入規則，可修改後儲存');
+                requestAnimationFrame(() => {
+                    cashflowFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                });
+            };
+
+            const handleCashflowSubmit = (event) => {
+                event.preventDefault();
+                const title = (cashflowForm.title || '').trim();
+                const selectedLiquidAsset = liquidAssetOptions.find(option => option.id === cashflowForm.targetLiquidAssetId) || null;
+                const account = selectedLiquidAsset?.account || (cashflowForm.account || '').trim();
+                const resolvedCategory = (cashflowForm.category || '').trim();
+                const category = resolvedCategory || getDefaultCashflowCategory(cashflowForm.type);
+                const note = (cashflowForm.note || '').trim();
+                const amount = Number(cashflowForm.amount);
+                const startDate = cashflowForm.startDate;
+                const endDate = cashflowForm.endDate;
+                const scheduleType = cashflowForm.scheduleType || 'RECURRING';
+                const frequency = scheduleType === 'ONE_TIME' ? 'ONE_TIME' : cashflowForm.frequency;
+
+                if (!title) {
+                    alert('請輸入現金流名稱');
+                    return;
+                }
+                if (!Number.isFinite(amount) || amount <= 0) {
+                    alert('請輸入有效金額');
+                    return;
+                }
+
+                const parsedStart = parseDateKey(startDate);
+                if (!parsedStart) {
+                    alert('請輸入有效的開始日期');
+                    return;
+                }
+
+                const parsedEnd = endDate ? parseDateKey(endDate) : null;
+                if (scheduleType === 'RECURRING' && endDate && (!parsedEnd || parsedEnd.getTime() < parsedStart.getTime())) {
+                    alert('結束日期不可早於開始日期');
+                    return;
+                }
+
+                let weekday = parsedStart.getDay();
+                let monthday = parsedStart.getDate();
+                let payday = Number(cashflowForm.payday || parsedStart.getDate());
+
+                if (scheduleType === 'RECURRING' && frequency === 'WEEKLY') {
+                    weekday = parsedStart.getDay();
+                }
+
+                if (scheduleType === 'RECURRING' && frequency === 'MONTHLY') {
+                    if (!Number.isInteger(payday) || payday < 1 || payday > 31) {
+                        alert('請輸入有效每月記錄日（1-31）');
+                        return;
+                    }
+                    monthday = payday;
+                }
+
+                const nextEntry = {
+                    id: editingCashflowId || `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+                    title,
+                    account,
+                    category,
+                    note,
+                    type: cashflowForm.type,
+                    amount,
+                    currency: cashflowForm.currency,
+                    scheduleType,
+                    frequency,
+                    startDate,
+                    endDate: scheduleType === 'ONE_TIME' ? '' : (endDate || ''),
+                    weekday,
+                    monthday,
+                    payday: scheduleType === 'RECURRING' && frequency === 'MONTHLY' ? payday : parsedStart.getDate(),
+                    targetLiquidAssetId: selectedLiquidAsset?.id || ''
+                };
+
+                if (editingCashflowId) {
+                    setCashflowEntries(prev => sanitizeCashflowEntries(prev.map(item => item.id === editingCashflowId ? nextEntry : item)));
+                } else {
+                    setCashflowEntries(prev => sanitizeCashflowEntries([...prev, nextEntry]));
+                }
+                setCashflowForm(prev => ({
+                    ...prev,
+                    title: '',
+                    amount: '',
+                    note: '',
+                    targetLiquidAssetId: prev.targetLiquidAssetId || ''
+                }));
+                setEditingCashflowId('');
+
+                if (selectedLiquidAsset && !editingCashflowId) {
+                    const amountHKD = toHKD(amount, cashflowForm.currency);
+                    const amountInTargetCurrency = fromHKD(amountHKD, selectedLiquidAsset.currency);
+                    const direction = nextEntry.type === 'INCOME' ? '入帳' : '扣款';
+                    const todayDate = new Date();
+                    const willApplyToday = isEntryOnDate(nextEntry, todayDate);
+                    const whenText = willApplyToday ? '今天' : '下次觸發時';
+                    setPriceStatus(`規則已新增（預覽）：${whenText}將${direction}至「${selectedLiquidAsset.label}」${formatAmount(amountInTargetCurrency)} ${selectedLiquidAsset.currency}`);
+                } else if (!editingCashflowId) {
+                    setPriceStatus('規則已新增（預覽）：目前僅記錄現金流，不會自動入帳/扣款');
+                } else {
+                    setPriceStatus('規則已更新');
+                }
+            };
+
+            const handleDeleteCashflowEntry = (id) => {
+                const targetRule = cashflowEntries.find(item => item.id === id);
+                const targetPostingKeys = Object.keys(cashflowAppliedPostings).filter(key => cashflowAppliedPostings[key]?.entryId === id);
+
+                const rollbackPreviewLines = [];
+                if (targetPostingKeys.length > 0) {
+                    const rollbackByAsset = {};
+                    targetPostingKeys.forEach(postingKey => {
+                        const posting = cashflowAppliedPostings[postingKey];
+                        if (!posting) return;
+                        const assetId = posting.targetLiquidAssetId || 'UNKNOWN';
+                        const currency = posting.targetCurrency || '';
+                        const mapKey = `${assetId}::${currency}`;
+                        if (!rollbackByAsset[mapKey]) {
+                            rollbackByAsset[mapKey] = {
+                                assetId,
+                                currency,
+                                amount: 0
+                            };
+                        }
+                        rollbackByAsset[mapKey].amount += Number(posting.signedAmount || 0);
+                    });
+
+                    Object.values(rollbackByAsset).forEach(item => {
+                        const label = liquidAssetLabelById[item.assetId] || '已綁定帳戶';
+                        const rollbackAmount = Number(item.amount || 0);
+                        rollbackPreviewLines.push(`- ${label}：${rollbackAmount >= 0 ? '-' : '+'}${formatAmount(Math.abs(rollbackAmount))} ${item.currency}`);
+                    });
+                }
+
+                const confirmMessage = rollbackPreviewLines.length > 0
+                    ? `確定要刪除規則「${targetRule?.title || '未命名規則'}」嗎？\n\n將同步沖銷已自動入帳/扣款：\n${rollbackPreviewLines.join('\n')}\n\n此動作無法復原。`
+                    : `確定要刪除規則「${targetRule?.title || '未命名規則'}」嗎？`;
+
+                if (!confirm(confirmMessage)) return;
+
+                const nextAppliedPostings = { ...cashflowAppliedPostings };
+                const nextAppliedKeySet = new Set(cashflowAppliedOccurrenceKeys);
+
+                if (targetRule?.targetLiquidAssetId && targetPostingKeys.length > 0) {
+                    const liquidAssetIndexMap = {};
+                    assets.forEach((asset, index) => {
+                        if (asset.category === 'LIQUID') liquidAssetIndexMap[asset.id] = index;
+                    });
+
+                    const nextAssets = [...assets];
+                    let revertedCount = 0;
+
+                    targetPostingKeys.forEach(postingKey => {
+                        const posting = cashflowAppliedPostings[postingKey];
+                        if (!posting) return;
+                        const targetIndex = liquidAssetIndexMap[posting.targetLiquidAssetId];
+                        if (!Number.isInteger(targetIndex)) return;
+                        const targetAsset = nextAssets[targetIndex];
+                        if (!targetAsset || targetAsset.category !== 'LIQUID') return;
+
+                        const rollbackQuantity = Number(targetAsset.quantity || 0) - Number(posting.signedAmount || 0);
+                        nextAssets[targetIndex] = {
+                            ...targetAsset,
+                            quantity: Number(rollbackQuantity.toFixed(6))
+                        };
+
+                        delete nextAppliedPostings[postingKey];
+                        nextAppliedKeySet.delete(postingKey);
+                        revertedCount += 1;
+                    });
+
+                    setAssets(nextAssets);
+                    setCashflowAppliedPostings(nextAppliedPostings);
+                    setCashflowAppliedOccurrenceKeys(Array.from(nextAppliedKeySet));
+                    setPriceStatus(`規則已刪除，並已沖銷 ${revertedCount} 筆已入帳/扣款紀錄`);
+                } else {
+                    if (targetPostingKeys.length > 0) {
+                        targetPostingKeys.forEach(postingKey => {
+                            delete nextAppliedPostings[postingKey];
+                            nextAppliedKeySet.delete(postingKey);
+                        });
+                        setCashflowAppliedPostings(nextAppliedPostings);
+                        setCashflowAppliedOccurrenceKeys(Array.from(nextAppliedKeySet));
+                    }
+                    setPriceStatus('規則已刪除');
+                }
+
+                setCashflowEntries(prev => prev.filter(item => item.id !== id));
+                if (editingCashflowId === id) {
+                    setEditingCashflowId('');
+                }
+            };
+
+            const isCashflowOneTime = cashflowForm.scheduleType === 'ONE_TIME';
+            const isCashflowMonthlyRecurring = !isCashflowOneTime && cashflowForm.frequency === 'MONTHLY';
+
             const refreshCurrencyRates = async (showToast = true) => {
                 setIsUpdatingRates(true);
                 if (showToast) setPriceStatus('更新匯率中...');
@@ -1128,6 +1930,27 @@
                 );
             };
 
+            const isValidCashflowRecord = (item) => {
+                if (!item || typeof item !== 'object') return false;
+                const amount = Number(item.amount);
+                const startDate = parseDateKey(item.startDate || '');
+                const typeValid = Object.keys(CASHFLOW_TYPES).includes(item.type);
+                const scheduleType = item.scheduleType || (item.frequency === 'ONE_TIME' ? 'ONE_TIME' : 'RECURRING');
+                const scheduleValid = CASHFLOW_SCHEDULE_TYPES.some(entry => entry.value === scheduleType);
+                const freqValid = item.frequency === 'ONE_TIME' || CASHFLOW_FREQUENCIES.some(entry => entry.value === item.frequency);
+                return Boolean(
+                    typeof item.id === 'string' && item.id &&
+                    typeof item.title === 'string' && item.title.trim() &&
+                    CURRENCIES.includes(item.currency) &&
+                    typeValid &&
+                    scheduleValid &&
+                    freqValid &&
+                    startDate &&
+                    Number.isFinite(amount) &&
+                    amount > 0
+                );
+            };
+
             useEffect(() => {
                 if (!isCloudEnabled) {
                     setIsAuthLoading(false);
@@ -1182,19 +2005,44 @@
                             const nextMonthlySnapshots = cloudData.monthlySnapshots && typeof cloudData.monthlySnapshots === 'object' && !Array.isArray(cloudData.monthlySnapshots)
                                 ? cloudData.monthlySnapshots
                                 : {};
+                            const nextCashflowEntries = Array.isArray(cloudData.cashflowEntries) && cloudData.cashflowEntries.every(isValidCashflowRecord)
+                                ? sanitizeCashflowEntries(cloudData.cashflowEntries)
+                                : [];
+                            const nextCashflowAppliedOccurrenceKeys = Array.isArray(cloudData.cashflowAppliedOccurrenceKeys)
+                                ? cloudData.cashflowAppliedOccurrenceKeys.filter(item => typeof item === 'string')
+                                : [];
+                            const nextCashflowAppliedPostings = cloudData.cashflowAppliedPostings && typeof cloudData.cashflowAppliedPostings === 'object' && !Array.isArray(cloudData.cashflowAppliedPostings)
+                                ? cloudData.cashflowAppliedPostings
+                                : {};
+                            const nextCashflowLastAutoApplyDate = normalizeDateKeyOrFallback(
+                                cloudData.cashflowLastAutoApplyDate,
+                                new Date(Date.now() - ONE_DAY_MS)
+                            );
 
                             setAssets(nextAssets);
                             setDisplayCurrency(nextDisplayCurrency);
                             setMonthlySnapshots(nextMonthlySnapshots);
+                            setCashflowEntries(nextCashflowEntries);
+                            setCashflowAppliedOccurrenceKeys(nextCashflowAppliedOccurrenceKeys);
+                            setCashflowAppliedPostings(nextCashflowAppliedPostings);
+                            setCashflowLastAutoApplyDate(nextCashflowLastAutoApplyDate);
                             localStorage.setItem(STORAGE_KEYS.assets, JSON.stringify(nextAssets));
                             localStorage.setItem(STORAGE_KEYS.displayCurrency, JSON.stringify(nextDisplayCurrency));
                             localStorage.setItem(STORAGE_KEYS.monthlySnapshots, JSON.stringify(nextMonthlySnapshots));
+                            localStorage.setItem(STORAGE_KEYS.cashflowEntries, JSON.stringify(nextCashflowEntries));
+                            localStorage.setItem(STORAGE_KEYS.cashflowAppliedOccurrenceKeys, JSON.stringify(nextCashflowAppliedOccurrenceKeys));
+                            localStorage.setItem(STORAGE_KEYS.cashflowAppliedPostings, JSON.stringify(nextCashflowAppliedPostings));
+                            localStorage.setItem(STORAGE_KEYS.cashflowLastAutoApplyDate, JSON.stringify(nextCashflowLastAutoApplyDate));
                             setCloudStatus(`已同步雲端資料（${user.email || 'Google 帳號'}）`);
                         } else {
                             await docRef.set({
                                 assets: assetsRef.current,
                                 displayCurrency: displayCurrencyRef.current,
                                 monthlySnapshots: monthlySnapshotsRef.current,
+                                cashflowEntries: cashflowEntriesRef.current,
+                                cashflowAppliedOccurrenceKeys,
+                                cashflowAppliedPostings,
+                                cashflowLastAutoApplyDate,
                                 updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
                                 email: user.email || ''
                             }, { merge: true });
@@ -1222,6 +2070,10 @@
                             assets,
                             displayCurrency,
                             monthlySnapshots,
+                            cashflowEntries,
+                            cashflowAppliedOccurrenceKeys,
+                            cashflowAppliedPostings,
+                            cashflowLastAutoApplyDate,
                             updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
                             email: authUser.email || ''
                         }, { merge: true });
@@ -1236,7 +2088,7 @@
                 return () => {
                     if (cloudSaveTimerRef.current) clearTimeout(cloudSaveTimerRef.current);
                 };
-            }, [assets, displayCurrency, monthlySnapshots, authUser, isAuthLoading]);
+            }, [assets, displayCurrency, monthlySnapshots, cashflowEntries, cashflowAppliedOccurrenceKeys, cashflowAppliedPostings, cashflowLastAutoApplyDate, authUser, isAuthLoading]);
 
             const handleGoogleLogin = async () => {
                 if (!isCloudEnabled) {
@@ -1287,7 +2139,11 @@
                         data: {
                             assets,
                             displayCurrency,
-                            monthlySnapshots
+                            monthlySnapshots,
+                            cashflowEntries,
+                            cashflowAppliedOccurrenceKeys,
+                            cashflowAppliedPostings,
+                            cashflowLastAutoApplyDate
                         }
                     };
                     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
@@ -1611,6 +2467,19 @@
                     const nextMonthlySnapshots = imported?.monthlySnapshots && typeof imported.monthlySnapshots === 'object'
                         ? imported.monthlySnapshots
                         : null;
+                    const nextCashflowEntries = Array.isArray(imported?.cashflowEntries)
+                        ? sanitizeCashflowEntries(imported.cashflowEntries)
+                        : [];
+                    const nextCashflowAppliedOccurrenceKeys = Array.isArray(imported?.cashflowAppliedOccurrenceKeys)
+                        ? imported.cashflowAppliedOccurrenceKeys.filter(item => typeof item === 'string')
+                        : [];
+                    const nextCashflowAppliedPostings = imported?.cashflowAppliedPostings && typeof imported.cashflowAppliedPostings === 'object' && !Array.isArray(imported.cashflowAppliedPostings)
+                        ? imported.cashflowAppliedPostings
+                        : {};
+                    const nextCashflowLastAutoApplyDate = normalizeDateKeyOrFallback(
+                        imported?.cashflowLastAutoApplyDate,
+                        new Date(Date.now() - ONE_DAY_MS)
+                    );
 
                     if (!nextAssets || !nextAssets.every(isValidAssetRecord)) {
                         throw new Error('invalid assets format');
@@ -1631,7 +2500,15 @@
                     })));
                     setDisplayCurrency(nextDisplayCurrency);
                     setMonthlySnapshots(safeSnapshots);
+                    setCashflowEntries(nextCashflowEntries);
+                    setCashflowAppliedOccurrenceKeys(nextCashflowAppliedOccurrenceKeys);
+                    setCashflowAppliedPostings(nextCashflowAppliedPostings);
+                    setCashflowLastAutoApplyDate(nextCashflowLastAutoApplyDate);
                     localStorage.setItem(STORAGE_KEYS.monthlySnapshots, JSON.stringify(safeSnapshots));
+                    localStorage.setItem(STORAGE_KEYS.cashflowEntries, JSON.stringify(nextCashflowEntries));
+                    localStorage.setItem(STORAGE_KEYS.cashflowAppliedOccurrenceKeys, JSON.stringify(nextCashflowAppliedOccurrenceKeys));
+                    localStorage.setItem(STORAGE_KEYS.cashflowAppliedPostings, JSON.stringify(nextCashflowAppliedPostings));
+                    localStorage.setItem(STORAGE_KEYS.cashflowLastAutoApplyDate, JSON.stringify(nextCashflowLastAutoApplyDate));
                     setPriceStatus(`匯入成功：${nextAssets.length} 筆資產資料`);
                 } catch (error) {
                     setPriceStatus('匯入失敗：檔案格式不正確');
@@ -1654,12 +2531,20 @@
                 setAssets(normalized);
                 setDisplayCurrency('HKD');
                 setMonthlySnapshots({});
+                setCashflowEntries([]);
+                setCashflowAppliedOccurrenceKeys([]);
+                setCashflowAppliedPostings({});
+                setCashflowLastAutoApplyDate(toDateKey(new Date(Date.now() - ONE_DAY_MS)));
 
                 // 同步寫入 localStorage（useEffect 也會在 state 變更時覆寫，但這裡先寫以確保立即一致）
                 try {
                     localStorage.setItem(STORAGE_KEYS.assets, JSON.stringify(normalized));
                     localStorage.setItem(STORAGE_KEYS.displayCurrency, JSON.stringify('HKD'));
                     localStorage.setItem(STORAGE_KEYS.monthlySnapshots, JSON.stringify({}));
+                    localStorage.setItem(STORAGE_KEYS.cashflowEntries, JSON.stringify([]));
+                    localStorage.setItem(STORAGE_KEYS.cashflowAppliedOccurrenceKeys, JSON.stringify([]));
+                    localStorage.setItem(STORAGE_KEYS.cashflowAppliedPostings, JSON.stringify({}));
+                    localStorage.setItem(STORAGE_KEYS.cashflowLastAutoApplyDate, JSON.stringify(toDateKey(new Date(Date.now() - ONE_DAY_MS))));
                 } catch (e) {
                     // 忽略 storage 錯誤
                 }
@@ -2245,6 +3130,24 @@
                         </div>
                     </section>
 
+                    <div className="mb-4 flex items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={() => setFinanceSectionTab('ASSET_ACCOUNT')}
+                            className={`px-4 py-2 rounded-lg text-sm font-black border ${financeSectionTab === 'ASSET_ACCOUNT' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                        >
+                            資產帳戶管理
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setFinanceSectionTab('CASHFLOW')}
+                            className={`px-4 py-2 rounded-lg text-sm font-black border ${financeSectionTab === 'CASHFLOW' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                        >
+                            現金流記帳與收益月曆
+                        </button>
+                    </div>
+
+                    {financeSectionTab === 'ASSET_ACCOUNT' && (
                     <section className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm mb-8">
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
                             <div className="text-slate-800 font-black">資產帳戶管理</div>
@@ -2376,6 +3279,449 @@
                             </div>
                         )}
                     </section>
+                    )}
+
+                    {financeSectionTab === 'CASHFLOW' && (
+                    <section className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm mb-8">
+                        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-4">
+                            <div>
+                                <div className="text-slate-800 font-black">現金流記帳與收益月曆</div>
+                                <p className="text-xs text-slate-400 font-bold mt-1">可設定固定收入/支出規則（收租、兼職、餐費等），並查看每天、每月、每年流水。</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => moveCashflowMonth(-1)}
+                                    className="px-3 py-2 rounded-lg border border-slate-200 text-xs font-black text-slate-600 hover:bg-slate-50"
+                                >
+                                    上月
+                                </button>
+                                <input
+                                    type="month"
+                                    value={selectedCashflowMonth}
+                                    onChange={e => setSelectedCashflowMonth(e.target.value || toMonthKey(new Date()))}
+                                    className="px-3 py-2 rounded-lg border border-slate-200 text-xs font-black text-slate-700 outline-none"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => moveCashflowMonth(1)}
+                                    className="px-3 py-2 rounded-lg border border-slate-200 text-xs font-black text-slate-600 hover:bg-slate-50"
+                                >
+                                    下月
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col gap-5">
+
+                        <form ref={cashflowFormRef} onSubmit={handleCashflowSubmit} className="order-2 rounded-xl border border-slate-100 bg-slate-50/60 p-4 space-y-3">
+                            {editingCashflowId && (
+                                <div className="rounded-lg bg-indigo-50 border border-indigo-100 px-3 py-2 text-xs font-black text-indigo-600">
+                                    正在編輯規則：{cashflowEntries.find(item => item.id === editingCashflowId)?.title || '未命名規則'}
+                                </div>
+                            )}
+                            <datalist id="cashflow-account-options">
+                                {cashflowAccountOptions.map(account => <option key={account} value={account} />)}
+                            </datalist>
+                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3">
+                                <div className="space-y-1 xl:col-span-2">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">項目名稱</label>
+                                    <input
+                                        required
+                                        type="text"
+                                        placeholder="例如：每月租金、兼職收入、每日午餐"
+                                        className="w-full p-3 bg-white rounded-xl font-bold outline-none ring-2 ring-transparent focus:ring-indigo-100"
+                                        value={cashflowForm.title}
+                                        onChange={e => setCashflowForm({ ...cashflowForm, title: e.target.value })}
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">收支類型</label>
+                                    <select
+                                        value={cashflowForm.type}
+                                        onChange={e => {
+                                            const nextType = e.target.value;
+                                            setCashflowForm({
+                                                ...cashflowForm,
+                                                type: nextType,
+                                                category: getDefaultCashflowCategory(nextType)
+                                            });
+                                        }}
+                                        className="w-full p-3 bg-white rounded-xl font-bold outline-none"
+                                    >
+                                        {Object.entries(CASHFLOW_TYPES).map(([key, item]) => (
+                                            <option key={key} value={key}>{item.label}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">記錄類型</label>
+                                    <select
+                                        value={cashflowForm.scheduleType}
+                                        onChange={e => setCashflowForm({ ...cashflowForm, scheduleType: e.target.value })}
+                                        className="w-full p-3 bg-white rounded-xl font-bold outline-none"
+                                    >
+                                        {CASHFLOW_SCHEDULE_TYPES.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}
+                                    </select>
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">入帳/扣款帳戶（流動資金）</label>
+                                    <select
+                                        value={cashflowForm.targetLiquidAssetId}
+                                        onChange={e => {
+                                            const nextId = e.target.value;
+                                            const selected = liquidAssetOptions.find(option => option.id === nextId) || null;
+                                            setCashflowForm({
+                                                ...cashflowForm,
+                                                targetLiquidAssetId: nextId,
+                                                account: selected?.account || cashflowForm.account
+                                            });
+                                        }}
+                                        className="w-full p-3 bg-white rounded-xl font-bold outline-none"
+                                    >
+                                        <option value="">只做現金流記錄（不自動入帳）</option>
+                                        {liquidAssetOptions.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}
+                                    </select>
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">帳戶</label>
+                                    <input
+                                        type="text"
+                                        list="cashflow-account-options"
+                                        placeholder="可選，僅用於標記"
+                                        className="w-full p-3 bg-white rounded-xl font-bold outline-none ring-2 ring-transparent focus:ring-indigo-100 disabled:bg-slate-100 disabled:text-slate-400"
+                                        value={cashflowForm.account}
+                                        onChange={e => setCashflowForm({ ...cashflowForm, account: e.target.value })}
+                                        disabled={Boolean(cashflowForm.targetLiquidAssetId)}
+                                    />
+                                    {cashflowForm.targetLiquidAssetId && (
+                                        <div className="text-[10px] text-slate-400 font-bold ml-1">已綁定流動資金帳戶，會在符合規則日期時入帳/扣款（單次或固定）。</div>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3">
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">金額</label>
+                                    <input
+                                        required
+                                        type="number"
+                                        min="0"
+                                        step="any"
+                                        className="w-full p-3 bg-white rounded-xl font-bold outline-none"
+                                        value={cashflowForm.amount}
+                                        onChange={e => setCashflowForm({ ...cashflowForm, amount: e.target.value })}
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">幣種</label>
+                                    <select
+                                        value={cashflowForm.currency}
+                                        onChange={e => setCashflowForm({ ...cashflowForm, currency: e.target.value })}
+                                        className="w-full p-3 bg-white rounded-xl font-bold outline-none"
+                                    >
+                                        {CURRENCIES.map(currency => <option key={currency} value={currency}>{currency}</option>)}
+                                    </select>
+                                </div>
+                                {!isCashflowOneTime && (
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">頻率</label>
+                                        <select
+                                            value={cashflowForm.frequency}
+                                            onChange={e => setCashflowForm({ ...cashflowForm, frequency: e.target.value })}
+                                            className="w-full p-3 bg-white rounded-xl font-bold outline-none"
+                                        >
+                                            {CASHFLOW_FREQUENCIES.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}
+                                        </select>
+                                    </div>
+                                )}
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{isCashflowOneTime ? '記錄日期' : '開始日期'}</label>
+                                    <input
+                                        required
+                                        type="date"
+                                        className="w-full p-3 bg-white rounded-xl font-bold outline-none"
+                                        value={cashflowForm.startDate}
+                                        onChange={e => setCashflowForm({ ...cashflowForm, startDate: e.target.value })}
+                                    />
+                                </div>
+                                {isCashflowMonthlyRecurring && (
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">每月記錄日</label>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            max="31"
+                                            step="1"
+                                            className="w-full p-3 bg-white rounded-xl font-bold outline-none"
+                                            value={cashflowForm.payday}
+                                            onChange={e => setCashflowForm({ ...cashflowForm, payday: e.target.value })}
+                                        />
+                                        <div className="text-[10px] text-slate-400 font-bold ml-1">若超過當月天數，系統會自動記錄在月底。</div>
+                                    </div>
+                                )}
+                                {!isCashflowOneTime && (
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">結束日期</label>
+                                        <input
+                                            type="date"
+                                            className="w-full p-3 bg-white rounded-xl font-bold outline-none"
+                                            value={cashflowForm.endDate}
+                                            onChange={e => setCashflowForm({ ...cashflowForm, endDate: e.target.value })}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 items-end">
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">分類</label>
+                                    <select
+                                        value={cashflowForm.category}
+                                        onChange={e => setCashflowForm({ ...cashflowForm, category: e.target.value })}
+                                        className="w-full p-3 bg-white rounded-xl font-bold outline-none"
+                                    >
+                                        {availableCashflowCategories.map(item => <option key={item} value={item}>{item}</option>)}
+                                    </select>
+                                </div>
+                                <div className="space-y-1 xl:col-span-2">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">備註</label>
+                                    <input
+                                        type="text"
+                                        placeholder="例如：每月 25 號入帳／扣款"
+                                        className="w-full p-3 bg-white rounded-xl font-bold outline-none ring-2 ring-transparent focus:ring-indigo-100"
+                                        value={cashflowForm.note}
+                                        onChange={e => setCashflowForm({ ...cashflowForm, note: e.target.value })}
+                                    />
+                                </div>
+                                <button
+                                    type="submit"
+                                    className="w-full bg-slate-900 text-white px-4 py-3 rounded-xl font-black text-sm hover:bg-slate-800 transition-all"
+                                >
+                                    {editingCashflowId ? '儲存規則修改' : '新增現金流規則'}
+                                </button>
+                            </div>
+                        </form>
+
+                        <div className="order-1 grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div className="bg-emerald-50 rounded-xl border border-emerald-100 p-4">
+                                <div className="text-[10px] text-emerald-500 font-black uppercase tracking-widest mb-1">本月收入</div>
+                                <div className="text-xl font-black text-emerald-600">{formatAmount(cashflowMonthData.monthIncomeDisplay)} {displayCurrency}</div>
+                            </div>
+                            <div className="bg-rose-50 rounded-xl border border-rose-100 p-4">
+                                <div className="text-[10px] text-rose-500 font-black uppercase tracking-widest mb-1">本月支出</div>
+                                <div className="text-xl font-black text-rose-600">{formatAmount(cashflowMonthData.monthExpenseDisplay)} {displayCurrency}</div>
+                            </div>
+                            <div className="bg-indigo-50 rounded-xl border border-indigo-100 p-4">
+                                <div className="text-[10px] text-indigo-500 font-black uppercase tracking-widest mb-1">本月淨流</div>
+                                <div className={`text-xl font-black ${cashflowMonthData.monthNetDisplay >= 0 ? 'text-indigo-600' : 'text-rose-600'}`}>{cashflowMonthData.monthNetDisplay >= 0 ? '+' : ''}{formatAmount(cashflowMonthData.monthNetDisplay)} {displayCurrency}</div>
+                            </div>
+                        </div>
+
+                        <div className="order-1 flex items-center gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setCashflowView('MONTH')}
+                                className={`px-3 py-2 rounded-lg text-xs font-black border ${cashflowView === 'MONTH' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                            >
+                                每月日曆
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setCashflowView('YEAR')}
+                                className={`px-3 py-2 rounded-lg text-xs font-black border ${cashflowView === 'YEAR' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                            >
+                                每年彙總
+                            </button>
+                        </div>
+
+                        {cashflowView === 'MONTH' ? (
+                            <div className="order-1 space-y-3">
+                                <div className="grid grid-cols-7 gap-2">
+                                    {WEEKDAY_LABELS.map(label => (
+                                        <div key={label} className="text-center text-[10px] text-slate-400 font-black uppercase tracking-widest py-1">週{label}</div>
+                                    ))}
+                                </div>
+                                <div className="grid grid-cols-7 gap-2">
+                                    {Array.from({ length: cashflowMonthData.firstDay }).map((_, idx) => (
+                                        <div key={`empty-${idx}`} className="h-24 rounded-xl bg-slate-50/40 border border-slate-100"></div>
+                                    ))}
+                                    {cashflowMonthData.dayRows.map(day => (
+                                        <div key={day.dateKey} className="min-h-24 rounded-xl border border-slate-100 bg-white p-2 flex flex-col gap-1">
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-xs font-black text-slate-700">{day.day}</span>
+                                                <span className={`text-[10px] font-black ${day.netDisplay >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>{day.netDisplay >= 0 ? '+' : ''}{formatAmount(day.netDisplay)}</span>
+                                            </div>
+                                            {(day.incomeDisplay > 0 || day.expenseDisplay > 0) ? (
+                                                <>
+                                                    <div className="text-[10px] font-black text-emerald-500">收 +{formatAmount(day.incomeDisplay)}</div>
+                                                    <div className="text-[10px] font-black text-rose-500">支 -{formatAmount(day.expenseDisplay)}</div>
+                                                </>
+                                            ) : (
+                                                <div className="text-[10px] text-slate-300 font-black">無流水</div>
+                                            )}
+                                            <div className="space-y-0.5">
+                                                {day.entries.slice(0, 2).map(entry => (
+                                                    <div key={entry.id} className={`text-[10px] truncate font-bold ${entry.type === 'INCOME' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                                        {entry.type === 'INCOME' ? '+' : '-'}{entry.title}
+                                                    </div>
+                                                ))}
+                                                {day.entries.length > 2 && (
+                                                    <div className="text-[10px] text-slate-400 font-black">+{day.entries.length - 2} 筆</div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="order-1 space-y-4">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                    <div className="bg-emerald-50 rounded-xl border border-emerald-100 p-4">
+                                        <div className="text-[10px] text-emerald-500 font-black uppercase tracking-widest mb-1">{cashflowYearData.year} 年收入</div>
+                                        <div className="text-xl font-black text-emerald-600">{formatAmount(cashflowYearData.yearIncomeDisplay)} {displayCurrency}</div>
+                                    </div>
+                                    <div className="bg-rose-50 rounded-xl border border-rose-100 p-4">
+                                        <div className="text-[10px] text-rose-500 font-black uppercase tracking-widest mb-1">{cashflowYearData.year} 年支出</div>
+                                        <div className="text-xl font-black text-rose-600">{formatAmount(cashflowYearData.yearExpenseDisplay)} {displayCurrency}</div>
+                                    </div>
+                                    <div className="bg-indigo-50 rounded-xl border border-indigo-100 p-4">
+                                        <div className="text-[10px] text-indigo-500 font-black uppercase tracking-widest mb-1">{cashflowYearData.year} 年淨流</div>
+                                        <div className={`text-xl font-black ${cashflowYearData.yearNetDisplay >= 0 ? 'text-indigo-600' : 'text-rose-600'}`}>{cashflowYearData.yearNetDisplay >= 0 ? '+' : ''}{formatAmount(cashflowYearData.yearNetDisplay)} {displayCurrency}</div>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+                                    {cashflowYearData.months.map(monthItem => (
+                                        <div key={monthItem.label} className="rounded-xl border border-slate-100 bg-white p-3">
+                                            <div className="text-sm font-black text-slate-700 mb-2">{monthItem.label}</div>
+                                            <div className="text-xs font-bold text-emerald-600">收入 +{formatAmount(monthItem.incomeDisplay)} {displayCurrency}</div>
+                                            <div className="text-xs font-bold text-rose-600">支出 -{formatAmount(monthItem.expenseDisplay)} {displayCurrency}</div>
+                                            <div className={`text-xs font-black mt-1 ${monthItem.netDisplay >= 0 ? 'text-indigo-600' : 'text-rose-600'}`}>淨流 {monthItem.netDisplay >= 0 ? '+' : ''}{formatAmount(monthItem.netDisplay)} {displayCurrency}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="order-3">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+                                <div className="text-xs text-slate-400 font-black uppercase tracking-widest">現金流規則清單</div>
+                                <div className="text-[10px] text-slate-400 font-black">共 {cashflowEntries.length} 筆 · 符合條件 {filteredCashflowEntries.length} 筆</div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-3">
+                                <input
+                                    type="text"
+                                    placeholder="搜尋名稱 / 分類 / 帳戶 / 備註"
+                                    className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs font-bold outline-none"
+                                    value={cashflowRuleKeyword}
+                                    onChange={e => setCashflowRuleKeyword(e.target.value)}
+                                />
+                                <select
+                                    value={cashflowRuleFilter}
+                                    onChange={e => setCashflowRuleFilter(e.target.value)}
+                                    className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs font-bold outline-none"
+                                >
+                                    <option value="ALL">全部規則</option>
+                                    <option value="AUTO">僅固定（自動）</option>
+                                    <option value="ONE_TIME">僅單次</option>
+                                    <option value="INCOME">僅收入</option>
+                                    <option value="EXPENSE">僅支出</option>
+                                </select>
+                                <select
+                                    value={cashflowRuleSortMode}
+                                    onChange={e => setCashflowRuleSortMode(e.target.value)}
+                                    className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs font-bold outline-none"
+                                >
+                                    <option value="START_DESC">按建立/開始日（新到舊）</option>
+                                    <option value="NEXT_TRIGGER_ASC">按下次觸發日（近期優先）</option>
+                                </select>
+                                <div className="flex items-center gap-2">
+                                    {editingCashflowId ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setEditingCashflowId('');
+                                                setCashflowForm(prev => ({
+                                                    ...prev,
+                                                    title: '',
+                                                    amount: '',
+                                                    note: ''
+                                                }));
+                                                setPriceStatus('已取消編輯');
+                                            }}
+                                            className="w-full px-3 py-2.5 rounded-lg bg-slate-100 text-slate-600 text-xs font-black hover:bg-slate-200"
+                                        >
+                                            取消編輯
+                                        </button>
+                                    ) : (
+                                        <div className="w-full px-3 py-2.5 rounded-lg bg-slate-50 text-slate-400 text-xs font-black text-center">點選規則可編輯</div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {!filteredCashflowEntries.length ? (
+                                <p className="text-sm text-slate-400 font-bold">尚未新增現金流規則</p>
+                            ) : (
+                                <div className="space-y-2 max-h-72 overflow-y-auto pr-1 custom-scrollbar">
+                                    {filteredCashflowEntries.slice(0, cashflowRulesVisibleCount).map(item => (
+                                        <div key={item.id} className={`rounded-xl border p-3 flex items-center justify-between gap-3 ${editingCashflowId === item.id ? 'border-indigo-200 bg-indigo-50/40' : 'border-slate-100 bg-white'}`}>
+                                            <div className="min-w-0">
+                                                <div className="flex items-center gap-2">
+                                                    <span className={`text-xs font-black ${item.type === 'INCOME' ? 'text-emerald-600' : 'text-rose-600'}`}>{CASHFLOW_TYPES[item.type].label}</span>
+                                                    <span className="text-sm font-black text-slate-800 truncate">{item.title}</span>
+                                                </div>
+                                                <div className="text-[10px] text-slate-400 font-bold mt-1">
+                                                    {item.account ? `帳戶：${item.account} · ` : ''}
+                                                    {item.category} · {(item.scheduleType === 'ONE_TIME' ? '單次性' : '固定')} · {(item.frequency === 'ONE_TIME' ? '單次' : (CASHFLOW_FREQUENCIES.find(entry => entry.value === item.frequency)?.label || item.frequency))}
+                                                    {item.frequency === 'MONTHLY' ? `（每月 ${item.payday || item.monthday || '--'} 號）` : ''} · {item.startDate}{item.endDate ? ` ~ ${item.endDate}` : ''}
+                                                </div>
+                                                {item.targetLiquidAssetId && (
+                                                    <div className="text-[10px] text-indigo-500 font-black mt-0.5">
+                                                        {item.scheduleType === 'ONE_TIME' ? '本次入帳/扣款目標帳戶：' : '自動入帳/扣款目標帳戶：'}{liquidAssetLabelById[item.targetLiquidAssetId] || '已綁定帳戶'}
+                                                    </div>
+                                                )}
+                                                {item.note && <div className="text-[10px] text-slate-400 font-bold mt-0.5">{item.note}</div>}
+                                                <div className="text-[10px] text-slate-400 font-black mt-1 flex flex-wrap gap-x-3 gap-y-1">
+                                                    <span>最後觸發：{cashflowTriggerInfoById[item.id]?.lastDateKey || '--'}</span>
+                                                    <span>下次觸發：{cashflowTriggerInfoById[item.id]?.nextDateKey || '--'}</span>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2 shrink-0">
+                                                <div className={`text-sm font-black ${item.type === 'INCOME' ? 'text-emerald-600' : 'text-rose-600'}`}>{item.type === 'INCOME' ? '+' : '-'}{formatAmount(fromHKD(toHKD(item.amount, item.currency), displayCurrency))} {displayCurrency}</div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => startEditCashflowEntry(item)}
+                                                    className="px-2.5 py-1.5 rounded-lg bg-slate-100 text-slate-700 text-xs font-black hover:bg-slate-200"
+                                                >
+                                                    編輯
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleDeleteCashflowEntry(item.id)}
+                                                    className="px-2.5 py-1.5 rounded-lg bg-rose-50 text-rose-600 text-xs font-black hover:bg-rose-100"
+                                                >
+                                                    刪除
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+
+                                    {filteredCashflowEntries.length > cashflowRulesVisibleCount && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setCashflowRulesVisibleCount(prev => prev + 20)}
+                                            className="w-full mt-1 px-3 py-2 rounded-lg bg-white border border-slate-200 text-slate-600 text-xs font-black hover:bg-slate-50"
+                                        >
+                                            顯示更多（剩餘 {filteredCashflowEntries.length - cashflowRulesVisibleCount} 筆）
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                        </div>
+                    </section>
+                    )}
 
                     <div className="mb-6 flex md:flex-wrap items-center gap-2 overflow-x-auto -mx-2 px-2">
                         <button
@@ -2556,9 +3902,22 @@
                                                                     </div>
                                                                 )}
                                                                 {isLiquidCategory && (
-                                                                    <div className="text-xs text-slate-500 font-bold flex items-center gap-2">
-                                                                        <span>餘額 {formatAmount(item.quantity)}</span>
-                                                                        <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600">{item.currency}</span>
+                                                                    <div className="space-y-1">
+                                                                        <div className="text-xs text-slate-500 font-bold flex items-center gap-2">
+                                                                            <span>餘額 {formatAmount(item.quantity)}</span>
+                                                                            <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600">{item.currency}</span>
+                                                                        </div>
+                                                                        {cashflowAutoRulesByLiquidAssetId[item.id]?.length > 0 && (
+                                                                            <div className="text-[10px] text-indigo-500 font-black">
+                                                                                自動規則：{cashflowAutoRulesByLiquidAssetId[item.id].slice(0, 2).map(rule => {
+                                                                                    const modeLabel = rule.frequency === 'MONTHLY'
+                                                                                        ? `每月${rule.payday || rule.monthday || '--'}號`
+                                                                                        : (rule.frequency === 'ONE_TIME' ? '單次' : (CASHFLOW_FREQUENCIES.find(entry => entry.value === rule.frequency)?.label || rule.frequency));
+                                                                                    return `${rule.title}（${modeLabel}）`;
+                                                                                }).join('、')}
+                                                                                {cashflowAutoRulesByLiquidAssetId[item.id].length > 2 ? ` 等 ${cashflowAutoRulesByLiquidAssetId[item.id].length} 筆` : ''}
+                                                                            </div>
+                                                                        )}
                                                                     </div>
                                                                 )}
                                                                 {isInvestCategory && (() => {
@@ -2774,7 +4133,14 @@
                                                                                 <div className="font-medium text-slate-400">--</div>
                                                                             )
                                                                         ) : isLiquidCategory ? (
-                                                                            <div className="font-medium text-slate-700">{formatAmount(mktValDisplay)} <span className="text-[9px]">{displayCurrency}</span></div>
+                                                                            <>
+                                                                                <div className="font-medium text-slate-700">{formatAmount(mktValDisplay)} <span className="text-[9px]">{displayCurrency}</span></div>
+                                                                                {cashflowAutoRulesByLiquidAssetId[item.id]?.length > 0 && (
+                                                                                    <div className="text-[10px] text-indigo-500 font-black mt-1">
+                                                                                        已綁定 {cashflowAutoRulesByLiquidAssetId[item.id].length} 筆自動入帳/扣款規則
+                                                                                    </div>
+                                                                                )}
+                                                                            </>
                                                                         ) : isMortgageLiability ? (
                                                                             <>
                                                                                 <div className="font-medium text-slate-700">年息 {mortgageAnnualRate.toFixed(2)}%</div>
