@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SweetPrinceLedger - 王子甜甜帳</title>
+    <title>SweetPrinceLedger</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
@@ -11,16 +11,109 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+    <script src="./constants.js"></script>
+    <script src="./utils.js"></script>
+    <script src="./market-api.js"></script>
+    <script src="./data-utils.js"></script>
+    <script src="./report-export.js"></script>
+    <script src="./cloud-sync.js"></script>
+    <script src="./cashflow-engine.js"></script>
+    <script src="./cashflow-apply.js"></script>
+    <script src="./cashflow-rules.js"></script>
+    <script src="./cashflow-form.js"></script>
+    <script src="./market-sync.js"></script>
+    <script src="./fx-sync.js"></script>
+    <script src="./cloud-state-apply.js"></script>
+    <script src="./theme-system.js"></script>
     <!-- Lucide 圖標 -->
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="./i18n.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Comic+Neue:wght@400;700&display=swap');
         body { 
-            font-family: 'Noto Sans TC', 'Segoe UI Emoji', 'Noto Color Emoji', 'Apple Color Emoji', sans-serif; 
-            background-color: #FDF2F8; 
-            color: #1E293B;
+            font-family: 'Comic Neue', 'Noto Sans TC', 'Segoe UI Emoji', 'Noto Color Emoji', 'Apple Color Emoji', sans-serif; 
+            background-color: var(--bg-page, #FFF9F5); 
+            color: var(--text-main, #5A4A42);
+        }
+        .theme-header-card {
+            border: 1px solid var(--header-border, #FFD1DC);
+            background: linear-gradient(90deg, var(--header-bg-start, #FEF5F7), var(--header-bg-mid, #F2FBFD), var(--header-bg-end, #FFF7EC));
+        }
+        .theme-crown {
+            background: linear-gradient(135deg, var(--gold, #E8C39E), var(--primary, #FFB6C1), var(--accent, #A7D8DE));
+        }
+        .theme-subcard {
+            background-color: rgba(255, 255, 255, 0.92);
+            border: 1px solid var(--header-border, #FFD1DC);
+        }
+        .theme-text-main { color: var(--text-main, #5A4A42); }
+        .theme-text-sub { color: var(--text-sub, #8C7A6E); }
+        .theme-btn-primary { background-color: var(--primary, #FFB6C1); }
+        .theme-btn-primary:hover { background-color: var(--primary-hover, #FF9AB5); }
+        .theme-btn-accent { background-color: var(--accent, #A7D8DE); }
+        .theme-btn-accent:hover { background-color: var(--accent-hover, #8CCFD6); }
+        .theme-btn-gold { background-color: var(--gold, #E8C39E); }
+        .theme-btn-gold:hover { background-color: var(--gold-hover, #DDB88E); }
+        .theme-btn-danger { background-color: var(--danger, #FFB3BA); }
+        .theme-btn-danger:hover { background-color: var(--danger-hover, #FFA5AE); }
+        .theme-networth-card {
+            background: linear-gradient(90deg, var(--card-net-start, #FFB6C1), var(--card-net-mid, #C8B6FF), var(--card-net-end, #A7D8DE));
+        }
+        .theme-surface {
+            background-color: var(--panel-bg, #FFFFFF);
+            border: 1px solid var(--header-border, #FFD1DC);
+        }
+        .theme-soft-surface {
+            background-color: var(--panel-soft, #FEF5F7);
+            border: 1px solid var(--header-border, #FFD1DC);
+        }
+        .theme-input {
+            background-color: var(--panel-bg, #FFFFFF);
+            border: 1px solid var(--header-border, #FFD1DC);
+            color: var(--text-main, #5A4A42);
+        }
+        .theme-input::placeholder {
+            color: var(--text-sub, #8C7A6E);
+        }
+        .theme-tab-active {
+            background-color: var(--primary, #FFB6C1);
+            color: #ffffff;
+            border: 1px solid var(--primary, #FFB6C1);
+        }
+        .theme-tab-inactive {
+            background-color: var(--panel-bg, #FFFFFF);
+            color: var(--text-sub, #8C7A6E);
+            border: 1px solid var(--header-border, #FFD1DC);
+        }
+        .theme-tab-inactive:hover {
+            background-color: var(--panel-soft, #FEF5F7);
+        }
+        .theme-chip-active {
+            background-color: var(--accent, #A7D8DE);
+            color: #ffffff;
+            border: 1px solid var(--accent, #A7D8DE);
+        }
+        .theme-chip-inactive {
+            background-color: var(--panel-bg, #FFFFFF);
+            color: var(--text-sub, #8C7A6E);
+            border: 1px solid var(--header-border, #FFD1DC);
+        }
+        .theme-chip-inactive:hover {
+            background-color: var(--panel-soft, #FEF5F7);
+        }
+        .theme-income-card {
+            background-color: color-mix(in srgb, var(--accent, #A7D8DE) 18%, #FFFFFF 82%);
+            border: 1px solid color-mix(in srgb, var(--accent, #A7D8DE) 55%, #FFFFFF 45%);
+        }
+        .theme-expense-card {
+            background-color: color-mix(in srgb, var(--danger, #FFB3BA) 18%, #FFFFFF 82%);
+            border: 1px solid color-mix(in srgb, var(--danger, #FFB3BA) 55%, #FFFFFF 45%);
+        }
+        .theme-netflow-card {
+            background-color: color-mix(in srgb, var(--primary, #FFB6C1) 16%, #FFFFFF 84%);
+            border: 1px solid color-mix(in srgb, var(--primary, #FFB6C1) 55%, #FFFFFF 45%);
         }
         .percento-card {
             background: white;
@@ -30,7 +123,7 @@
         }
         .modal-overlay { background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(8px); }
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #E8C39E; border-radius: 10px; }
         @keyframes princeFloat {
             0%, 100% { transform: translateY(0px); }
             50% { transform: translateY(-8px); }
@@ -54,877 +147,173 @@
     <script type="text/babel">
         const { useState, useEffect, useMemo, useRef } = React;
 
-        const CURRENCIES = ['HKD', 'MOP', 'TWD', 'USD', 'CNY', 'JPY', 'EUR', 'GBP'];
-        const DEFAULT_RATES = { HKD: 1, MOP: 1.03, TWD: 4.15, USD: 0.128, CNY: 0.92, JPY: 19.2, EUR: 0.118, GBP: 0.101 };
-        const STORAGE_KEYS = {
-            assets: 'assetTracker.assets.v2',
-            displayCurrency: 'assetTracker.displayCurrency.v2',
-            monthlySnapshots: 'assetTracker.monthlySnapshots.v2',
-            currencyRates: 'assetTracker.currencyRates.v1',
-            currencyRatesUpdatedAt: 'assetTracker.currencyRatesUpdatedAt.v1',
-            cashflowEntries: 'assetTracker.cashflowEntries.v1',
-            cashflowAppliedOccurrenceKeys: 'assetTracker.cashflowAppliedOccurrenceKeys.v1',
-            cashflowLastAutoApplyDate: 'assetTracker.cashflowLastAutoApplyDate.v1',
-            cashflowAppliedPostings: 'assetTracker.cashflowAppliedPostings.v1',
-            pageLanguage: 'assetTracker.pageLanguage.v1'
-        };
-        const FIREBASE_CONFIG = window.__FIREBASE_CONFIG__ || {
-            apiKey: 'AIzaSyBBXQq6K6dBZCL4t8ieyH_QB2TmAW4b8P0',
-            authDomain: 'myassetmanagement-3acb9.firebaseapp.com',
-            databaseURL: 'https://myassetmanagement-3acb9-default-rtdb.asia-southeast1.firebasedatabase.app',
-            projectId: 'myassetmanagement-3acb9',
-            storageBucket: 'myassetmanagement-3acb9.firebasestorage.app',
-            messagingSenderId: '197674917932',
-            appId: '1:197674917932:web:6aaa35121062d4b3f4b189',
-            measurementId: 'G-R0BJT35WPE'
-        };
-        const CLOUD_COLLECTION = 'assetTrackerUsers';
-        const hasFirebaseConfig = ['apiKey', 'authDomain', 'projectId', 'appId'].every(key => Boolean((FIREBASE_CONFIG[key] || '').trim()));
-        const firebaseApp = (() => {
-            if (!window.firebase || !hasFirebaseConfig) return null;
-            try {
-                return firebase.apps?.length ? firebase.app() : firebase.initializeApp(FIREBASE_CONFIG);
-            } catch (error) {
-                return null;
-            }
-        })();
-        const firebaseAuth = firebaseApp ? firebase.auth() : null;
-        const firebaseDB = firebaseApp ? firebase.firestore() : null;
-        const isCloudEnabled = Boolean(firebaseAuth && firebaseDB);
-
-        const CATEGORIES = {
-            LIQUID: { label: '流動資金', color: 'text-emerald-500', bgColor: 'bg-emerald-50', icon: 'wallet', subtypes: ['現金', '電子錢包', '金融卡', '其他'] },
-            INVEST: { label: '投資', color: 'text-blue-500', bgColor: 'bg-blue-50', icon: 'trending-up', subtypes: ['基金', '股票', '加密貨幣', '銀行理財', '定期存款', '其他投資'] },
-            INSURANCE: { label: '保險', color: 'text-cyan-500', bgColor: 'bg-cyan-50', icon: 'shield', subtypes: ['投資/投資相連', '人壽/累積財富', '健康'] },
-            FIXED: { label: '固定資產', color: 'text-amber-500', bgColor: 'bg-amber-50', icon: 'home', subtypes: ['房產', '汽車', '其他固定資產'] },
-            RECEIVABLE: { label: '應收款', color: 'text-indigo-500', bgColor: 'bg-indigo-50', icon: 'hand-coins', subtypes: ['個人借款', '公司應收', '退稅/補貼', '保證金', '租金', '其他應收'] },
-            LIABILITY: { label: '負債', color: 'text-rose-500', bgColor: 'bg-rose-50', icon: 'credit-card', isNegative: true, subtypes: ['房貸', '信用卡', '貸款', '應付款', '其他負債'] }
-        };
-
-        const CRYPTO_ID_MAP = {
-            BTC: 'bitcoin', ETH: 'ethereum', SOL: 'solana', BNB: 'binancecoin', XRP: 'ripple', ADA: 'cardano', DOGE: 'dogecoin', DOT: 'polkadot', TRX: 'tron', LTC: 'litecoin'
-        };
-
-        const CATEGORY_MIX_STYLES = {
-            LIQUID: { bg: 'bg-emerald-500', hex: '#10B981' },
-            INVEST: { bg: 'bg-blue-500', hex: '#3B82F6' },
-            INSURANCE: { bg: 'bg-cyan-500', hex: '#06B6D4' },
-            FIXED: { bg: 'bg-amber-500', hex: '#F59E0B' },
-            RECEIVABLE: { bg: 'bg-indigo-500', hex: '#6366F1' },
-            LIABILITY: { bg: 'bg-rose-500', hex: '#F43F5E' }
-        };
-        const CATEGORY_KEYS = Object.keys(CATEGORIES);
-        const INVEST_CHART_COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#6366F1', '#F43F5E', '#0EA5E9', '#8B5CF6', '#14B8A6'];
-        const CASHFLOW_TYPES = {
-            INCOME: { label: '收入', tone: 'text-emerald-600' },
-            EXPENSE: { label: '支出', tone: 'text-rose-600' }
-        };
-        const CASHFLOW_SCHEDULE_TYPES = [
-            { value: 'ONE_TIME', label: '單次性' },
-            { value: 'RECURRING', label: '固定' }
-        ];
-        const CASHFLOW_FREQUENCIES = [
-            { value: 'DAILY', label: '每日' },
-            { value: 'WEEKLY', label: '每週' },
-            { value: 'MONTHLY', label: '每月' },
-            { value: 'YEARLY', label: '每年' }
-        ];
-        const WEEKDAY_LABELS = ['日', '一', '二', '三', '四', '五', '六'];
-        const CASHFLOW_CATEGORY_OPTIONS = [
-            '收入-薪金',
-            '收入-獎金',
-            '收入-佣金',
-            '收入-租金',
-            '收入-股息',
-            '收入-利息',
-            '收入-兼職',
-            '收入-生意',
-            '收入-退款/補貼',
-            '收入-其他',
-            '費用-餐飲',
-            '費用-交通',
-            '費用-電費',
-            '費用-水費',
-            '費用-煤氣費',
-            '費用-網絡/電話',
-            '費用-房租/管理費',
-            '費用-保險',
-            '費用-醫療',
-            '費用-教育',
-            '費用-娛樂',
-            '費用-購物',
-            '費用-家庭',
-            '費用-稅費',
-            '費用-其他',
-            '轉帳-儲蓄'
-        ];
-        const CASHFLOW_CATEGORY_BY_TYPE = {
-            INCOME: CASHFLOW_CATEGORY_OPTIONS.filter(item => item.startsWith('收入-')),
-            EXPENSE: CASHFLOW_CATEGORY_OPTIONS.filter(item => item.startsWith('費用-')).concat(['轉帳-儲蓄'])
-        };
-        const getDefaultCashflowCategory = (type) => {
-            const options = CASHFLOW_CATEGORY_BY_TYPE[type] || CASHFLOW_CATEGORY_BY_TYPE.EXPENSE;
-            return options[0] || '費用-其他';
-        };
-        const ONE_DAY_MS = 24 * 60 * 60 * 1000;
-        const PAGE_LANGUAGE_OPTIONS = [
-            { value: 'zh-Hant', label: '繁體中文' },
-            { value: 'en-US', label: 'English' },
-            { value: 'ja-JP', label: '日本語' }
-        ];
-        const UI_TEXT = {
-            'zh-Hant': {
-                subtitle: '流動資金、投資、固定資產、應收款、負債五大類別一站管理，陪你每天記帳守護財富王國。 ✨💖',
-                idleTitle: 'Q版公仔閒暇口號',
-                advanced: '進階功能',
-                cloudAccount: '雲端帳號',
-                displayCurrency: '顯示幣種',
-                pageLanguage: '頁面語言',
-                addAsset: '新增資產',
-                resetData: '重設資料',
-                loginLoading: '帳號讀取中...',
-                login: 'Google 登入',
-                logout: 'Google 登出',
-                exportData: '匯出資料',
-                importData: '匯入資料',
-                updatePrice: '更新股價/幣價',
-                updating: '更新中...',
-                updateFx: '更新匯率',
-                sharePdf: '分享資產（PDF）',
-                generatingPdf: 'PDF 產生中...',
-                marketAutoUpdate: '行情將每 5 分鐘自動更新一次',
-                lastUpdated: '最後更新',
-                noPriceYet: '尚未更新行情',
-                rateUpdated: '匯率更新',
-                fxDefault: '匯率使用預設值',
-                cloudSyncing: '雲端同步中...',
-                overviewTitle: '資產總覽與配比',
-                netWorth: '淨資產',
-                totalAssets: '總資產',
-                totalLiabilities: '總負債',
-                debtRatio: '負債比',
-                categoryMix: '分類配比',
-                detailMix: '細項佔比',
-                noDetailItems: '此分類尚無可計算細項',
-                tabAssetAccount: '資產帳戶管理',
-                tabCashflow: '現金流記帳與收益月曆',
-                cashflowDesc: '可設定固定收入/支出規則（收租、兼職、餐費等），並查看每天、每月、每年流水。',
-                prevMonth: '上月',
-                nextMonth: '下月'
-            },
-            'en-US': {
-                subtitle: 'Manage liquidity, investments, fixed assets, receivables, and liabilities in one place. ✨💖',
-                idleTitle: 'Chibi Prince Idle Motto',
-                advanced: 'Advanced',
-                cloudAccount: 'Cloud Account',
-                displayCurrency: 'Display Currency',
-                pageLanguage: 'Page Language',
-                addAsset: 'Add Asset',
-                resetData: 'Reset Data',
-                loginLoading: 'Loading account...',
-                login: 'Google Sign in',
-                logout: 'Google Sign out',
-                exportData: 'Export Data',
-                importData: 'Import Data',
-                updatePrice: 'Update Prices',
-                updating: 'Updating...',
-                updateFx: 'Update FX',
-                sharePdf: 'Share Asset (PDF)',
-                generatingPdf: 'Generating PDF...',
-                marketAutoUpdate: 'Market prices auto-refresh every 5 minutes',
-                lastUpdated: 'Last Update',
-                noPriceYet: 'No market update yet',
-                rateUpdated: 'FX Updated',
-                fxDefault: 'Using default FX rates',
-                cloudSyncing: 'Cloud syncing...',
-                overviewTitle: 'Asset Overview & Allocation',
-                netWorth: 'Net Worth',
-                totalAssets: 'Total Assets',
-                totalLiabilities: 'Total Liabilities',
-                debtRatio: 'Debt Ratio',
-                categoryMix: 'Category Mix',
-                detailMix: 'Detail Mix',
-                noDetailItems: 'No detail items in this category yet',
-                tabAssetAccount: 'Asset Account Management',
-                tabCashflow: 'Cashflow & Earnings Calendar',
-                cashflowDesc: 'Set recurring income/expense rules and review daily, monthly, and yearly flows.',
-                prevMonth: 'Prev',
-                nextMonth: 'Next'
-            },
-            'ja-JP': {
-                subtitle: '流動資金・投資・固定資産・未収金・負債をまとめて管理。毎日の記帳を王子がサポートします。 ✨💖',
-                idleTitle: 'ちび王子のひとこと',
-                advanced: '詳細設定',
-                cloudAccount: 'クラウドアカウント',
-                displayCurrency: '表示通貨',
-                pageLanguage: 'ページ言語',
-                addAsset: '資産を追加',
-                resetData: 'データをリセット',
-                loginLoading: 'アカウント読込中...',
-                login: 'Google ログイン',
-                logout: 'Google ログアウト',
-                exportData: 'データをエクスポート',
-                importData: 'データをインポート',
-                updatePrice: '価格を更新',
-                updating: '更新中...',
-                updateFx: '為替を更新',
-                sharePdf: 'PDFで共有',
-                generatingPdf: 'PDF作成中...',
-                marketAutoUpdate: '相場は5分ごとに自動更新されます',
-                lastUpdated: '最終更新',
-                noPriceYet: '相場はまだ更新されていません',
-                rateUpdated: '為替更新',
-                fxDefault: '既定の為替レートを使用中',
-                cloudSyncing: 'クラウド同期中...',
-                overviewTitle: '資産サマリーと配分',
-                netWorth: '純資産',
-                totalAssets: '総資産',
-                totalLiabilities: '総負債',
-                debtRatio: '負債比率',
-                categoryMix: 'カテゴリ配分',
-                detailMix: '内訳配分',
-                noDetailItems: 'このカテゴリに集計できる内訳がありません',
-                tabAssetAccount: '資産口座管理',
-                tabCashflow: 'キャッシュフローと収益カレンダー',
-                cashflowDesc: '固定の収入/支出ルールを設定し、日次・月次・年次の流れを確認できます。',
-                prevMonth: '前月',
-                nextMonth: '翌月'
-            }
-        };
-        const HEADER_SLOGANS = {
-            'zh-Hant': [
-                '👑 王子來幫你守護財富王國啦～',
-                '💰 在小王子的魔法下，錢錢每天都變多♡',
-                '🪄 你的財富，由王子親自打理！',
-                '✨ 今天也把每一筆收支，變成王國的力量。',
-                '🌟 穩穩記帳，慢慢富有，王子會一直陪你。',
-                '🏰 王國帳本更新中：你離目標又更近一步。',
-                '💖 小步累積，也能走到皇冠級資產。',
-                '📘 先記錄、再優化，王子的財富術生效中。'
-            ],
-            'en-US': [
-                '👑 The Prince is guarding your wealth kingdom!',
-                '💰 Under his magic, your money grows day by day.',
-                '🪄 Your fortune is managed by the Prince himself!',
-                '✨ Every record today becomes tomorrow’s power.',
-                '🌟 Track steadily, grow steadily.',
-                '🏰 Your kingdom ledger is getting stronger.',
-                '💖 Tiny steps can still build royal wealth.',
-                '📘 Log first, optimize next.'
-            ],
-            'ja-JP': [
-                '👑 王子があなたの財産王国を守ります！',
-                '💰 王子の魔法で、お金は毎日育っていく。',
-                '🪄 あなたの資産は王子が直々に管理！',
-                '✨ 今日の記録が明日の力になる。',
-                '🌟 コツコツ記帳、着実に成長。',
-                '🏰 王国の家計簿、今日も更新中。',
-                '💖 小さな積み重ねが大きな資産へ。',
-                '📘 記録して、整えて、前に進もう。'
-            ]
-        };
-        const IDLE_HINT_LINES = {
-            'zh-Hant': [
-                '👑 王子巡邏中：今天也要讓財富王國更穩！',
-                '✨ 小提醒：固定現金流規則可自動入帳到流動資金。',
-                '💖 每次記帳，都是王國升級的一步。',
-                '🪄 先記錄再分析，王子會幫你看清資金走向。',
-                '📅 用收益月曆回看每月淨流，最容易看出節奏。',
-                '🏦 有閒置現金時，記得安排儲蓄或定存策略。',
-                '📈 投資部位可定期更新價格，判斷是否偏離配置。',
-                '🧾 建立分類習慣，王子才能給你更準確的提示。'
-            ],
-            'en-US': [
-                '👑 Patrol mode: let’s keep your kingdom stable today.',
-                '✨ Reminder: recurring cashflow can auto-post to liquid assets.',
-                '💖 Every entry is one step closer to growth.',
-                '🪄 Record first, analyze next.',
-                '📅 Check monthly net flow from the calendar view.',
-                '🏦 Put idle cash to work with savings plans.',
-                '📈 Refresh market prices to track allocation drift.',
-                '🧾 Better categories = smarter guidance.'
-            ],
-            'ja-JP': [
-                '👑 巡回中：今日も王国の資産を安定させよう。',
-                '✨ 固定キャッシュフローは自動入金に使えます。',
-                '💖 記帳の一歩が資産形成の一歩。',
-                '🪄 まず記録、次に分析。',
-                '📅 カレンダーで月次の純キャッシュを確認。',
-                '🏦 余剰資金は計画的に活用しましょう。',
-                '📈 価格更新で配分のズレを把握。',
-                '🧾 分類を整えるほど精度が上がります。'
-            ]
-        };
-        const polarToCartesian = (centerX, centerY, radius, angleInDegrees) => {
-            const angleInRadians = (angleInDegrees - 90) * Math.PI / 180;
-            return {
-                x: centerX + (radius * Math.cos(angleInRadians)),
-                y: centerY + (radius * Math.sin(angleInRadians))
-            };
-        };
-
-        const describeArc = (x, y, radius, startAngle, endAngle) => {
-            const start = polarToCartesian(x, y, radius, endAngle);
-            const end = polarToCartesian(x, y, radius, startAngle);
-            const largeArcFlag = endAngle - startAngle <= 180 ? '0' : '1';
-            return `M ${x} ${y} L ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArcFlag} 0 ${end.x} ${end.y} Z`;
-        };
-
-        const seedAssets = [
-        ];
-
-        const parseStorage = (key, fallback) => {
-            try {
-                const raw = localStorage.getItem(key);
-                return raw ? JSON.parse(raw) : fallback;
-            } catch (error) {
-                return fallback;
-            }
-        };
-
-        const sanitizeCurrencyRates = (rates) => {
-            const next = { ...DEFAULT_RATES };
-            if (!rates || typeof rates !== 'object') return next;
-            CURRENCIES.forEach(currency => {
-                const value = Number(rates[currency]);
-                if (Number.isFinite(value) && value > 0) next[currency] = value;
-            });
-            next.HKD = 1;
-            return next;
-        };
-
-        const toHKD = (amount, currency, rates = DEFAULT_RATES) => amount / (rates[currency] || 1);
-        const fromHKD = (amountHKD, currency, rates = DEFAULT_RATES) => amountHKD * (rates[currency] || 1);
-        const formatAmount = (value) => {
-            const numeric = Number(value) || 0;
-            return numeric.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        };
-
-        const getNetWorthTier = (netWorthHKD) => {
-              const value = Number(netWorthHKD) || 0;
-              if (value < 0) return { emoji: '⚠️', label: '負資產 - 迷路學徒' };
-              if (value < 100000) return { emoji: '🌱', label: '基層 / 下層階層 - 勤勉新兵' };
-              if (value < 300000) return { emoji: '🍀', label: '初入社會 / 剛起步 - 見習騎士' };
-              if (value < 780000) return { emoji: '🌿', label: '小康 / 穩定發展 - 城鎮管家' };
-              if (value < 1000000) return { emoji: '🧭', label: '大眾富裕 / 上層工人階級 - 王國工匠' };
-              if (value < 2000000) return { emoji: '🚗', label: '新晉中產 - 銀徽騎士' };
-              if (value < 5000000) return { emoji: '🏡', label: '中產階級 - 金徽騎士' };
-              if (value < 8000000) return { emoji: '🏙️', label: '中上階層 - 侯爵管家' };
-              if (value < 10000000) return { emoji: '💠', label: '富裕階層 / 中上階層 - 王室策士' };
-              if (value < 20000000) return { emoji: '💼', label: '準高淨值人士 - 伯爵理財官' };
-              if (value < 50000000) return { emoji: '💎', label: '高淨值富豪 - 公爵財政官' };
-              if (value < 100000000) return { emoji: '🏰', label: '超高淨值人士 - 王城守護者' };
-              if (value < 500000000) return { emoji: '👑', label: '超級富豪階層 - 皇冠領主' };
-              return { emoji: '🌏', label: '頂級富豪 / 世界級 - 星海君主' };
-        };
-
-        const calculateMortgageMetrics = ({ propertyPrice, ltvRatio, annualInterestRate, mortgageYears, paidPeriods }) => {
-            const price = Number(propertyPrice) || 0;
-            const ltv = Number(ltvRatio) || 0;
-            const annualRate = Number(annualInterestRate) || 0;
-            const years = Number(mortgageYears) || 0;
-            const rawPaidPeriods = Number(paidPeriods) || 0;
-
-            if (price <= 0 || ltv <= 0 || ltv > 100 || years <= 0 || annualRate < 0) return null;
-
-            const loanAmount = price * (ltv / 100);
-            const downPayment = price - loanAmount;
-            const totalPeriods = Math.max(1, Math.round(years * 12));
-            const monthlyRate = annualRate / 100 / 12;
-
-            let monthlyPayment = 0;
-            if (monthlyRate === 0) {
-                monthlyPayment = loanAmount / totalPeriods;
-            } else {
-                const factor = Math.pow(1 + monthlyRate, totalPeriods);
-                monthlyPayment = loanAmount * monthlyRate * factor / (factor - 1);
-            }
-
-            const totalInterest = monthlyPayment * totalPeriods - loanAmount;
-            const paidPeriodsClamped = Math.min(Math.max(Math.floor(rawPaidPeriods), 0), totalPeriods);
-
-            let outstandingPrincipal = 0;
-            if (monthlyRate === 0) {
-                outstandingPrincipal = loanAmount - monthlyPayment * paidPeriodsClamped;
-            } else {
-                const paidFactor = Math.pow(1 + monthlyRate, paidPeriodsClamped);
-                outstandingPrincipal = loanAmount * paidFactor - monthlyPayment * ((paidFactor - 1) / monthlyRate);
-            }
-
-            outstandingPrincipal = Math.max(0, outstandingPrincipal);
-            const remainingPeriods = Math.max(0, totalPeriods - paidPeriodsClamped);
-
-            return {
-                propertyPrice: price,
-                ltvRatio: ltv,
-                annualInterestRate: annualRate,
-                mortgageYears: years,
-                paidPeriods: paidPeriodsClamped,
-                totalPeriods,
-                remainingPeriods,
-                downPayment,
-                loanAmount,
-                totalInterest,
-                monthlyPayment,
-                outstandingPrincipal
-            };
-        };
-
-        const calculateInstallmentLoanMetrics = ({ loanPrincipal, annualInterestRate, loanYears, paidPeriods }) => {
-            const principal = Number(loanPrincipal) || 0;
-            const annualRate = Number(annualInterestRate) || 0;
-            const years = Number(loanYears) || 0;
-            const rawPaidPeriods = Number(paidPeriods) || 0;
-
-            if (principal <= 0 || years <= 0 || annualRate < 0) return null;
-
-            const totalPeriods = Math.max(1, Math.round(years * 12));
-            const monthlyRate = annualRate / 100 / 12;
-            let monthlyPayment = 0;
-
-            if (monthlyRate === 0) {
-                monthlyPayment = principal / totalPeriods;
-            } else {
-                const factor = Math.pow(1 + monthlyRate, totalPeriods);
-                monthlyPayment = principal * monthlyRate * factor / (factor - 1);
-            }
-
-            const totalInterest = monthlyPayment * totalPeriods - principal;
-            const paidPeriodsClamped = Math.min(Math.max(Math.floor(rawPaidPeriods), 0), totalPeriods);
-
-            let outstandingPrincipal = 0;
-            if (monthlyRate === 0) {
-                outstandingPrincipal = principal - monthlyPayment * paidPeriodsClamped;
-            } else {
-                const paidFactor = Math.pow(1 + monthlyRate, paidPeriodsClamped);
-                outstandingPrincipal = principal * paidFactor - monthlyPayment * ((paidFactor - 1) / monthlyRate);
-            }
-
-            outstandingPrincipal = Math.max(0, outstandingPrincipal);
-            const remainingPeriods = Math.max(0, totalPeriods - paidPeriodsClamped);
-
-            return {
-                loanPrincipal: principal,
-                annualInterestRate: annualRate,
-                loanYears: years,
-                paidPeriods: paidPeriodsClamped,
-                totalPeriods,
-                remainingPeriods,
-                totalInterest,
-                monthlyPayment,
-                outstandingPrincipal
-            };
-        };
-
-        const calculateFixedDepositMetrics = ({ principal, annualInterestRate, months }) => {
-            const principalValue = Number(principal) || 0;
-            const annualRate = Number(annualInterestRate) || 0;
-            const termMonths = Number(months) || 0;
-
-            if (principalValue <= 0 || termMonths <= 0 || annualRate < 0) return null;
-
-            const maturityAmount = principalValue * (1 + (annualRate / 100) * (termMonths / 12));
-            const interestAmount = maturityAmount - principalValue;
-
-            return {
-                principal: principalValue,
-                annualInterestRate: annualRate,
-                months: termMonths,
-                maturityAmount,
-                interestAmount
-            };
-        };
-
-        const pad2 = (value) => String(value).padStart(2, '0');
-        const toDateKey = (date) => `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
-        const toMonthKey = (date) => `${date.getFullYear()}-${pad2(date.getMonth() + 1)}`;
-        const parseDateKey = (dateKey) => {
-            if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey || '')) return null;
-            const [year, month, day] = dateKey.split('-').map(Number);
-            const date = new Date(year, month - 1, day);
-            if (date.getFullYear() !== year || date.getMonth() !== (month - 1) || date.getDate() !== day) return null;
-            return date;
-        };
-        const normalizeDateKeyOrFallback = (rawValue, fallbackDate) => {
-            const parsed = parseDateKey(rawValue || '');
-            return parsed ? toDateKey(parsed) : toDateKey(fallbackDate);
-        };
-        const parseOccurrenceDateFromPostingKey = (occurrenceKey) => {
-            if (typeof occurrenceKey !== 'string') return '';
-            const parts = occurrenceKey.split('@');
-            return parts.length >= 3 ? parts[1] : '';
-        };
-
-        const sanitizeCashflowEntries = (entries) => {
-            if (!Array.isArray(entries)) return [];
-            const validTypes = Object.keys(CASHFLOW_TYPES);
-            const validFrequencies = CASHFLOW_FREQUENCIES.map(item => item.value);
-            const validScheduleTypes = CASHFLOW_SCHEDULE_TYPES.map(item => item.value);
-
-            return entries
-                .filter(item => item && typeof item === 'object')
-                .map(item => {
-                    const amount = Number(item.amount);
-                    const startDate = typeof item.startDate === 'string' ? item.startDate : '';
-                    const parsedStart = parseDateKey(startDate);
-                    if (!parsedStart || !Number.isFinite(amount) || amount <= 0) return null;
-
-                    const type = validTypes.includes(item.type) ? item.type : 'EXPENSE';
-                    const inferredScheduleType = item.frequency === 'ONE_TIME' ? 'ONE_TIME' : 'RECURRING';
-                    const scheduleType = validScheduleTypes.includes(item.scheduleType) ? item.scheduleType : inferredScheduleType;
-                    const frequency = scheduleType === 'ONE_TIME'
-                        ? 'ONE_TIME'
-                        : (validFrequencies.includes(item.frequency) && item.frequency !== 'ONE_TIME' ? item.frequency : 'MONTHLY');
-                    const currency = CURRENCIES.includes(item.currency) ? item.currency : 'HKD';
-                    const weekday = Number.isInteger(item.weekday) && item.weekday >= 0 && item.weekday <= 6
-                        ? item.weekday
-                        : parsedStart.getDay();
-                    const monthday = Number.isInteger(item.monthday) && item.monthday >= 1 && item.monthday <= 31
-                        ? item.monthday
-                        : parsedStart.getDate();
-                    const payday = Number.isInteger(item.payday) && item.payday >= 1 && item.payday <= 31
-                        ? item.payday
-                        : monthday;
-
-                    let endDate = typeof item.endDate === 'string' ? item.endDate : '';
-                    const parsedEnd = parseDateKey(endDate);
-                    if (!parsedEnd || parsedEnd.getTime() < parsedStart.getTime()) endDate = '';
-
-                    const categoryPool = CASHFLOW_CATEGORY_BY_TYPE[type] || CASHFLOW_CATEGORY_BY_TYPE.EXPENSE;
-                    const rawCategory = typeof item.category === 'string' ? item.category.trim() : '';
-                    const normalizedCategory = categoryPool.includes(rawCategory)
-                        ? rawCategory
-                        : getDefaultCashflowCategory(type);
-
-                    return {
-                        id: typeof item.id === 'string' && item.id ? item.id : `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-                        title: typeof item.title === 'string' && item.title.trim() ? item.title.trim() : '未命名現金流',
-                        account: typeof item.account === 'string' ? item.account.trim() : '',
-                        category: normalizedCategory,
-                        note: typeof item.note === 'string' ? item.note.trim() : '',
-                        type,
-                        amount,
-                        currency,
-                        startDate,
-                        endDate: scheduleType === 'ONE_TIME' ? '' : endDate,
-                        scheduleType,
-                        frequency,
-                        weekday,
-                        monthday,
-                        payday,
-                        targetLiquidAssetId: typeof item.targetLiquidAssetId === 'string' ? item.targetLiquidAssetId : ''
-                    };
-                })
-                .filter(Boolean)
-                .sort((a, b) => a.startDate.localeCompare(b.startDate));
-        };
-
-        const isEntryOnDate = (entry, date) => {
-            const start = parseDateKey(entry.startDate);
-            if (!start) return false;
-            if (date.getTime() < start.getTime()) return false;
-
-            const scheduleType = entry.scheduleType || (entry.frequency === 'ONE_TIME' ? 'ONE_TIME' : 'RECURRING');
-            if (scheduleType === 'ONE_TIME') {
-                return toDateKey(date) === entry.startDate;
-            }
-
-            const end = parseDateKey(entry.endDate);
-            if (end && date.getTime() > end.getTime()) return false;
-
-            if (entry.frequency === 'DAILY') return true;
-            if (entry.frequency === 'WEEKLY') return date.getDay() === (Number(entry.weekday) || start.getDay());
-            if (entry.frequency === 'MONTHLY') {
-                const configuredDay = Number(entry.monthday) || start.getDate();
-                const daysInCurrentMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
-                const targetDay = Math.min(configuredDay, daysInCurrentMonth);
-                return date.getDate() === targetDay;
-            }
-            if (entry.frequency === 'YEARLY') return date.getDate() === start.getDate() && date.getMonth() === start.getMonth();
-            return false;
-        };
-
-        const findNextOccurrenceDateKey = (entry, fromDate = new Date(), maxLookAheadDays = 3650) => {
-            const base = new Date(fromDate.getFullYear(), fromDate.getMonth(), fromDate.getDate());
-            for (let offset = 0; offset <= maxLookAheadDays; offset += 1) {
-                const candidate = new Date(base.getFullYear(), base.getMonth(), base.getDate() + offset);
-                if (isEntryOnDate(entry, candidate)) return toDateKey(candidate);
-            }
-            return '';
-        };
-
-        const findLastOccurrenceDateKey = (entry, fromDate = new Date(), maxLookBackDays = 3650) => {
-            const base = new Date(fromDate.getFullYear(), fromDate.getMonth(), fromDate.getDate());
-            for (let offset = 0; offset <= maxLookBackDays; offset += 1) {
-                const candidate = new Date(base.getFullYear(), base.getMonth(), base.getDate() - offset);
-                if (isEntryOnDate(entry, candidate)) return toDateKey(candidate);
-            }
-            return '';
-        };
-
-        const normalizeYahooSymbol = (symbol) => {
-            const clean = (symbol || '').trim().toUpperCase();
-            if (/^\d{4,6}$/.test(clean)) return `${clean}.TW`;
-            return clean;
-        };
-
-        const toStooqSymbol = (symbol) => {
-            const upper = (symbol || '').trim().toUpperCase();
-            if (/^\d{4,6}\.TW$/.test(upper)) return `${upper.replace('.TW', '')}.TW`;
-            if (/^[A-Z]+$/.test(upper)) return `${upper}.US`;
-            return upper;
-        };
-
-        async function fetchTextWithTimeout(url, timeoutMs = 12000) {
-            const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), timeoutMs);
-            try {
-                const response = await fetch(url, { signal: controller.signal });
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                return await response.text();
-            } finally {
-                clearTimeout(timeout);
-            }
+        const {
+            CURRENCIES,
+            DEFAULT_RATES,
+            STORAGE_KEYS,
+            FIREBASE_CONFIG,
+            CLOUD_COLLECTION,
+            hasFirebaseConfig,
+            firebaseApp,
+            firebaseAuth,
+            firebaseDB,
+            isCloudEnabled,
+            CATEGORIES,
+            CRYPTO_ID_MAP,
+            CATEGORY_MIX_STYLES,
+            CATEGORY_KEYS,
+            INVEST_CHART_COLORS,
+            CASHFLOW_TYPES,
+            CASHFLOW_SCHEDULE_TYPES,
+            CASHFLOW_FREQUENCIES,
+            WEEKDAY_LABELS,
+            CASHFLOW_CATEGORY_OPTIONS,
+            CASHFLOW_CATEGORY_BY_TYPE,
+            getDefaultCashflowCategory,
+            ONE_DAY_MS
+        } = window.APP_CONSTANTS || {};
+        if (!CURRENCIES || !DEFAULT_RATES || !STORAGE_KEYS || !CATEGORIES || !CASHFLOW_TYPES) {
+            throw new Error('constants.js is missing or incomplete.');
+        }
+        const {
+            PAGE_LANGUAGE_OPTIONS,
+            UI_TEXT,
+            FULL_PAGE_TEXT_MAP,
+            HEADER_SLOGANS,
+            IDLE_HINT_LINES
+        } = window.APP_I18N || {};
+        if (!PAGE_LANGUAGE_OPTIONS || !UI_TEXT || !FULL_PAGE_TEXT_MAP || !HEADER_SLOGANS || !IDLE_HINT_LINES) {
+            throw new Error('i18n.js is missing or incomplete.');
+        }
+        const {
+            polarToCartesian,
+            describeArc,
+            seedAssets,
+            parseStorage,
+            sanitizeCurrencyRates,
+            toHKD,
+            fromHKD,
+            formatAmount,
+            getNetWorthTier,
+            calculateMortgageMetrics,
+            calculateInstallmentLoanMetrics,
+            calculateFixedDepositMetrics,
+            pad2,
+            toDateKey,
+            toMonthKey,
+            parseDateKey,
+            normalizeDateKeyOrFallback,
+            parseOccurrenceDateFromPostingKey,
+            sanitizeCashflowEntries,
+            isEntryOnDate,
+            findNextOccurrenceDateKey,
+            findLastOccurrenceDateKey,
+            ensureJsPdfReady,
+            ensureHtml2CanvasReady
+        } = window.APP_UTILS || {};
+        if (!polarToCartesian || !describeArc || !parseStorage || !sanitizeCurrencyRates || !toDateKey || !parseDateKey || !sanitizeCashflowEntries || !ensureJsPdfReady || !ensureHtml2CanvasReady) {
+            throw new Error('utils.js is missing or incomplete.');
         }
 
-        async function fetchJSONWithTimeout(url, timeoutMs = 12000) {
-            const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), timeoutMs);
-            try {
-                const response = await fetch(url, { signal: controller.signal });
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                return await response.json();
-            } finally {
-                clearTimeout(timeout);
-            }
+        const {
+            normalizeYahooSymbol,
+            fetchLatestCurrencyRates,
+            fetchYahooQuotes,
+            fetchCryptoQuotes
+        } = window.APP_MARKET_API || {};
+        if (!normalizeYahooSymbol || !fetchLatestCurrencyRates || !fetchYahooQuotes || !fetchCryptoQuotes) {
+            throw new Error('market-api.js is missing or incomplete.');
         }
 
-        async function ensureJsPdfReady() {
-            if (window.jspdf?.jsPDF) return window.jspdf.jsPDF;
-
-            const existing = document.getElementById('jspdf-runtime-loader');
-            if (!existing) {
-                await new Promise((resolve, reject) => {
-                    const script = document.createElement('script');
-                    script.id = 'jspdf-runtime-loader';
-                    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-                    script.onload = resolve;
-                    script.onerror = () => reject(new Error('jspdf load failed'));
-                    document.head.appendChild(script);
-                });
-            } else {
-                await new Promise((resolve, reject) => {
-                    if (window.jspdf?.jsPDF) {
-                        resolve();
-                        return;
-                    }
-                    existing.addEventListener('load', resolve, { once: true });
-                    existing.addEventListener('error', () => reject(new Error('jspdf load failed')), { once: true });
-                });
-            }
-
-            if (!window.jspdf?.jsPDF) throw new Error('jspdf unavailable');
-            return window.jspdf.jsPDF;
+        const {
+            normalizeAssetRecord,
+            isValidAssetRecord,
+            isValidCashflowRecord,
+            buildBackupPayload,
+            downloadJsonFile,
+            parseImportedBackup
+        } = window.APP_DATA_UTILS || {};
+        if (!normalizeAssetRecord || !isValidAssetRecord || !isValidCashflowRecord || !buildBackupPayload || !downloadJsonFile || !parseImportedBackup) {
+            throw new Error('data-utils.js is missing or incomplete.');
         }
 
-        async function ensureHtml2CanvasReady() {
-            if (window.html2canvas) return window.html2canvas;
-
-            const existing = document.getElementById('html2canvas-runtime-loader');
-            if (!existing) {
-                await new Promise((resolve, reject) => {
-                    const script = document.createElement('script');
-                    script.id = 'html2canvas-runtime-loader';
-                    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-                    script.onload = resolve;
-                    script.onerror = () => reject(new Error('html2canvas load failed'));
-                    document.head.appendChild(script);
-                });
-            } else {
-                await new Promise((resolve, reject) => {
-                    if (window.html2canvas) {
-                        resolve();
-                        return;
-                    }
-                    existing.addEventListener('load', resolve, { once: true });
-                    existing.addEventListener('error', () => reject(new Error('html2canvas load failed')), { once: true });
-                });
-            }
-
-            if (!window.html2canvas) throw new Error('html2canvas unavailable');
-            return window.html2canvas;
+        const {
+            exportAssetReportPdf
+        } = window.APP_REPORT_EXPORT || {};
+        if (!exportAssetReportPdf) {
+            throw new Error('report-export.js is missing or incomplete.');
         }
 
-        async function fetchLatestCurrencyRates() {
-            const sources = [
-                'https://open.er-api.com/v6/latest/HKD',
-                `https://api.allorigins.win/raw?url=${encodeURIComponent('https://open.er-api.com/v6/latest/HKD')}`
-            ];
-
-            for (const source of sources) {
-                try {
-                    const data = await fetchJSONWithTimeout(source);
-                    const rawRates = data?.rates;
-                    if (!rawRates || typeof rawRates !== 'object') continue;
-
-                    const mapped = {};
-                    CURRENCIES.forEach(currency => {
-                        if (currency === 'HKD') {
-                            mapped.HKD = 1;
-                            return;
-                        }
-                        const value = Number(rawRates[currency]);
-                        if (Number.isFinite(value) && value > 0) mapped[currency] = value;
-                    });
-
-                    const merged = sanitizeCurrencyRates(mapped);
-                    const hasEnough = CURRENCIES.every(currency => Number.isFinite(merged[currency]) && merged[currency] > 0);
-                    if (hasEnough) return merged;
-                } catch (error) {}
-            }
-
-            throw new Error('fx source unavailable');
+        const {
+            buildCloudSyncPayload,
+            downloadCloudData,
+            uploadCloudData,
+            loginWithGoogle,
+            logoutGoogle
+        } = window.APP_CLOUD_SYNC || {};
+        if (!buildCloudSyncPayload || !downloadCloudData || !uploadCloudData || !loginWithGoogle || !logoutGoogle) {
+            throw new Error('cloud-sync.js is missing or incomplete.');
         }
 
-        const parseYahooQuoteResponse = (data) => {
-            const map = {};
-            (data?.quoteResponse?.result || []).forEach(item => {
-                if (item.symbol && typeof item.regularMarketPrice === 'number') {
-                    map[item.symbol.toUpperCase()] = item.regularMarketPrice;
-                }
-            });
-            return map;
-        };
-
-        const parseYahooChartResponse = (data) => {
-            const price = data?.chart?.result?.[0]?.meta?.regularMarketPrice;
-            return typeof price === 'number' ? price : null;
-        };
-
-        async function fetchYahooChartPrice(symbol) {
-            const upper = symbol.toUpperCase();
-            if (!/^[A-Z0-9.\-]+$/.test(upper)) return null;
-            const base = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(upper)}?interval=1d&range=1d`;
-            const fallbackBase = `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(upper)}?interval=1d&range=1d`;
-            const sources = [
-                `https://api.allorigins.win/raw?url=${encodeURIComponent(base)}`,
-                `https://api.allorigins.win/raw?url=${encodeURIComponent(fallbackBase)}`
-            ];
-
-            for (const source of sources) {
-                try {
-                    const data = await fetchJSONWithTimeout(source);
-                    const price = parseYahooChartResponse(data);
-                    if (typeof price === 'number') return price;
-                } catch (error) {}
-            }
-
-            return null;
+        const {
+            buildCashflowMonthData,
+            buildCashflowYearData
+        } = window.APP_CASHFLOW_ENGINE || {};
+        if (!buildCashflowMonthData || !buildCashflowYearData) {
+            throw new Error('cashflow-engine.js is missing or incomplete.');
         }
 
-        async function fetchStooqQuotes(symbols) {
-            const map = {};
-            await Promise.all(symbols.map(async yahooSymbol => {
-                const stooqSymbol = toStooqSymbol(yahooSymbol).toLowerCase();
-                const stooqUrl = `https://stooq.com/q/l/?s=${encodeURIComponent(stooqSymbol)}&f=sd2t2ohlcv&h&e=csv`;
-                const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(stooqUrl)}`;
-
-                const tryParse = (csvText) => {
-                    const lines = (csvText || '').trim().split('\n');
-                    if (lines.length < 2) return null;
-                    const columns = lines[1].split(',');
-                    const close = Number(columns[6]);
-                    return Number.isFinite(close) && close > 0 ? close : null;
-                };
-
-                try {
-                    const directCsv = await fetchTextWithTimeout(stooqUrl);
-                    const directPrice = tryParse(directCsv);
-                    if (directPrice) {
-                        map[yahooSymbol.toUpperCase()] = directPrice;
-                        return;
-                    }
-                } catch (error) {}
-
-                try {
-                    const proxyCsv = await fetchTextWithTimeout(proxyUrl);
-                    const proxyPrice = tryParse(proxyCsv);
-                    if (proxyPrice) {
-                        map[yahooSymbol.toUpperCase()] = proxyPrice;
-                    }
-                } catch (error) {}
-            }));
-            return map;
+        const {
+            applyAutoCashflowPostings
+        } = window.APP_CASHFLOW_APPLY || {};
+        if (!applyAutoCashflowPostings) {
+            throw new Error('cashflow-apply.js is missing or incomplete.');
         }
 
-        async function fetchYahooQuotes(symbols) {
-            if (!symbols.length) return {};
-            const base = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbols.join(','))}`;
-            const fallbackBase = `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbols.join(','))}`;
-            const sources = [
-                `https://api.allorigins.win/raw?url=${encodeURIComponent(base)}`,
-                `https://api.allorigins.win/raw?url=${encodeURIComponent(fallbackBase)}`
-            ];
-
-            let results = {};
-            for (const source of sources) {
-                try {
-                    const data = await fetchJSONWithTimeout(source);
-                    const parsed = parseYahooQuoteResponse(data);
-                    if (Object.keys(parsed).length) {
-                        results = { ...results, ...parsed };
-                    }
-                } catch (error) {}
-            }
-
-            const missingSymbols = symbols.filter(symbol => !results[symbol.toUpperCase()]);
-            if (missingSymbols.length) {
-                const chartQuotes = await Promise.all(missingSymbols.map(async symbol => {
-                    const price = await fetchYahooChartPrice(symbol);
-                    return { symbol: symbol.toUpperCase(), price };
-                }));
-                chartQuotes.forEach(entry => {
-                    if (typeof entry.price === 'number') results[entry.symbol] = entry.price;
-                });
-            }
-
-            const stillMissing = symbols.filter(symbol => !results[symbol.toUpperCase()]);
-            if (stillMissing.length) {
-                const stooqQuotes = await fetchStooqQuotes(stillMissing);
-                results = { ...results, ...stooqQuotes };
-            }
-
-            return results;
+        const {
+            collectCashflowDeleteContext,
+            rollbackCashflowPostingsOnLiquidAssets
+        } = window.APP_CASHFLOW_RULES || {};
+        if (!collectCashflowDeleteContext || !rollbackCashflowPostingsOnLiquidAssets) {
+            throw new Error('cashflow-rules.js is missing or incomplete.');
         }
 
-        async function fetchCryptoQuotes(cryptoSymbols) {
-            const ids = [...new Set(cryptoSymbols.map(symbol => CRYPTO_ID_MAP[symbol]).filter(Boolean))];
-            if (!ids.length) return {};
-            const baseUrl = `https://api.coingecko.com/api/v3/simple/price?ids=${ids.join(',')}&vs_currencies=usd`;
-            const sources = [
-                baseUrl,
-                `https://api.allorigins.win/raw?url=${encodeURIComponent(baseUrl)}`
-            ];
+        const {
+            buildCashflowSubmission,
+            buildCashflowSubmitStatus
+        } = window.APP_CASHFLOW_FORM || {};
+        if (!buildCashflowSubmission || !buildCashflowSubmitStatus) {
+            throw new Error('cashflow-form.js is missing or incomplete.');
+        }
 
-            let data = null;
-            for (const source of sources) {
-                try {
-                    data = await fetchJSONWithTimeout(source);
-                    if (data && typeof data === 'object') break;
-                } catch (error) {}
-            }
+        const {
+            buildMarketTargets,
+            applyQuotePricesToAssets
+        } = window.APP_MARKET_SYNC || {};
+        if (!buildMarketTargets || !applyQuotePricesToAssets) {
+            throw new Error('market-sync.js is missing or incomplete.');
+        }
 
-            if (!data) return {};
+        const {
+            refreshCurrencyRatesWithStamp
+        } = window.APP_FX_SYNC || {};
+        if (!refreshCurrencyRatesWithStamp) {
+            throw new Error('fx-sync.js is missing or incomplete.');
+        }
 
-            try {
-                const bySymbol = {};
-                Object.entries(CRYPTO_ID_MAP).forEach(([symbol, id]) => {
-                    if (data[id]?.usd) bySymbol[symbol] = data[id].usd;
-                });
-                return bySymbol;
-            } catch (error) {
-                return {};
-            }
+        const {
+            applyHydratedCloudSnapshot
+        } = window.APP_CLOUD_STATE_APPLY || {};
+        if (!applyHydratedCloudSnapshot) {
+            throw new Error('cloud-state-apply.js is missing or incomplete.');
+        }
+
+        const {
+            THEME_OPTIONS,
+            applyTheme
+        } = window.APP_THEME_SYSTEM || {};
+        if (!THEME_OPTIONS || !applyTheme) {
+            throw new Error('theme-system.js is missing or incomplete.');
         }
 
         function App() {
@@ -982,6 +371,10 @@
             const [pageLanguage, setPageLanguage] = useState(() => {
                 const saved = parseStorage(STORAGE_KEYS.pageLanguage, 'zh-Hant');
                 return PAGE_LANGUAGE_OPTIONS.some(item => item.value === saved) ? saved : 'zh-Hant';
+            });
+            const [themeId, setThemeId] = useState(() => {
+                const saved = parseStorage(STORAGE_KEYS.themeId, 'macaron-prince');
+                return THEME_OPTIONS.some(item => item.value === saved) ? saved : 'macaron-prince';
             });
             const [headerSloganIndex, setHeaderSloganIndex] = useState(0);
             const [princeIdleIndex, setPrinceIdleIndex] = useState(0);
@@ -1064,8 +457,6 @@
             });
             const importInputRef = useRef(null);
             const cashflowFormRef = useRef(null);
-            const cloudHydratedRef = useRef(false);
-            const cloudSaveTimerRef = useRef(null);
 
             const isLiquidForm = formData.category === 'LIQUID';
             const isInvestForm = formData.category === 'INVEST';
@@ -1099,12 +490,6 @@
 
             const assetsRef = useRef(assets);
             useEffect(() => { assetsRef.current = assets; }, [assets]);
-            const displayCurrencyRef = useRef(displayCurrency);
-            useEffect(() => { displayCurrencyRef.current = displayCurrency; }, [displayCurrency]);
-            const monthlySnapshotsRef = useRef(monthlySnapshots);
-            useEffect(() => { monthlySnapshotsRef.current = monthlySnapshots; }, [monthlySnapshots]);
-            const cashflowEntriesRef = useRef(cashflowEntries);
-            useEffect(() => { cashflowEntriesRef.current = cashflowEntries; }, [cashflowEntries]);
 
             const toHKD = (amount, currency) => amount / (currencyRates[currency] || 1);
             const fromHKD = (amountHKD, currency) => amountHKD * (currencyRates[currency] || 1);
@@ -1147,16 +532,25 @@
             }, [pageLanguage]);
 
             useEffect(() => {
+                const appliedThemeId = applyTheme(themeId);
+                if (appliedThemeId !== themeId) {
+                    setThemeId(appliedThemeId);
+                    return;
+                }
+                localStorage.setItem(STORAGE_KEYS.themeId, JSON.stringify(appliedThemeId));
+            }, [themeId]);
+
+            useEffect(() => {
                 if (window.lucide) window.lucide.createIcons();
             }, [assets, isModalOpen, selectedCategories, sortMode, isUpdatingPrice]);
 
-            useEffect(() => {
-                return () => {
-                    if (cloudSaveTimerRef.current) clearTimeout(cloudSaveTimerRef.current);
-                };
-            }, []);
-
             const pageText = useMemo(() => UI_TEXT[pageLanguage] || UI_TEXT['zh-Hant'], [pageLanguage]);
+            const tByLang = (zh, en, ja) => (pageLanguage === 'en-US' ? en : (pageLanguage === 'ja-JP' ? ja : zh));
+            const appName = useMemo(() => {
+                if (pageLanguage === 'zh-Hant') return '王子甜甜帳';
+                if (pageLanguage === 'ja-JP') return '王子あま帳';
+                return 'SweetPrinceLedger';
+            }, [pageLanguage]);
             const headerSlogans = useMemo(() => HEADER_SLOGANS[pageLanguage] || HEADER_SLOGANS['zh-Hant'], [pageLanguage]);
             const idleHintLines = useMemo(() => IDLE_HINT_LINES[pageLanguage] || IDLE_HINT_LINES['zh-Hant'], [pageLanguage]);
             const currentHeaderSlogan = headerSlogans[headerSloganIndex % Math.max(headerSlogans.length, 1)] || '';
@@ -1165,6 +559,70 @@
             useEffect(() => {
                 document.documentElement.lang = pageLanguage;
             }, [pageLanguage]);
+
+            useEffect(() => {
+                document.title = appName;
+            }, [appName]);
+
+            useEffect(() => {
+                if (pageLanguage === 'zh-Hant') return;
+                const root = document.getElementById('root');
+                if (!root) return;
+
+                const dictionary = FULL_PAGE_TEXT_MAP[pageLanguage] || {};
+                if (!Object.keys(dictionary).length) return;
+
+                let applying = false;
+                const applyFullPageTranslation = () => {
+                    if (applying) return;
+                    applying = true;
+
+                    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+                    const textNodes = [];
+                    let current = walker.nextNode();
+                    while (current) {
+                        textNodes.push(current);
+                        current = walker.nextNode();
+                    }
+
+                    textNodes.forEach(node => {
+                        if (!node || !node.nodeValue) return;
+                        const original = node.nodeValue;
+                        const trimmed = original.trim();
+                        if (!trimmed) return;
+                        const translated = dictionary[trimmed];
+                        if (!translated || translated === trimmed) return;
+                        const leading = original.match(/^\s*/)?.[0] || '';
+                        const trailing = original.match(/\s*$/)?.[0] || '';
+                        node.nodeValue = `${leading}${translated}${trailing}`;
+                    });
+
+                    root.querySelectorAll('[placeholder]').forEach(el => {
+                        const val = el.getAttribute('placeholder') || '';
+                        const translated = dictionary[val.trim()];
+                        if (translated) el.setAttribute('placeholder', translated);
+                    });
+
+                    root.querySelectorAll('[title]').forEach(el => {
+                        const val = el.getAttribute('title') || '';
+                        const translated = dictionary[val.trim()];
+                        if (translated) el.setAttribute('title', translated);
+                    });
+
+                    root.querySelectorAll('[aria-label]').forEach(el => {
+                        const val = el.getAttribute('aria-label') || '';
+                        const translated = dictionary[val.trim()];
+                        if (translated) el.setAttribute('aria-label', translated);
+                    });
+
+                    applying = false;
+                };
+
+                applyFullPageTranslation();
+                const observer = new MutationObserver(() => applyFullPageTranslation());
+                observer.observe(root, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['placeholder', 'title', 'aria-label'] });
+                return () => observer.disconnect();
+            }, [pageLanguage, assets, cashflowEntries, financeSectionTab, isModalOpen, editingId, editingCashflowId, showSettings]);
 
             useEffect(() => {
                 setHeaderSloganIndex(0);
@@ -1387,7 +845,7 @@
 
                 return {
                     rows: rowsWithRatio,
-                    gradient: segments.length ? `conic-gradient(${segments.join(', ')})` : 'conic-gradient(#E2E8F0 0% 100%)'
+                    gradient: segments.length ? `conic-gradient(${segments.join(', ')})` : 'conic-gradient(#FCE7F3 0% 100%)'
                 };
             }, [totals.categoryBreakdownHKD, displayCurrency]);
 
@@ -1413,7 +871,7 @@
                 });
 
                 const totalHKD = Object.values(groupMap).reduce((sum, value) => sum + value, 0);
-                const palette = ['#3B82F6', '#10B981', '#F59E0B', '#6366F1', '#F43F5E', '#0EA5E9', '#8B5CF6', '#14B8A6'];
+                const palette = INVEST_CHART_COLORS;
 
                 const rows = Object.entries(groupMap)
                     .map(([label, valueHKD], idx) => ({
@@ -1437,7 +895,7 @@
                 return {
                     categoryLabel: CATEGORIES[category]?.label || '細項',
                     rows,
-                    gradient: segments.length ? `conic-gradient(${segments.join(', ')})` : 'conic-gradient(#E2E8F0 0% 100%)'
+                    gradient: segments.length ? `conic-gradient(${segments.join(', ')})` : 'conic-gradient(#FCE7F3 0% 100%)'
                 };
             }, [assets, selectedMixCategory, displayCurrency, currencyRates]);
 
@@ -1679,81 +1137,24 @@
             }, [cashflowForm.targetLiquidAssetId, liquidAssetOptions]);
 
             useEffect(() => {
-                const todayKey = toDateKey(new Date());
-                const lastAppliedDate = parseDateKey(cashflowLastAutoApplyDate) || new Date(Date.now() - ONE_DAY_MS);
-                const todayDate = parseDateKey(todayKey);
-                if (!todayDate) return;
-
-                const targetEntries = cashflowEntries.filter(entry => entry.targetLiquidAssetId);
-                if (!targetEntries.length) {
-                    setCashflowLastAutoApplyDate(todayKey);
-                    return;
-                }
-
-                const liquidAssetIndexMap = {};
-                assets.forEach((asset, index) => {
-                    if (asset.category === 'LIQUID') liquidAssetIndexMap[asset.id] = index;
+                const result = applyAutoCashflowPostings({
+                    assets,
+                    cashflowEntries,
+                    cashflowAppliedOccurrenceKeys,
+                    cashflowAppliedPostings,
+                    cashflowLastAutoApplyDate,
+                    toHKD,
+                    fromHKD
                 });
+                if (!result) return;
 
-                const appliedKeySet = new Set(cashflowAppliedOccurrenceKeys);
-                const appliedPostingKeySet = new Set(Object.keys(cashflowAppliedPostings));
-                const nextAppliedPostings = { ...cashflowAppliedPostings };
-                const nextAssets = [...assets];
-                let updated = false;
-                let appliedCount = 0;
-
-                const shouldReplayFromTomorrow = lastAppliedDate.getTime() < todayDate.getTime();
-                const cursor = shouldReplayFromTomorrow
-                    ? new Date(lastAppliedDate.getFullYear(), lastAppliedDate.getMonth(), lastAppliedDate.getDate() + 1)
-                    : new Date(todayDate.getFullYear(), todayDate.getMonth(), todayDate.getDate());
-                while (cursor.getTime() <= todayDate.getTime()) {
-                    const currentDate = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate());
-                    const dateKey = toDateKey(currentDate);
-
-                    targetEntries.forEach(entry => {
-                        if (!isEntryOnDate(entry, currentDate)) return;
-
-                        const targetIndex = liquidAssetIndexMap[entry.targetLiquidAssetId];
-                        if (!Number.isInteger(targetIndex)) return;
-
-                        const occurrenceKey = `${entry.id}@${dateKey}@${entry.targetLiquidAssetId}`;
-                        if (appliedKeySet.has(occurrenceKey) || appliedPostingKeySet.has(occurrenceKey)) return;
-
-                        const targetAsset = nextAssets[targetIndex];
-                        if (!targetAsset || targetAsset.category !== 'LIQUID') return;
-
-                        const amountHKD = toHKD(entry.amount, entry.currency);
-                        const amountInTargetCurrency = fromHKD(amountHKD, targetAsset.currency);
-                        const signedAmount = entry.type === 'INCOME' ? amountInTargetCurrency : -amountInTargetCurrency;
-                        const nextQuantity = Number(targetAsset.quantity || 0) + signedAmount;
-
-                        nextAssets[targetIndex] = {
-                            ...targetAsset,
-                            quantity: Number(nextQuantity.toFixed(6))
-                        };
-
-                        appliedKeySet.add(occurrenceKey);
-                        nextAppliedPostings[occurrenceKey] = {
-                            entryId: entry.id,
-                            targetLiquidAssetId: entry.targetLiquidAssetId,
-                            signedAmount: Number(signedAmount.toFixed(6)),
-                            targetCurrency: targetAsset.currency,
-                            type: entry.type
-                        };
-                        appliedCount += 1;
-                        updated = true;
-                    });
-
-                    cursor.setDate(cursor.getDate() + 1);
+                if (result.updated) {
+                    setAssets(result.nextAssets);
+                    setCashflowAppliedOccurrenceKeys(result.nextAppliedOccurrenceKeys);
+                    setCashflowAppliedPostings(result.nextAppliedPostings);
+                    setPriceStatus(`已自動入帳/扣款 ${result.appliedCount} 筆現金流`);
                 }
-
-                if (updated) {
-                    setAssets(nextAssets);
-                    setCashflowAppliedOccurrenceKeys(Array.from(appliedKeySet));
-                    setCashflowAppliedPostings(nextAppliedPostings);
-                    setPriceStatus(`已自動入帳/扣款 ${appliedCount} 筆現金流`);
-                }
-                setCashflowLastAutoApplyDate(todayKey);
+                setCashflowLastAutoApplyDate(result.todayKey);
             }, [assets, cashflowEntries, cashflowAppliedOccurrenceKeys, cashflowAppliedPostings, cashflowLastAutoApplyDate, currencyRates]);
 
             const selectedCashflowDate = useMemo(() => {
@@ -1763,103 +1164,23 @@
             }, [selectedCashflowMonth]);
 
             const cashflowMonthData = useMemo(() => {
-                const year = selectedCashflowDate.getFullYear();
-                const month = selectedCashflowDate.getMonth();
-                const firstDay = new Date(year, month, 1).getDay();
-                const daysInMonth = new Date(year, month + 1, 0).getDate();
-                const dayRows = [];
-
-                let monthIncomeHKD = 0;
-                let monthExpenseHKD = 0;
-
-                for (let day = 1; day <= daysInMonth; day += 1) {
-                    const date = new Date(year, month, day);
-                    const dateKey = toDateKey(date);
-                    const rows = [];
-                    let incomeHKD = 0;
-                    let expenseHKD = 0;
-
-                    cashflowEntries.forEach(entry => {
-                        if (!isEntryOnDate(entry, date)) return;
-                        const amountHKD = toHKD(entry.amount, entry.currency);
-                        if (entry.type === 'INCOME') incomeHKD += amountHKD;
-                        else expenseHKD += amountHKD;
-
-                        rows.push({
-                            id: `${entry.id}-${dateKey}`,
-                            title: entry.title,
-                            account: entry.account,
-                            type: entry.type,
-                            amountDisplay: fromHKD(amountHKD, displayCurrency),
-                            currency: displayCurrency,
-                            category: entry.category
-                        });
-                    });
-
-                    monthIncomeHKD += incomeHKD;
-                    monthExpenseHKD += expenseHKD;
-
-                    dayRows.push({
-                        dateKey,
-                        day,
-                        incomeDisplay: fromHKD(incomeHKD, displayCurrency),
-                        expenseDisplay: fromHKD(expenseHKD, displayCurrency),
-                        netDisplay: fromHKD(incomeHKD - expenseHKD, displayCurrency),
-                        entries: rows.sort((a, b) => b.amountDisplay - a.amountDisplay)
-                    });
-                }
-
-                return {
-                    year,
-                    month,
-                    firstDay,
-                    dayRows,
-                    monthIncomeDisplay: fromHKD(monthIncomeHKD, displayCurrency),
-                    monthExpenseDisplay: fromHKD(monthExpenseHKD, displayCurrency),
-                    monthNetDisplay: fromHKD(monthIncomeHKD - monthExpenseHKD, displayCurrency)
-                };
+                return buildCashflowMonthData({
+                    cashflowEntries,
+                    selectedCashflowDate,
+                    displayCurrency,
+                    toHKD,
+                    fromHKD
+                });
             }, [cashflowEntries, selectedCashflowDate, displayCurrency, currencyRates]);
 
             const cashflowYearData = useMemo(() => {
-                const year = selectedCashflowDate.getFullYear();
-                const months = [];
-                let yearIncomeHKD = 0;
-                let yearExpenseHKD = 0;
-
-                for (let month = 0; month < 12; month += 1) {
-                    const daysInMonth = new Date(year, month + 1, 0).getDate();
-                    let incomeHKD = 0;
-                    let expenseHKD = 0;
-
-                    for (let day = 1; day <= daysInMonth; day += 1) {
-                        const date = new Date(year, month, day);
-                        cashflowEntries.forEach(entry => {
-                            if (!isEntryOnDate(entry, date)) return;
-                            const amountHKD = toHKD(entry.amount, entry.currency);
-                            if (entry.type === 'INCOME') incomeHKD += amountHKD;
-                            else expenseHKD += amountHKD;
-                        });
-                    }
-
-                    yearIncomeHKD += incomeHKD;
-                    yearExpenseHKD += expenseHKD;
-
-                    months.push({
-                        month,
-                        label: `${month + 1} 月`,
-                        incomeDisplay: fromHKD(incomeHKD, displayCurrency),
-                        expenseDisplay: fromHKD(expenseHKD, displayCurrency),
-                        netDisplay: fromHKD(incomeHKD - expenseHKD, displayCurrency)
-                    });
-                }
-
-                return {
-                    year,
-                    months,
-                    yearIncomeDisplay: fromHKD(yearIncomeHKD, displayCurrency),
-                    yearExpenseDisplay: fromHKD(yearExpenseHKD, displayCurrency),
-                    yearNetDisplay: fromHKD(yearIncomeHKD - yearExpenseHKD, displayCurrency)
-                };
+                return buildCashflowYearData({
+                    cashflowEntries,
+                    selectedCashflowDate,
+                    displayCurrency,
+                    toHKD,
+                    fromHKD
+                });
             }, [cashflowEntries, selectedCashflowDate, displayCurrency, currencyRates]);
 
             const moveCashflowMonth = (delta) => {
@@ -1893,78 +1214,23 @@
 
             const handleCashflowSubmit = (event) => {
                 event.preventDefault();
-                const title = (cashflowForm.title || '').trim();
-                const selectedLiquidAsset = liquidAssetOptions.find(option => option.id === cashflowForm.targetLiquidAssetId) || null;
-                const account = selectedLiquidAsset?.account || (cashflowForm.account || '').trim();
-                const resolvedCategory = (cashflowForm.category || '').trim();
-                const category = resolvedCategory || getDefaultCashflowCategory(cashflowForm.type);
-                const note = (cashflowForm.note || '').trim();
-                const amount = Number(cashflowForm.amount);
-                const startDate = cashflowForm.startDate;
-                const endDate = cashflowForm.endDate;
-                const scheduleType = cashflowForm.scheduleType || 'RECURRING';
-                const frequency = scheduleType === 'ONE_TIME' ? 'ONE_TIME' : cashflowForm.frequency;
+                const submission = buildCashflowSubmission({
+                    cashflowForm,
+                    editingCashflowId,
+                    liquidAssetOptions,
+                    parseDateKey,
+                    getDefaultCashflowCategory
+                });
 
-                if (!title) {
-                    alert('請輸入現金流名稱');
-                    return;
-                }
-                if (!Number.isFinite(amount) || amount <= 0) {
-                    alert('請輸入有效金額');
+                if (!submission.ok) {
+                    alert(submission.error);
                     return;
                 }
 
-                const parsedStart = parseDateKey(startDate);
-                if (!parsedStart) {
-                    alert('請輸入有效的開始日期');
-                    return;
-                }
-
-                const parsedEnd = endDate ? parseDateKey(endDate) : null;
-                if (scheduleType === 'RECURRING' && endDate && (!parsedEnd || parsedEnd.getTime() < parsedStart.getTime())) {
-                    alert('結束日期不可早於開始日期');
-                    return;
-                }
-
-                let weekday = parsedStart.getDay();
-                let monthday = parsedStart.getDate();
-                let payday = Number(cashflowForm.payday || parsedStart.getDate());
-
-                if (scheduleType === 'RECURRING' && frequency === 'WEEKLY') {
-                    weekday = parsedStart.getDay();
-                }
-
-                if (scheduleType === 'RECURRING' && frequency === 'MONTHLY') {
-                    if (!Number.isInteger(payday) || payday < 1 || payday > 31) {
-                        alert('請輸入有效每月記錄日（1-31）');
-                        return;
-                    }
-                    monthday = payday;
-                }
-
-                const nextEntry = {
-                    id: editingCashflowId || `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-                    title,
-                    account,
-                    category,
-                    note,
-                    type: cashflowForm.type,
-                    amount,
-                    currency: cashflowForm.currency,
-                    scheduleType,
-                    frequency,
-                    startDate,
-                    endDate: scheduleType === 'ONE_TIME' ? '' : (endDate || ''),
-                    weekday,
-                    monthday,
-                    payday: scheduleType === 'RECURRING' && frequency === 'MONTHLY' ? payday : parsedStart.getDate(),
-                    targetLiquidAssetId: selectedLiquidAsset?.id || ''
-                };
-
-                if (editingCashflowId) {
-                    setCashflowEntries(prev => sanitizeCashflowEntries(prev.map(item => item.id === editingCashflowId ? nextEntry : item)));
+                if (submission.isEditing) {
+                    setCashflowEntries(prev => sanitizeCashflowEntries(prev.map(item => item.id === editingCashflowId ? submission.nextEntry : item)));
                 } else {
-                    setCashflowEntries(prev => sanitizeCashflowEntries([...prev, nextEntry]));
+                    setCashflowEntries(prev => sanitizeCashflowEntries([...prev, submission.nextEntry]));
                 }
                 setCashflowForm(prev => ({
                     ...prev,
@@ -1975,45 +1241,34 @@
                 }));
                 setEditingCashflowId('');
 
-                if (selectedLiquidAsset && !editingCashflowId) {
-                    const amountHKD = toHKD(amount, cashflowForm.currency);
-                    const amountInTargetCurrency = fromHKD(amountHKD, selectedLiquidAsset.currency);
-                    const direction = nextEntry.type === 'INCOME' ? '入帳' : '扣款';
-                    const todayDate = new Date();
-                    const willApplyToday = isEntryOnDate(nextEntry, todayDate);
-                    const whenText = willApplyToday ? '今天' : '下次觸發時';
-                    setPriceStatus(`規則已新增（預覽）：${whenText}將${direction}至「${selectedLiquidAsset.label}」${formatAmount(amountInTargetCurrency)} ${selectedLiquidAsset.currency}`);
-                } else if (!editingCashflowId) {
-                    setPriceStatus('規則已新增（預覽）：目前僅記錄現金流，不會自動入帳/扣款');
-                } else {
-                    setPriceStatus('規則已更新');
-                }
+                const statusMessage = buildCashflowSubmitStatus({
+                    isEditing: submission.isEditing,
+                    selectedLiquidAsset: submission.selectedLiquidAsset,
+                    nextEntry: submission.nextEntry,
+                    amount: submission.amount,
+                    cashflowCurrency: cashflowForm.currency,
+                    toHKD,
+                    fromHKD,
+                    formatAmount,
+                    isEntryOnDate
+                });
+                setPriceStatus(statusMessage);
             };
 
             const handleDeleteCashflowEntry = (id) => {
-                const targetRule = cashflowEntries.find(item => item.id === id);
-                const targetPostingKeys = Object.keys(cashflowAppliedPostings).filter(key => cashflowAppliedPostings[key]?.entryId === id);
+                const {
+                    targetRule,
+                    targetPostingKeys,
+                    rollbackByAsset
+                } = collectCashflowDeleteContext({
+                    ruleId: id,
+                    cashflowEntries,
+                    cashflowAppliedPostings
+                });
 
                 const rollbackPreviewLines = [];
                 if (targetPostingKeys.length > 0) {
-                    const rollbackByAsset = {};
-                    targetPostingKeys.forEach(postingKey => {
-                        const posting = cashflowAppliedPostings[postingKey];
-                        if (!posting) return;
-                        const assetId = posting.targetLiquidAssetId || 'UNKNOWN';
-                        const currency = posting.targetCurrency || '';
-                        const mapKey = `${assetId}::${currency}`;
-                        if (!rollbackByAsset[mapKey]) {
-                            rollbackByAsset[mapKey] = {
-                                assetId,
-                                currency,
-                                amount: 0
-                            };
-                        }
-                        rollbackByAsset[mapKey].amount += Number(posting.signedAmount || 0);
-                    });
-
-                    Object.values(rollbackByAsset).forEach(item => {
+                    rollbackByAsset.forEach(item => {
                         const label = liquidAssetLabelById[item.assetId] || '已綁定帳戶';
                         const rollbackAmount = Number(item.amount || 0);
                         rollbackPreviewLines.push(`- ${label}：${rollbackAmount >= 0 ? '-' : '+'}${formatAmount(Math.abs(rollbackAmount))} ${item.currency}`);
@@ -2030,31 +1285,14 @@
                 const nextAppliedKeySet = new Set(cashflowAppliedOccurrenceKeys);
 
                 if (targetRule?.targetLiquidAssetId && targetPostingKeys.length > 0) {
-                    const liquidAssetIndexMap = {};
-                    assets.forEach((asset, index) => {
-                        if (asset.category === 'LIQUID') liquidAssetIndexMap[asset.id] = index;
+                    const { nextAssets, revertedCount } = rollbackCashflowPostingsOnLiquidAssets({
+                        assets,
+                        cashflowAppliedPostings,
+                        targetPostingKeys
                     });
-
-                    const nextAssets = [...assets];
-                    let revertedCount = 0;
-
                     targetPostingKeys.forEach(postingKey => {
-                        const posting = cashflowAppliedPostings[postingKey];
-                        if (!posting) return;
-                        const targetIndex = liquidAssetIndexMap[posting.targetLiquidAssetId];
-                        if (!Number.isInteger(targetIndex)) return;
-                        const targetAsset = nextAssets[targetIndex];
-                        if (!targetAsset || targetAsset.category !== 'LIQUID') return;
-
-                        const rollbackQuantity = Number(targetAsset.quantity || 0) - Number(posting.signedAmount || 0);
-                        nextAssets[targetIndex] = {
-                            ...targetAsset,
-                            quantity: Number(rollbackQuantity.toFixed(6))
-                        };
-
                         delete nextAppliedPostings[postingKey];
                         nextAppliedKeySet.delete(postingKey);
-                        revertedCount += 1;
                     });
 
                     setAssets(nextAssets);
@@ -2086,9 +1324,8 @@
                 setIsUpdatingRates(true);
                 if (showToast) setPriceStatus('更新匯率中...');
                 try {
-                    const nextRates = await fetchLatestCurrencyRates();
+                    const { nextRates, stamp } = await refreshCurrencyRatesWithStamp({ fetchLatestCurrencyRates });
                     setCurrencyRates(nextRates);
-                    const stamp = new Date();
                     setLastRateUpdate(stamp);
                     if (showToast) setPriceStatus('已更新最新匯率');
                 } catch (error) {
@@ -2122,104 +1359,50 @@
 
             const updateMarketPrices = async (showToast) => {
                 const latestAssets = assetsRef.current;
-                const stockTargets = latestAssets.filter(a => a.category === 'INVEST' && ['股票', '基金'].includes(a.subtype) && a.symbol);
-                const cryptoTargets = latestAssets.filter(a => a.category === 'INVEST' && a.subtype === '加密貨幣' && a.symbol);
+                const {
+                    stockTargets,
+                    cryptoTargets,
+                    stockSymbolMap,
+                    stockSymbols,
+                    cryptoSymbols
+                } = buildMarketTargets({ assets: latestAssets, normalizeYahooSymbol });
 
                 if (!stockTargets.length && !cryptoTargets.length) {
-                    if (showToast) setPriceStatus('沒有可更新的股票或加密貨幣代號');
+                    if (showToast) setPriceStatus(tByLang('沒有可更新的股票或加密貨幣代號', 'No stock or crypto symbols available to update', '更新可能な株式・暗号資産シンボルがありません'));
                     return;
                 }
 
                 setIsUpdatingPrice(true);
-                setPriceStatus('更新行情中...');
-
-                const stockSymbolMap = {};
-                stockTargets.forEach(item => {
-                    stockSymbolMap[item.id] = normalizeYahooSymbol(item.symbol);
-                });
-                const isValidYahooSymbol = (symbol) => /^[A-Z0-9\.\-]+$/.test(symbol || '');
-                const stockSymbols = [...new Set(Object.values(stockSymbolMap))].filter(isValidYahooSymbol);
-                const cryptoSymbols = [...new Set(cryptoTargets.map(item => item.symbol.trim().toUpperCase()))];
+                setPriceStatus(tByLang('更新行情中...', 'Updating market prices...', '相場を更新中...'));
 
                 const [stockQuotes, cryptoQuotesUSD] = await Promise.all([
                     fetchYahooQuotes(stockSymbols),
                     fetchCryptoQuotes(cryptoSymbols)
                 ]);
 
-                let updatedCount = 0;
+                let finalUpdatedCount = 0;
                 setAssets(prev => {
-                    let hasChange = false;
-                    const next = prev.map(item => {
-                        let nextPrice = null;
-                        if (item.category === 'INVEST' && ['股票', '基金'].includes(item.subtype) && item.symbol) {
-                            const normalized = stockSymbolMap[item.id];
-                            const quotePrice = stockQuotes[normalized?.toUpperCase()];
-                            if (typeof quotePrice === 'number' && quotePrice > 0) nextPrice = quotePrice;
-                        }
-                        if (item.category === 'INVEST' && item.subtype === '加密貨幣' && item.symbol) {
-                            const symbol = item.symbol.trim().toUpperCase();
-                            const usdPrice = cryptoQuotesUSD[symbol];
-                            if (typeof usdPrice === 'number' && usdPrice > 0) {
-                                nextPrice = usdPrice * ((currencyRates[item.currency] || 1) / (currencyRates.USD || DEFAULT_RATES.USD));
-                            }
-                        }
-
-                        if (typeof nextPrice === 'number' && Math.abs(nextPrice - item.currentPrice) > 0.000001) {
-                            hasChange = true;
-                            updatedCount += 1;
-                            return { ...item, currentPrice: Number(nextPrice.toFixed(6)) };
-                        }
-                        return item;
+                    const {
+                        nextAssets,
+                        updatedCount
+                    } = applyQuotePricesToAssets({
+                        assets: prev,
+                        stockSymbolMap,
+                        stockQuotes,
+                        cryptoQuotesUSD,
+                        currencyRates,
+                        defaultUsdRate: DEFAULT_RATES.USD
                     });
-                    return hasChange ? next : prev;
+                    finalUpdatedCount = updatedCount;
+                    return updatedCount > 0 ? nextAssets : prev;
                 });
 
                 const stamp = new Date();
                 setLastPriceUpdate(stamp);
                 setIsUpdatingPrice(false);
-                setPriceStatus(updatedCount > 0 ? `已更新 ${updatedCount} 筆行情` : '行情已是最新或資料源暫不可用');
-            };
-
-            const isValidAssetRecord = (item) => {
-                if (!item || typeof item !== 'object') return false;
-                const hasCategory = typeof item.category === 'string' && CATEGORIES[item.category];
-                const hasSubtype = typeof item.subtype === 'string';
-                const hasCurrency = typeof item.currency === 'string' && CURRENCIES.includes(item.currency);
-                const quantity = Number(item.quantity);
-                const costBasis = Number(item.costBasis);
-                const currentPrice = Number(item.currentPrice);
-                return Boolean(
-                    typeof item.id === 'string' && item.id &&
-                    typeof item.account === 'string' &&
-                    typeof item.name === 'string' &&
-                    hasCategory &&
-                    hasSubtype &&
-                    hasCurrency &&
-                    Number.isFinite(quantity) &&
-                    Number.isFinite(costBasis) &&
-                    Number.isFinite(currentPrice)
-                );
-            };
-
-            const isValidCashflowRecord = (item) => {
-                if (!item || typeof item !== 'object') return false;
-                const amount = Number(item.amount);
-                const startDate = parseDateKey(item.startDate || '');
-                const typeValid = Object.keys(CASHFLOW_TYPES).includes(item.type);
-                const scheduleType = item.scheduleType || (item.frequency === 'ONE_TIME' ? 'ONE_TIME' : 'RECURRING');
-                const scheduleValid = CASHFLOW_SCHEDULE_TYPES.some(entry => entry.value === scheduleType);
-                const freqValid = item.frequency === 'ONE_TIME' || CASHFLOW_FREQUENCIES.some(entry => entry.value === item.frequency);
-                return Boolean(
-                    typeof item.id === 'string' && item.id &&
-                    typeof item.title === 'string' && item.title.trim() &&
-                    CURRENCIES.includes(item.currency) &&
-                    typeValid &&
-                    scheduleValid &&
-                    freqValid &&
-                    startDate &&
-                    Number.isFinite(amount) &&
-                    amount > 0
-                );
+                setPriceStatus(finalUpdatedCount > 0
+                    ? tByLang(`已更新 ${finalUpdatedCount} 筆行情`, `Updated ${finalUpdatedCount} market entries`, `${finalUpdatedCount}件の相場を更新しました`)
+                    : tByLang('行情已是最新或資料源暫不可用', 'Market data is already up to date or source is temporarily unavailable', '相場は最新、またはデータソースが一時利用不可です'));
             };
 
             useEffect(() => {
@@ -2249,184 +1432,143 @@
                     setIsAuthLoading(false);
 
                     if (!user) {
-                        cloudHydratedRef.current = false;
                         setCloudStatus('已登出 Google，資料僅存在此裝置');
                         return;
                     }
 
-                    setIsCloudSyncing(true);
-                    setCloudStatus('正在從雲端同步資料...');
-
-                    try {
-                        const docRef = firebaseDB.collection(CLOUD_COLLECTION).doc(user.uid);
-                        const snapshot = await docRef.get();
-                        const cloudData = snapshot.exists ? (snapshot.data() || {}) : {};
-
-                        if (Array.isArray(cloudData.assets) && cloudData.assets.every(isValidAssetRecord)) {
-                            const nextAssets = cloudData.assets.map(item => ({
-                                ...item,
-                                quantity: Number(item.quantity),
-                                costBasis: Number(item.costBasis),
-                                currentPrice: Number(item.currentPrice),
-                                symbol: (item.symbol || '').toString().toUpperCase().trim()
-                            }));
-                            const nextDisplayCurrency = typeof cloudData.displayCurrency === 'string' && CURRENCIES.includes(cloudData.displayCurrency)
-                                ? cloudData.displayCurrency
-                                : 'HKD';
-                            const nextMonthlySnapshots = cloudData.monthlySnapshots && typeof cloudData.monthlySnapshots === 'object' && !Array.isArray(cloudData.monthlySnapshots)
-                                ? cloudData.monthlySnapshots
-                                : {};
-                            const nextCashflowEntries = Array.isArray(cloudData.cashflowEntries) && cloudData.cashflowEntries.every(isValidCashflowRecord)
-                                ? sanitizeCashflowEntries(cloudData.cashflowEntries)
-                                : [];
-                            const nextCashflowAppliedOccurrenceKeys = Array.isArray(cloudData.cashflowAppliedOccurrenceKeys)
-                                ? cloudData.cashflowAppliedOccurrenceKeys.filter(item => typeof item === 'string')
-                                : [];
-                            const nextCashflowAppliedPostings = cloudData.cashflowAppliedPostings && typeof cloudData.cashflowAppliedPostings === 'object' && !Array.isArray(cloudData.cashflowAppliedPostings)
-                                ? cloudData.cashflowAppliedPostings
-                                : {};
-                            const nextCashflowLastAutoApplyDate = normalizeDateKeyOrFallback(
-                                cloudData.cashflowLastAutoApplyDate,
-                                new Date(Date.now() - ONE_DAY_MS)
-                            );
-
-                            setAssets(nextAssets);
-                            setDisplayCurrency(nextDisplayCurrency);
-                            setMonthlySnapshots(nextMonthlySnapshots);
-                            setCashflowEntries(nextCashflowEntries);
-                            setCashflowAppliedOccurrenceKeys(nextCashflowAppliedOccurrenceKeys);
-                            setCashflowAppliedPostings(nextCashflowAppliedPostings);
-                            setCashflowLastAutoApplyDate(nextCashflowLastAutoApplyDate);
-                            localStorage.setItem(STORAGE_KEYS.assets, JSON.stringify(nextAssets));
-                            localStorage.setItem(STORAGE_KEYS.displayCurrency, JSON.stringify(nextDisplayCurrency));
-                            localStorage.setItem(STORAGE_KEYS.monthlySnapshots, JSON.stringify(nextMonthlySnapshots));
-                            localStorage.setItem(STORAGE_KEYS.cashflowEntries, JSON.stringify(nextCashflowEntries));
-                            localStorage.setItem(STORAGE_KEYS.cashflowAppliedOccurrenceKeys, JSON.stringify(nextCashflowAppliedOccurrenceKeys));
-                            localStorage.setItem(STORAGE_KEYS.cashflowAppliedPostings, JSON.stringify(nextCashflowAppliedPostings));
-                            localStorage.setItem(STORAGE_KEYS.cashflowLastAutoApplyDate, JSON.stringify(nextCashflowLastAutoApplyDate));
-                            setCloudStatus(`已同步雲端資料（${user.email || 'Google 帳號'}）`);
-                        } else {
-                            await docRef.set({
-                                assets: assetsRef.current,
-                                displayCurrency: displayCurrencyRef.current,
-                                monthlySnapshots: monthlySnapshotsRef.current,
-                                cashflowEntries: cashflowEntriesRef.current,
-                                cashflowAppliedOccurrenceKeys,
-                                cashflowAppliedPostings,
-                                cashflowLastAutoApplyDate,
-                                updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                                email: user.email || ''
-                            }, { merge: true });
-                            setCloudStatus(`已建立雲端存檔（${user.email || 'Google 帳號'}）`);
-                        }
-                    } catch (error) {
-                        setCloudStatus('雲端同步失敗，已改用本機資料');
-                    } finally {
-                        cloudHydratedRef.current = true;
-                        setIsCloudSyncing(false);
-                    }
+                    setCloudStatus(tByLang(
+                        `已登入 Google（${user.email || 'Google 帳號'}），請手動同步`,
+                        `Signed in as ${user.email || 'Google Account'}, sync manually`,
+                        `${user.email || 'Google アカウント'} でログイン済み。手動で同期してください`
+                    ));
                 });
 
                 return () => unsubscribe();
             }, []);
 
-            useEffect(() => {
-                if (!isCloudEnabled || !authUser || isAuthLoading || !cloudHydratedRef.current) return;
-
-                if (cloudSaveTimerRef.current) clearTimeout(cloudSaveTimerRef.current);
-                cloudSaveTimerRef.current = setTimeout(async () => {
-                    setIsCloudSyncing(true);
-                    try {
-                        await firebaseDB.collection(CLOUD_COLLECTION).doc(authUser.uid).set({
-                            assets,
-                            displayCurrency,
-                            monthlySnapshots,
-                            cashflowEntries,
-                            cashflowAppliedOccurrenceKeys,
-                            cashflowAppliedPostings,
-                            cashflowLastAutoApplyDate,
-                            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                            email: authUser.email || ''
-                        }, { merge: true });
-                        setCloudStatus(`雲端已同步：${new Date().toLocaleTimeString()}`);
-                    } catch (error) {
-                        setCloudStatus('雲端儲存失敗，資料仍保留在本機');
-                    } finally {
-                        setIsCloudSyncing(false);
-                    }
-                }, 800);
-
-                return () => {
-                    if (cloudSaveTimerRef.current) clearTimeout(cloudSaveTimerRef.current);
-                };
-            }, [assets, displayCurrency, monthlySnapshots, cashflowEntries, cashflowAppliedOccurrenceKeys, cashflowAppliedPostings, cashflowLastAutoApplyDate, authUser, isAuthLoading]);
-
-            const handleGoogleLogin = async () => {
+            const handleCloudDownload = async () => {
                 if (!isCloudEnabled) {
                     setCloudStatus('尚未設定 Firebase，請先在 index.html 填入 Firebase 設定');
                     return;
                 }
+                if (!authUser) {
+                    setCloudStatus('請先登入 Google 後再同步');
+                    return;
+                }
+
+                setIsCloudSyncing(true);
+                setCloudStatus(tByLang('下載雲端中...', 'Downloading from cloud...', 'クラウドからダウンロード中...'));
+
                 try {
-                    const provider = new firebase.auth.GoogleAuthProvider();
-                    await firebaseAuth.signInWithPopup(provider);
+                    const result = await downloadCloudData({
+                        firebaseDB,
+                        collectionName: CLOUD_COLLECTION,
+                        user: authUser,
+                    });
+
+                    if (result.hydrated) {
+                        const hydrated = result.hydrated;
+                        applyHydratedCloudSnapshot({
+                            hydrated,
+                            storageKeys: STORAGE_KEYS,
+                            setAssets,
+                            setDisplayCurrency,
+                            setMonthlySnapshots,
+                            setCashflowEntries,
+                            setCashflowAppliedOccurrenceKeys,
+                            setCashflowAppliedPostings,
+                            setCashflowLastAutoApplyDate
+                        });
+                        setCloudStatus(tByLang(
+                            `已下載雲端資料（${authUser.email || 'Google 帳號'}）`,
+                            `Cloud data downloaded (${authUser.email || 'Google Account'})`,
+                            `クラウドデータをダウンロードしました（${authUser.email || 'Google アカウント'}）`
+                        ));
+                    } else if (result.hasSnapshot) {
+                        setCloudStatus(tByLang(
+                            '雲端資料格式不完整，未覆蓋本機',
+                            'Cloud data is invalid, local data kept',
+                            'クラウドデータ形式が不正のため、ローカルデータを維持しました'
+                        ));
+                    } else {
+                        setCloudStatus(tByLang(
+                            '雲端目前沒有可下載資料',
+                            'No cloud data available to download',
+                            'ダウンロード可能なクラウドデータがありません'
+                        ));
+                    }
                 } catch (error) {
-                    const code = error?.code || '';
-                    if (code === 'auth/popup-blocked' || code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
-                        try {
-                            const provider = new firebase.auth.GoogleAuthProvider();
-                            setCloudStatus('Popup 受限，改用導頁登入中...');
-                            await firebaseAuth.signInWithRedirect(provider);
-                            return;
-                        } catch (redirectError) {
-                            const redirectCode = redirectError?.code || 'unknown';
-                            setCloudStatus(`Google 登入失敗（${redirectCode}）`);
-                            return;
-                        }
-                    }
-
-                    if (code === 'auth/unauthorized-domain') {
-                        setCloudStatus('網域未授權：請到 Firebase Auth 加入 localhost、127.0.0.1、ivankaiwck.github.io');
-                        return;
-                    }
-
-                    setCloudStatus(`Google 登入失敗（${code || 'unknown'}）`);
+                    setCloudStatus('雲端下載失敗，資料仍保留在本機');
+                } finally {
+                    setIsCloudSyncing(false);
                 }
             };
 
-            const handleGoogleLogout = async () => {
-                if (!isCloudEnabled) return;
-                try {
-                    await firebaseAuth.signOut();
-                } catch (error) {
-                    setCloudStatus('登出失敗，請稍後再試');
+            const handleCloudUpload = async () => {
+                if (!isCloudEnabled) {
+                    setCloudStatus('尚未設定 Firebase，請先在 index.html 填入 Firebase 設定');
+                    return;
                 }
+                if (!authUser) {
+                    setCloudStatus('請先登入 Google 後再同步');
+                    return;
+                }
+
+                setIsCloudSyncing(true);
+                setCloudStatus(tByLang('上載雲端中...', 'Uploading to cloud...', 'クラウドへアップロード中...'));
+
+                try {
+                    const payload = buildCloudSyncPayload({
+                        assets,
+                        displayCurrency,
+                        monthlySnapshots,
+                        cashflowEntries,
+                        cashflowAppliedOccurrenceKeys,
+                        cashflowAppliedPostings,
+                        cashflowLastAutoApplyDate
+                    });
+
+                    await uploadCloudData({
+                        firebaseDB,
+                        collectionName: CLOUD_COLLECTION,
+                        user: authUser,
+                        firebase,
+                        localPayload: payload
+                    });
+
+                    setCloudStatus(tByLang(
+                        `已上載本機資料到雲端（${authUser.email || 'Google 帳號'}）`,
+                        `Local data uploaded to cloud (${authUser.email || 'Google Account'})`,
+                        `ローカルデータをクラウドへアップロードしました（${authUser.email || 'Google アカウント'}）`
+                    ));
+                } catch (error) {
+                    setCloudStatus('雲端上載失敗，資料仍保留在本機');
+                } finally {
+                    setIsCloudSyncing(false);
+                }
+            };
+
+            const handleGoogleLogin = async () => {
+                await loginWithGoogle({ isCloudEnabled, firebaseAuth, firebase, onStatus: setCloudStatus });
+            };
+
+            const handleGoogleLogout = async () => {
+                await logoutGoogle({ isCloudEnabled, firebaseAuth, onStatus: setCloudStatus });
             };
 
             const handleExportData = () => {
                 try {
-                    const payload = {
-                        version: 1,
-                        exportedAt: new Date().toISOString(),
-                        data: {
-                            assets,
-                            displayCurrency,
-                            monthlySnapshots,
-                            cashflowEntries,
-                            cashflowAppliedOccurrenceKeys,
-                            cashflowAppliedPostings,
-                            cashflowLastAutoApplyDate
-                        }
-                    };
-                    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
-                    const url = URL.createObjectURL(blob);
+                    const payload = buildBackupPayload({
+                        assets,
+                        displayCurrency,
+                        monthlySnapshots,
+                        cashflowEntries,
+                        cashflowAppliedOccurrenceKeys,
+                        cashflowAppliedPostings,
+                        cashflowLastAutoApplyDate
+                    });
                     const fileName = `asset-tracker-backup-${new Date().toISOString().slice(0, 10)}.json`;
-                    const anchor = document.createElement('a');
-                    anchor.href = url;
-                    anchor.download = fileName;
-                    document.body.appendChild(anchor);
-                    anchor.click();
-                    anchor.remove();
-                    URL.revokeObjectURL(url);
+                    downloadJsonFile(payload, fileName);
                     setPriceStatus('資料已成功匯出');
                 } catch (error) {
                     setPriceStatus('匯出失敗，請稍後再試');
@@ -2442,276 +1584,29 @@
                     setPriceStatus('PDF 仍在產生中，請稍候...');
                     return;
                 }
-                let reportRoot = null;
                 let watchdogTimer = null;
                 try {
                     setIsGeneratingPdf(true);
-                    setPriceStatus('正在準備 PDF...');
 
                     watchdogTimer = setTimeout(() => {
                         setIsGeneratingPdf(false);
                         setPriceStatus('PDF 產生逾時，請再試一次');
                     }, 20000);
 
-                    const jsPDF = await ensureJsPdfReady();
-                    const html2canvas = await ensureHtml2CanvasReady();
-                    setPriceStatus('正在轉換內容為 PDF...');
-
-                    reportRoot = document.createElement('div');
-                    reportRoot.style.position = 'fixed';
-                    reportRoot.style.left = '0';
-                    reportRoot.style.top = '0';
-                    reportRoot.style.width = '1024px';
-                    reportRoot.style.background = '#ffffff';
-                    reportRoot.style.color = '#0f172a';
-                    reportRoot.style.padding = '24px';
-                    reportRoot.style.fontFamily = "'Noto Sans TC', sans-serif";
-                    reportRoot.style.opacity = '1';
-                    reportRoot.style.pointerEvents = 'none';
-                    reportRoot.style.zIndex = '99999';
-
-                    const title = document.createElement('h1');
-                    title.textContent = '個人資產分享報表';
-                    title.style.fontSize = '24px';
-                    title.style.fontWeight = '800';
-                    title.style.margin = '0 0 8px 0';
-                    reportRoot.appendChild(title);
-
-                    const meta = document.createElement('div');
-                    meta.textContent = `產生時間：${new Date().toLocaleString()} ｜ 顯示幣種：${displayCurrency}`;
-                    meta.style.fontSize = '12px';
-                    meta.style.color = '#475569';
-                    meta.style.marginBottom = '16px';
-                    reportRoot.appendChild(meta);
-
-                    const summaryWrap = document.createElement('div');
-                    summaryWrap.style.display = 'flex';
-                    summaryWrap.style.gap = '18px';
-                    summaryWrap.style.alignItems = 'flex-start';
-                    summaryWrap.style.marginBottom = '14px';
-
-                    const summary = document.createElement('div');
-                    summary.style.flex = '1';
-                    summary.style.fontSize = '12px';
-                    summary.style.lineHeight = '1.7';
-                    summary.innerHTML = [
-                        `總資產：${formatAmount(totals.assets)} ${displayCurrency}`,
-                        `總負債：${formatAmount(totals.liabilities)} ${displayCurrency}`,
-                        `淨資產：${formatAmount(totals.netWorth)} ${displayCurrency}`,
-                        `負債比：${totals.debtRatio.toFixed(2)}%`,
-                        `資產筆數：${assets.length} 筆`
-                    ].map(line => `<div>${line}</div>`).join('');
-                    summaryWrap.appendChild(summary);
-
-                    const chartCard = document.createElement('div');
-                    chartCard.style.width = '300px';
-                    chartCard.style.padding = '10px';
-                    chartCard.style.border = '1px solid #e2e8f0';
-                    chartCard.style.borderRadius = '10px';
-                    chartCard.style.background = '#f8fafc';
-
-                    const chartTitle = document.createElement('div');
-                    chartTitle.textContent = '資產配比';
-                    chartTitle.style.fontSize = '12px';
-                    chartTitle.style.fontWeight = '700';
-                    chartTitle.style.marginBottom = '8px';
-                    chartCard.appendChild(chartTitle);
-
-                    const chartWrap = document.createElement('div');
-                    chartWrap.style.display = 'flex';
-                    chartWrap.style.alignItems = 'center';
-                    chartWrap.style.gap = '10px';
-
-                    const donut = document.createElement('div');
-                    donut.style.width = '96px';
-                    donut.style.height = '96px';
-                    donut.style.borderRadius = '999px';
-                    donut.style.flexShrink = '0';
-                    donut.style.position = 'relative';
-                    donut.style.background = assetMix.gradient;
-                    const donutHole = document.createElement('div');
-                    donutHole.style.position = 'absolute';
-                    donutHole.style.inset = '22px';
-                    donutHole.style.borderRadius = '999px';
-                    donutHole.style.background = '#ffffff';
-                    donut.appendChild(donutHole);
-                    chartWrap.appendChild(donut);
-
-                    const legend = document.createElement('div');
-                    legend.style.flex = '1';
-                    legend.style.display = 'grid';
-                    legend.style.gap = '4px';
-                    assetMix.rows
-                        .filter(row => row.ratio > 0)
-                        .slice(0, 6)
-                        .forEach(row => {
-                            const item = document.createElement('div');
-                            item.style.display = 'flex';
-                            item.style.alignItems = 'center';
-                            item.style.justifyContent = 'space-between';
-                            item.style.fontSize = '10px';
-
-                            const left = document.createElement('div');
-                            left.style.display = 'flex';
-                            left.style.alignItems = 'center';
-                            left.style.gap = '5px';
-                            const dot = document.createElement('span');
-                            dot.style.width = '8px';
-                            dot.style.height = '8px';
-                            dot.style.borderRadius = '999px';
-                            dot.style.background = row.hex;
-                            const label = document.createElement('span');
-                            label.textContent = row.label;
-                            left.appendChild(dot);
-                            left.appendChild(label);
-
-                            const value = document.createElement('span');
-                            value.textContent = `${row.ratio.toFixed(1)}%`;
-
-                            item.appendChild(left);
-                            item.appendChild(value);
-                            legend.appendChild(item);
-                        });
-
-                    chartWrap.appendChild(legend);
-                    chartCard.appendChild(chartWrap);
-                    summaryWrap.appendChild(chartCard);
-                    reportRoot.appendChild(summaryWrap);
-
-                    const createSectionTitle = (text) => {
-                        const el = document.createElement('h2');
-                        el.textContent = text;
-                        el.style.fontSize = '14px';
-                        el.style.fontWeight = '700';
-                        el.style.margin = '16px 0 8px 0';
-                        return el;
-                    };
-
-                    const createTable = (headers) => {
-                        const tableEl = document.createElement('table');
-                        tableEl.style.width = '100%';
-                        tableEl.style.borderCollapse = 'collapse';
-                        tableEl.style.fontSize = '11px';
-
-                        const headerRow = document.createElement('tr');
-                        headers.forEach(text => {
-                            const th = document.createElement('th');
-                            th.textContent = text;
-                            th.style.border = '1px solid #cbd5e1';
-                            th.style.background = '#f1f5f9';
-                            th.style.padding = '6px 8px';
-                            th.style.textAlign = ['#', '筆數', '項目數', '總市值', '市值'].includes(text) ? 'right' : 'left';
-                            headerRow.appendChild(th);
-                        });
-                        tableEl.appendChild(headerRow);
-                        return tableEl;
-                    };
-
-                    reportRoot.appendChild(createSectionTitle('按帳戶匯總'));
-                    const accountSummaryTable = createTable(['類別', '帳戶', '筆數', '總市值']);
-                    groupedAssets.forEach(group => {
-                        group.accounts.forEach(account => {
-                            const row = document.createElement('tr');
-                            const valueDisplay = fromHKD(account.accountTotalHKD, displayCurrency);
-                            const cells = [
-                                CATEGORIES[group.categoryKey]?.label || group.categoryKey,
-                                account.accountName,
-                                String(account.items.length),
-                                `${formatAmount(valueDisplay)} ${displayCurrency}`
-                            ];
-                            cells.forEach((value, idx) => {
-                                const td = document.createElement('td');
-                                td.textContent = value;
-                                td.style.border = '1px solid #cbd5e1';
-                                td.style.padding = '6px 8px';
-                                td.style.textAlign = idx >= 2 ? 'right' : 'left';
-                                row.appendChild(td);
-                            });
-                            accountSummaryTable.appendChild(row);
-                        });
+                    await exportAssetReportPdf({
+                        assets,
+                        displayCurrency,
+                        totals,
+                        assetMix,
+                        groupedAssets,
+                        categories: CATEGORIES,
+                        formatAmount,
+                        toHKD,
+                        fromHKD,
+                        ensureJsPdfReady,
+                        ensureHtml2CanvasReady,
+                        onProgress: (message) => setPriceStatus(message)
                     });
-                    reportRoot.appendChild(accountSummaryTable);
-
-                    reportRoot.appendChild(createSectionTitle('資產明細'));
-
-                    const table = document.createElement('table');
-                    table.style.width = '100%';
-                    table.style.borderCollapse = 'collapse';
-                    table.style.fontSize = '11px';
-
-                    const headRow = document.createElement('tr');
-                    ['#', '類別', '細項', '帳戶', '名稱', '幣種', '市值'].forEach(text => {
-                        const th = document.createElement('th');
-                        th.textContent = text;
-                        th.style.border = '1px solid #cbd5e1';
-                        th.style.background = '#f1f5f9';
-                        th.style.padding = '6px 8px';
-                        th.style.textAlign = ['#', '市值'].includes(text) ? 'right' : 'left';
-                        headRow.appendChild(th);
-                    });
-                    table.appendChild(headRow);
-
-                    assets.forEach((item, index) => {
-                        const row = document.createElement('tr');
-                        const marketValueOrig = Number(item.quantity || 0) * Number(item.currentPrice || 0);
-                        const marketValueDisplay = fromHKD(toHKD(marketValueOrig, item.currency), displayCurrency);
-                        const cells = [
-                            String(index + 1),
-                            CATEGORIES[item.category]?.label || item.category,
-                            item.subtype || '',
-                            item.account || '',
-                            item.name || '',
-                            item.currency || '',
-                            `${formatAmount(marketValueDisplay)} ${displayCurrency}`
-                        ];
-                        cells.forEach((value, i) => {
-                            const td = document.createElement('td');
-                            td.textContent = value;
-                            td.style.border = '1px solid #cbd5e1';
-                            td.style.padding = '6px 8px';
-                            td.style.textAlign = (i === 0 || i === 6) ? 'right' : 'left';
-                            row.appendChild(td);
-                        });
-                        table.appendChild(row);
-                    });
-
-                    reportRoot.appendChild(table);
-                    document.body.appendChild(reportRoot);
-
-                    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-                    const canvas = await html2canvas(reportRoot, {
-                        scale: 2,
-                        useCORS: true,
-                        backgroundColor: '#ffffff'
-                    });
-
-                    const imgData = canvas.toDataURL('image/jpeg', 0.98);
-                    const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
-                    const pageWidth = doc.internal.pageSize.getWidth();
-                    const pageHeight = doc.internal.pageSize.getHeight();
-                    const margin = 8;
-                    const contentWidth = pageWidth - margin * 2;
-                    const contentHeight = pageHeight - margin * 2;
-                    const imageHeight = (canvas.height * contentWidth) / canvas.width;
-
-                    let rendered = 0;
-                    while (rendered < imageHeight) {
-                        if (rendered > 0) doc.addPage();
-                        const y = margin - rendered;
-                        doc.addImage(imgData, 'JPEG', margin, y, contentWidth, imageHeight, undefined, 'FAST');
-                        rendered += contentHeight;
-                    }
-
-                    const fileName = `asset-report-${new Date().toISOString().slice(0, 10)}.pdf`;
-                    const pdfBlob = doc.output('blob');
-                    const downloadUrl = URL.createObjectURL(pdfBlob);
-                    const anchor = document.createElement('a');
-                    anchor.href = downloadUrl;
-                    anchor.download = fileName;
-                    document.body.appendChild(anchor);
-                    anchor.click();
-                    anchor.remove();
-                    URL.revokeObjectURL(downloadUrl);
 
                     setPriceStatus('PDF 已成功下載');
                 } catch (error) {
@@ -2719,9 +1614,6 @@
                 } finally {
                     if (watchdogTimer) clearTimeout(watchdogTimer);
                     setIsGeneratingPdf(false);
-                    if (reportRoot && reportRoot.parentNode) {
-                        reportRoot.parentNode.removeChild(reportRoot);
-                    }
                 }
             };
 
@@ -2732,25 +1624,15 @@
                 try {
                     const text = await file.text();
                     const parsed = JSON.parse(text);
-                    const imported = parsed?.data || parsed;
-                    const nextAssets = Array.isArray(imported?.assets) ? imported.assets : null;
-                    const nextDisplayCurrency = typeof imported?.displayCurrency === 'string' ? imported.displayCurrency : null;
-                    const nextMonthlySnapshots = imported?.monthlySnapshots && typeof imported.monthlySnapshots === 'object'
-                        ? imported.monthlySnapshots
-                        : null;
-                    const nextCashflowEntries = Array.isArray(imported?.cashflowEntries)
-                        ? sanitizeCashflowEntries(imported.cashflowEntries)
-                        : [];
-                    const nextCashflowAppliedOccurrenceKeys = Array.isArray(imported?.cashflowAppliedOccurrenceKeys)
-                        ? imported.cashflowAppliedOccurrenceKeys.filter(item => typeof item === 'string')
-                        : [];
-                    const nextCashflowAppliedPostings = imported?.cashflowAppliedPostings && typeof imported.cashflowAppliedPostings === 'object' && !Array.isArray(imported.cashflowAppliedPostings)
-                        ? imported.cashflowAppliedPostings
-                        : {};
-                    const nextCashflowLastAutoApplyDate = normalizeDateKeyOrFallback(
-                        imported?.cashflowLastAutoApplyDate,
-                        new Date(Date.now() - ONE_DAY_MS)
-                    );
+                    const {
+                        nextAssets,
+                        nextDisplayCurrency,
+                        safeSnapshots,
+                        nextCashflowEntries,
+                        nextCashflowAppliedOccurrenceKeys,
+                        nextCashflowAppliedPostings,
+                        nextCashflowLastAutoApplyDate
+                    } = parseImportedBackup(parsed, new Date(Date.now() - ONE_DAY_MS));
 
                     if (!nextAssets || !nextAssets.every(isValidAssetRecord)) {
                         throw new Error('invalid assets format');
@@ -2760,15 +1642,7 @@
                         throw new Error('invalid display currency');
                     }
 
-                    const safeSnapshots = nextMonthlySnapshots && !Array.isArray(nextMonthlySnapshots) ? nextMonthlySnapshots : {};
-
-                    setAssets(nextAssets.map(item => ({
-                        ...item,
-                        quantity: Number(item.quantity),
-                        costBasis: Number(item.costBasis),
-                        currentPrice: Number(item.currentPrice),
-                        symbol: (item.symbol || '').toString().toUpperCase().trim()
-                    })));
+                    setAssets(nextAssets.map(normalizeAssetRecord));
                     setDisplayCurrency(nextDisplayCurrency);
                     setMonthlySnapshots(safeSnapshots);
                     setCashflowEntries(nextCashflowEntries);
@@ -2791,13 +1665,7 @@
             // 重設為範例資料（會覆蓋 localStorage）
             const resetToSeed = () => {
                 if (!confirm('確定要重設為範例資料？此動作會覆蓋本地儲存的資料。')) return;
-                const normalized = seedAssets.map(item => ({
-                    ...item,
-                    quantity: Number(item.quantity || 0),
-                    costBasis: Number(item.costBasis || 0),
-                    currentPrice: Number(item.currentPrice || 0),
-                    symbol: (item.symbol || '').toString().toUpperCase().trim()
-                }));
+                const normalized = seedAssets.map(normalizeAssetRecord);
 
                 setAssets(normalized);
                 setDisplayCurrency('HKD');
@@ -3135,26 +2003,26 @@
                 });
             };
 
-            const netWorthTier = getNetWorthTier(totals.netWorthHKD);
+            const netWorthTier = getNetWorthTier(totals.netWorthHKD, themeId);
 
             return (
                 <div className="max-w-6xl mx-auto p-4 md:p-8">
                     <header className="mb-6">
-                        <div className="rounded-2xl border border-pink-100 bg-gradient-to-r from-pink-50 via-sky-50 to-amber-50 p-4 md:p-5 shadow-sm">
+                        <div className="theme-header-card rounded-2xl p-4 md:p-5 shadow-sm">
                             <div className="flex items-start gap-3">
-                                <div className="w-11 h-11 bg-gradient-to-br from-amber-300 via-pink-300 to-sky-300 rounded-xl flex items-center justify-center text-white shadow-sm">
+                                <div className="theme-crown w-11 h-11 rounded-xl flex items-center justify-center text-white shadow-sm">
                                     <i data-lucide="crown" className="w-6 h-6"></i>
                                 </div>
                                 <div className="min-w-0 flex-1">
-                                    <h1 className="text-2xl font-black text-slate-800 tracking-tight">SweetPrinceLedger - 王子甜甜帳</h1>
-                                    <p className="text-xs text-slate-500 font-bold mt-1">{pageText.subtitle}</p>
+                                    <h1 className="theme-text-main text-2xl font-black tracking-tight">{appName}</h1>
+                                    <p className="theme-text-sub text-xs font-bold mt-1">{pageText.subtitle}</p>
                                 </div>
                             </div>
 
-                            <div className="mt-3 rounded-xl bg-white/80 border border-pink-100 px-3 py-3 flex items-center gap-3">
-                                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-pink-200 via-amber-200 to-sky-200 flex items-center justify-center text-lg prince-float">🤴🏻</div>
+                            <div className="theme-subcard mt-3 rounded-xl px-3 py-3 flex items-center gap-3">
+                                <div className="theme-crown w-9 h-9 rounded-xl flex items-center justify-center text-lg prince-float">🤴🏻</div>
                                 <div className="min-w-0">
-                                    <div className="text-xs font-black text-slate-600 prince-talk">{currentHeaderSlogan}</div>
+                                    <div className="theme-text-sub text-xs font-black prince-talk">{currentHeaderSlogan}</div>
                                 </div>
                             </div>
 
@@ -3166,17 +2034,13 @@
                                 onChange={handleImportData}
                             />
                             <div className="mt-4 pt-3 border-t border-white/70 flex flex-wrap items-center gap-2">
-                                <select value={displayCurrency} onChange={e => setDisplayCurrency(e.target.value)} className="bg-white border border-slate-200 rounded-lg px-3 py-2 font-bold text-sm shadow-sm outline-none">
-                                    {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
-                                </select>
-
                                 <button onClick={() => { setEditingId(null); setIsModalOpen(true); }} className="bg-slate-900 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-slate-800 transition-all shadow-md flex items-center gap-2">
                                     <i data-lucide="plus-circle" className="w-4 h-4"></i> {pageText.addAsset}
                                 </button>
 
                                 <button
                                     onClick={resetToSeed}
-                                    className="bg-rose-500 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-rose-400 transition-all shadow-md"
+                                        className="theme-btn-danger text-white px-4 py-2 rounded-lg font-bold text-sm transition-all shadow-md"
                                 >
                                     {pageText.resetData}
                                 </button>
@@ -3207,6 +2071,24 @@
                                             >
                                                 {isAuthLoading ? pageText.loginLoading : authUser ? pageText.logout : pageText.login}
                                             </button>
+                                            <button
+                                                onClick={() => { handleCloudDownload(); setShowSettings(false); }}
+                                                disabled={!authUser || isAuthLoading || isCloudSyncing}
+                                                className="theme-btn-accent w-full text-white px-4 py-2 rounded-lg font-bold text-sm transition-all disabled:opacity-60"
+                                            >
+                                                {isCloudSyncing
+                                                    ? tByLang('同步中...', 'Syncing...', '同期中...')
+                                                    : tByLang('下載雲端資料', 'Download Cloud Data', 'クラウドデータをダウンロード')}
+                                            </button>
+                                            <button
+                                                onClick={() => { handleCloudUpload(); setShowSettings(false); }}
+                                                disabled={!authUser || isAuthLoading || isCloudSyncing}
+                                                className="theme-btn-accent w-full text-white px-4 py-2 rounded-lg font-bold text-sm transition-all disabled:opacity-60"
+                                            >
+                                                {isCloudSyncing
+                                                    ? tByLang('同步中...', 'Syncing...', '同期中...')
+                                                    : tByLang('上載本機資料', 'Upload Local Data', 'ローカルデータをアップロード')}
+                                            </button>
                                             <div className="text-[10px] text-slate-400 font-black uppercase tracking-widest">{pageText.displayCurrency}</div>
                                             <select
                                                 value={displayCurrency}
@@ -3223,36 +2105,44 @@
                                             >
                                                 {PAGE_LANGUAGE_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
                                             </select>
+                                            <div className="text-[10px] text-slate-400 font-black uppercase tracking-widest">主題 Theme</div>
+                                            <select
+                                                value={themeId}
+                                                onChange={e => setThemeId(e.target.value)}
+                                                className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 font-bold text-sm shadow-sm outline-none"
+                                            >
+                                                {THEME_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                                            </select>
                                             <button
                                                 onClick={() => { handleExportData(); setShowSettings(false); }}
-                                                className="w-full bg-emerald-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-emerald-500 transition-all"
+                                                className="theme-btn-gold w-full text-white px-4 py-2 rounded-lg font-bold text-sm transition-all"
                                             >
                                                 {pageText.exportData}
                                             </button>
                                             <button
                                                 onClick={() => { openImportPicker(); setShowSettings(false); }}
-                                                className="w-full bg-amber-500 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-amber-400 transition-all"
+                                                className="w-full bg-[#FFD1DC] text-[#5A4A42] px-4 py-2 rounded-lg font-bold text-sm hover:bg-[#FFC5D3] transition-all"
                                             >
                                                 {pageText.importData}
                                             </button>
                                             <button
                                                 onClick={() => { updateMarketPrices(true); setShowSettings(false); }}
                                                 disabled={isUpdatingPrice}
-                                                className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-blue-500 transition-all disabled:opacity-60"
+                                                className="theme-btn-accent w-full text-white px-4 py-2 rounded-lg font-bold text-sm transition-all disabled:opacity-60"
                                             >
                                                 {isUpdatingPrice ? pageText.updating : pageText.updatePrice}
                                             </button>
                                             <button
                                                 onClick={() => { refreshCurrencyRates(true); setShowSettings(false); }}
                                                 disabled={isUpdatingRates}
-                                                className="w-full bg-cyan-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-cyan-500 transition-all disabled:opacity-60"
+                                                className="theme-btn-accent w-full text-white px-4 py-2 rounded-lg font-bold text-sm transition-all disabled:opacity-60"
                                             >
                                                 {isUpdatingRates ? pageText.updating : pageText.updateFx}
                                             </button>
                                             <button
                                                 onClick={() => { handleShareApp(); setShowSettings(false); }}
                                                 disabled={isGeneratingPdf}
-                                                className="w-full bg-violet-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-violet-500 transition-all disabled:opacity-60"
+                                                className="w-full bg-[#C8B6FF] text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-[#B8A3FA] transition-all disabled:opacity-60"
                                             >
                                                 {isGeneratingPdf ? pageText.generatingPdf : pageText.sharePdf}
                                             </button>
@@ -3274,10 +2164,10 @@
                         <div className="text-slate-800 font-black mb-4">{pageText.overviewTitle}</div>
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                             <div className="space-y-4">
-                                <div className="bg-indigo-600 p-5 rounded-2xl text-white shadow-lg">
-                                    <div className="text-indigo-200 text-[10px] font-black uppercase tracking-widest mb-1">{pageText.netWorth} ({displayCurrency})</div>
+                                <div className="theme-networth-card p-5 rounded-2xl text-white shadow-lg">
+                                    <div className="text-[#FFF3F6] text-[10px] font-black uppercase tracking-widest mb-1">{pageText.netWorth} ({displayCurrency})</div>
                                     <div className="text-3xl font-black tracking-tighter">{formatAmount(totals.netWorth)}</div>
-                                    <div className="text-xs font-black text-indigo-100 mt-2">{netWorthTier.emoji} {netWorthTier.label}</div>
+                                    <div className="text-xs font-black text-[#FFF3F6] mt-2">{netWorthTier.emoji} {netWorthTier.label}</div>
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3">
                                     <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
@@ -3350,21 +2240,21 @@
                         <button
                             type="button"
                             onClick={() => setFinanceSectionTab('ASSET_ACCOUNT')}
-                            className={`px-4 py-2 rounded-lg text-sm font-black border ${financeSectionTab === 'ASSET_ACCOUNT' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                            className={`px-4 py-2 rounded-lg text-sm font-black ${financeSectionTab === 'ASSET_ACCOUNT' ? 'theme-tab-active' : 'theme-tab-inactive'}`}
                         >
                             {pageText.tabAssetAccount}
                         </button>
                         <button
                             type="button"
                             onClick={() => setFinanceSectionTab('CASHFLOW')}
-                            className={`px-4 py-2 rounded-lg text-sm font-black border ${financeSectionTab === 'CASHFLOW' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                            className={`px-4 py-2 rounded-lg text-sm font-black ${financeSectionTab === 'CASHFLOW' ? 'theme-tab-active' : 'theme-tab-inactive'}`}
                         >
                             {pageText.tabCashflow}
                         </button>
                     </div>
 
                     {financeSectionTab === 'ASSET_ACCOUNT' && (
-                    <section className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm mb-8">
+                    <section className="theme-surface p-4 sm:p-6 rounded-2xl shadow-sm mb-8">
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
                             <div className="text-slate-800 font-black">{pageText.tabAssetAccount}</div>
                             <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2">
@@ -3375,7 +2265,7 @@
                                         setSelectedStatsAccount('');
                                         setSelectedStatsSegmentKey('');
                                     }}
-                                    className="bg-white border border-slate-200 rounded-lg px-3 py-2 font-bold text-sm shadow-sm outline-none w-full sm:w-auto"
+                                    className="theme-input rounded-lg px-3 py-2 font-bold text-sm shadow-sm outline-none w-full sm:w-auto"
                                 >
                                     {CATEGORY_KEYS.map(categoryKey => <option key={categoryKey} value={categoryKey}>{CATEGORIES[categoryKey].label}</option>)}
                                 </select>
@@ -3385,7 +2275,7 @@
                                         setStatsBreakdownMode(e.target.value);
                                         setSelectedStatsSegmentKey('');
                                     }}
-                                    className="bg-white border border-slate-200 rounded-lg px-3 py-2 font-bold text-sm shadow-sm outline-none w-full sm:w-auto"
+                                    className="theme-input rounded-lg px-3 py-2 font-bold text-sm shadow-sm outline-none w-full sm:w-auto"
                                 >
                                     <option value="ACCOUNT">按帳戶佔比</option>
                                     <option value="ITEM">按帳戶內細項</option>
@@ -3397,7 +2287,7 @@
                                             setSelectedStatsAccount(e.target.value);
                                             setSelectedStatsSegmentKey('');
                                         }}
-                                        className="bg-white border border-slate-200 rounded-lg px-3 py-2 font-bold text-sm shadow-sm outline-none w-full sm:w-auto"
+                                        className="theme-input rounded-lg px-3 py-2 font-bold text-sm shadow-sm outline-none w-full sm:w-auto"
                                     >
                                         {accountStats.accountNames.length ? (
                                             accountStats.accountNames.map(account => <option key={account} value={account}>{account}</option>)
@@ -3448,7 +2338,7 @@
                                             {accountStats.selectedItem ? `${formatAmount(accountStats.selectedItem.valueDisplay)} ${displayCurrency}` : `${formatAmount(accountStats.total)} ${displayCurrency}`}
                                         </text>
                                         <text x="130" y="154" textAnchor="middle" className="fill-slate-400" style={{ fontSize: '10px', fontWeight: 800 }}>
-                                            {accountStats.selectedItem ? `${accountStats.selectedItem.ratio.toFixed(1)}%` : '點擊區塊查看佔比'}
+                                            {accountStats.selectedItem ? `${accountStats.selectedItem.ratio.toFixed(1)}%` : tByLang('點擊區塊查看佔比', 'Click a segment to view ratio', 'セグメントをクリックして比率を表示')}
                                         </text>
                                     </svg>
                                 </div>
@@ -3460,7 +2350,7 @@
                                                 key={segment.key}
                                                 type="button"
                                                 onClick={() => setSelectedStatsSegmentKey(segment.key)}
-                                                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-left border ${accountStats.selectedItem?.key === segment.key ? 'border-indigo-200 bg-indigo-50/60' : 'border-slate-100 bg-white'}`}
+                                                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-left ${accountStats.selectedItem?.key === segment.key ? 'theme-soft-surface' : 'theme-surface'}`}
                                             >
                                                 <div className="flex items-center gap-2 min-w-0">
                                                     <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: segment.color }}></span>
@@ -3476,13 +2366,19 @@
                                     </div>
 
                                     {accountStats.selectedItem && (
-                                        <details className="rounded-xl border border-slate-100 bg-slate-50/60 p-4" open>
+                                        <details className="rounded-xl theme-soft-surface p-4" open>
                                             <summary className="md:hidden text-xs text-slate-500 font-black cursor-pointer list-none">已選擇項目細節</summary>
                                             <div className="mt-3 md:mt-0">
                                                 <div className="text-xs text-slate-400 font-black mb-2">已選擇項目</div>
                                                 <div className="text-base font-black text-slate-800 mb-1">{accountStats.selectedItem.label}</div>
                                                 <div className="text-xs text-slate-500 font-bold mb-2">
-                                                    {statsBreakdownMode === 'ACCOUNT' ? `帳戶資產項目：${accountStats.selectedItem.members?.length || 0} 筆` : (accountStats.selectedItem.subtype || CATEGORIES[selectedStatsCategory].label)}
+                                                    {statsBreakdownMode === 'ACCOUNT'
+                                                        ? tByLang(
+                                                            `帳戶資產項目：${accountStats.selectedItem.members?.length || 0} 筆`,
+                                                            `Account Asset Items: ${accountStats.selectedItem.members?.length || 0}`,
+                                                            `口座資産項目：${accountStats.selectedItem.members?.length || 0}件`
+                                                        )
+                                                        : (accountStats.selectedItem.subtype || CATEGORIES[selectedStatsCategory].label)}
                                                     {accountStats.selectedItem.symbol ? ` · ${accountStats.selectedItem.symbol}` : ''}
                                                 </div>
                                                 <div className="text-sm font-bold text-slate-700">名稱：{accountStats.selectedItem.label}</div>
@@ -3498,7 +2394,7 @@
                     )}
 
                     {financeSectionTab === 'CASHFLOW' && (
-                    <section className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm mb-8">
+                    <section className="theme-surface p-4 sm:p-6 rounded-2xl shadow-sm mb-8">
                         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-4">
                             <div>
                                 <div className="text-slate-800 font-black">{pageText.tabCashflow}</div>
@@ -3508,7 +2404,7 @@
                                 <button
                                     type="button"
                                     onClick={() => moveCashflowMonth(-1)}
-                                    className="px-3 py-2 rounded-lg border border-slate-200 text-xs font-black text-slate-600 hover:bg-slate-50"
+                                    className="px-3 py-2 rounded-lg text-xs font-black theme-tab-inactive"
                                 >
                                     {pageText.prevMonth}
                                 </button>
@@ -3516,12 +2412,12 @@
                                     type="month"
                                     value={selectedCashflowMonth}
                                     onChange={e => setSelectedCashflowMonth(e.target.value || toMonthKey(new Date()))}
-                                    className="px-3 py-2 rounded-lg border border-slate-200 text-xs font-black text-slate-700 outline-none"
+                                    className="px-3 py-2 rounded-lg text-xs font-black theme-input outline-none"
                                 />
                                 <button
                                     type="button"
                                     onClick={() => moveCashflowMonth(1)}
-                                    className="px-3 py-2 rounded-lg border border-slate-200 text-xs font-black text-slate-600 hover:bg-slate-50"
+                                    className="px-3 py-2 rounded-lg text-xs font-black theme-tab-inactive"
                                 >
                                     {pageText.nextMonth}
                                 </button>
@@ -3530,7 +2426,7 @@
 
                         <div className="flex flex-col gap-5">
 
-                        <form ref={cashflowFormRef} onSubmit={handleCashflowSubmit} className="order-2 rounded-xl border border-slate-100 bg-slate-50/60 p-4 space-y-3">
+                        <form ref={cashflowFormRef} onSubmit={handleCashflowSubmit} className="order-2 rounded-xl theme-soft-surface p-4 space-y-3">
                             {editingCashflowId && (
                                 <div className="rounded-lg bg-indigo-50 border border-indigo-100 px-3 py-2 text-xs font-black text-indigo-600">
                                     正在編輯規則：{cashflowEntries.find(item => item.id === editingCashflowId)?.title || '未命名規則'}
@@ -3712,7 +2608,7 @@
                                 </div>
                                 <button
                                     type="submit"
-                                    className="w-full bg-slate-900 text-white px-4 py-3 rounded-xl font-black text-sm hover:bg-slate-800 transition-all"
+                                    className="w-full theme-btn-primary text-white px-4 py-3 rounded-xl font-black text-sm transition-all"
                                 >
                                     {editingCashflowId ? '儲存規則修改' : '新增現金流規則'}
                                 </button>
@@ -3720,17 +2616,17 @@
                         </form>
 
                         <div className="order-1 grid grid-cols-1 md:grid-cols-3 gap-3">
-                            <div className="bg-emerald-50 rounded-xl border border-emerald-100 p-4">
-                                <div className="text-[10px] text-emerald-500 font-black uppercase tracking-widest mb-1">本月收入</div>
-                                <div className="text-xl font-black text-emerald-600">{formatAmount(cashflowMonthData.monthIncomeDisplay)} {displayCurrency}</div>
+                            <div className="theme-income-card rounded-xl p-4">
+                                <div className="text-[10px] theme-text-sub font-black uppercase tracking-widest mb-1">本月收入</div>
+                                <div className="text-xl font-black theme-text-main">{formatAmount(cashflowMonthData.monthIncomeDisplay)} {displayCurrency}</div>
                             </div>
-                            <div className="bg-rose-50 rounded-xl border border-rose-100 p-4">
-                                <div className="text-[10px] text-rose-500 font-black uppercase tracking-widest mb-1">本月支出</div>
-                                <div className="text-xl font-black text-rose-600">{formatAmount(cashflowMonthData.monthExpenseDisplay)} {displayCurrency}</div>
+                                    <div className="theme-expense-card rounded-xl p-4">
+                                        <div className="text-[10px] theme-text-sub font-black uppercase tracking-widest mb-1">本月支出</div>
+                                        <div className="text-xl font-black theme-text-main">{formatAmount(cashflowMonthData.monthExpenseDisplay)} {displayCurrency}</div>
                             </div>
-                            <div className="bg-indigo-50 rounded-xl border border-indigo-100 p-4">
-                                <div className="text-[10px] text-indigo-500 font-black uppercase tracking-widest mb-1">本月淨流</div>
-                                <div className={`text-xl font-black ${cashflowMonthData.monthNetDisplay >= 0 ? 'text-indigo-600' : 'text-rose-600'}`}>{cashflowMonthData.monthNetDisplay >= 0 ? '+' : ''}{formatAmount(cashflowMonthData.monthNetDisplay)} {displayCurrency}</div>
+                                    <div className="theme-netflow-card rounded-xl p-4">
+                                        <div className="text-[10px] theme-text-sub font-black uppercase tracking-widest mb-1">本月淨流</div>
+                                        <div className={`text-xl font-black ${cashflowMonthData.monthNetDisplay >= 0 ? 'theme-text-main' : 'text-rose-500'}`}>{cashflowMonthData.monthNetDisplay >= 0 ? '+' : ''}{formatAmount(cashflowMonthData.monthNetDisplay)} {displayCurrency}</div>
                             </div>
                         </div>
 
@@ -3738,14 +2634,14 @@
                             <button
                                 type="button"
                                 onClick={() => setCashflowView('MONTH')}
-                                className={`px-3 py-2 rounded-lg text-xs font-black border ${cashflowView === 'MONTH' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                                className={`px-3 py-2 rounded-lg text-xs font-black ${cashflowView === 'MONTH' ? 'theme-tab-active' : 'theme-tab-inactive'}`}
                             >
                                 每月日曆
                             </button>
                             <button
                                 type="button"
                                 onClick={() => setCashflowView('YEAR')}
-                                className={`px-3 py-2 rounded-lg text-xs font-black border ${cashflowView === 'YEAR' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                                className={`px-3 py-2 rounded-lg text-xs font-black ${cashflowView === 'YEAR' ? 'theme-tab-active' : 'theme-tab-inactive'}`}
                             >
                                 每年彙總
                             </button>
@@ -3793,22 +2689,22 @@
                         ) : (
                             <div className="order-1 space-y-4">
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                    <div className="bg-emerald-50 rounded-xl border border-emerald-100 p-4">
-                                        <div className="text-[10px] text-emerald-500 font-black uppercase tracking-widest mb-1">{cashflowYearData.year} 年收入</div>
-                                        <div className="text-xl font-black text-emerald-600">{formatAmount(cashflowYearData.yearIncomeDisplay)} {displayCurrency}</div>
+                                    <div className="theme-income-card rounded-xl p-4">
+                                        <div className="text-[10px] theme-text-sub font-black uppercase tracking-widest mb-1">{cashflowYearData.year} 年收入</div>
+                                        <div className="text-xl font-black theme-text-main">{formatAmount(cashflowYearData.yearIncomeDisplay)} {displayCurrency}</div>
                                     </div>
-                                    <div className="bg-rose-50 rounded-xl border border-rose-100 p-4">
-                                        <div className="text-[10px] text-rose-500 font-black uppercase tracking-widest mb-1">{cashflowYearData.year} 年支出</div>
-                                        <div className="text-xl font-black text-rose-600">{formatAmount(cashflowYearData.yearExpenseDisplay)} {displayCurrency}</div>
+                                    <div className="theme-expense-card rounded-xl p-4">
+                                        <div className="text-[10px] theme-text-sub font-black uppercase tracking-widest mb-1">{cashflowYearData.year} 年支出</div>
+                                        <div className="text-xl font-black theme-text-main">{formatAmount(cashflowYearData.yearExpenseDisplay)} {displayCurrency}</div>
                                     </div>
-                                    <div className="bg-indigo-50 rounded-xl border border-indigo-100 p-4">
-                                        <div className="text-[10px] text-indigo-500 font-black uppercase tracking-widest mb-1">{cashflowYearData.year} 年淨流</div>
-                                        <div className={`text-xl font-black ${cashflowYearData.yearNetDisplay >= 0 ? 'text-indigo-600' : 'text-rose-600'}`}>{cashflowYearData.yearNetDisplay >= 0 ? '+' : ''}{formatAmount(cashflowYearData.yearNetDisplay)} {displayCurrency}</div>
+                                    <div className="theme-netflow-card rounded-xl p-4">
+                                        <div className="text-[10px] theme-text-sub font-black uppercase tracking-widest mb-1">{cashflowYearData.year} 年淨流</div>
+                                        <div className={`text-xl font-black ${cashflowYearData.yearNetDisplay >= 0 ? 'theme-text-main' : 'text-rose-500'}`}>{cashflowYearData.yearNetDisplay >= 0 ? '+' : ''}{formatAmount(cashflowYearData.yearNetDisplay)} {displayCurrency}</div>
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
                                     {cashflowYearData.months.map(monthItem => (
-                                        <div key={monthItem.label} className="rounded-xl border border-slate-100 bg-white p-3">
+                                        <div key={monthItem.label} className="rounded-xl theme-surface p-3">
                                             <div className="text-sm font-black text-slate-700 mb-2">{monthItem.label}</div>
                                             <div className="text-xs font-bold text-emerald-600">收入 +{formatAmount(monthItem.incomeDisplay)} {displayCurrency}</div>
                                             <div className="text-xs font-bold text-rose-600">支出 -{formatAmount(monthItem.expenseDisplay)} {displayCurrency}</div>
@@ -3829,14 +2725,14 @@
                                 <input
                                     type="text"
                                     placeholder="搜尋名稱 / 分類 / 帳戶 / 備註"
-                                    className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs font-bold outline-none"
+                                    className="w-full p-2.5 theme-input rounded-lg text-xs font-bold outline-none"
                                     value={cashflowRuleKeyword}
                                     onChange={e => setCashflowRuleKeyword(e.target.value)}
                                 />
                                 <select
                                     value={cashflowRuleFilter}
                                     onChange={e => setCashflowRuleFilter(e.target.value)}
-                                    className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs font-bold outline-none"
+                                    className="w-full p-2.5 theme-input rounded-lg text-xs font-bold outline-none"
                                 >
                                     <option value="ALL">全部規則</option>
                                     <option value="AUTO">僅固定（自動）</option>
@@ -3847,7 +2743,7 @@
                                 <select
                                     value={cashflowRuleSortMode}
                                     onChange={e => setCashflowRuleSortMode(e.target.value)}
-                                    className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs font-bold outline-none"
+                                    className="w-full p-2.5 theme-input rounded-lg text-xs font-bold outline-none"
                                 >
                                     <option value="START_DESC">按建立/開始日（新到舊）</option>
                                     <option value="NEXT_TRIGGER_ASC">按下次觸發日（近期優先）</option>
@@ -3866,12 +2762,12 @@
                                                 }));
                                                 setPriceStatus('已取消編輯');
                                             }}
-                                            className="w-full px-3 py-2.5 rounded-lg bg-slate-100 text-slate-600 text-xs font-black hover:bg-slate-200"
+                                            className="w-full px-3 py-2.5 rounded-lg theme-tab-inactive text-xs font-black"
                                         >
                                             取消編輯
                                         </button>
                                     ) : (
-                                        <div className="w-full px-3 py-2.5 rounded-lg bg-slate-50 text-slate-400 text-xs font-black text-center">點選規則可編輯</div>
+                                        <div className="w-full px-3 py-2.5 rounded-lg theme-soft-surface text-xs font-black text-center theme-text-sub">點選規則可編輯</div>
                                     )}
                                 </div>
                             </div>
@@ -3881,7 +2777,7 @@
                             ) : (
                                 <div className="space-y-2 max-h-72 overflow-y-auto pr-1 custom-scrollbar">
                                     {filteredCashflowEntries.slice(0, cashflowRulesVisibleCount).map(item => (
-                                        <div key={item.id} className={`rounded-xl border p-3 flex items-center justify-between gap-3 ${editingCashflowId === item.id ? 'border-indigo-200 bg-indigo-50/40' : 'border-slate-100 bg-white'}`}>
+                                        <div key={item.id} className={`rounded-xl p-3 flex items-center justify-between gap-3 ${editingCashflowId === item.id ? 'theme-soft-surface' : 'theme-surface'}`}>
                                             <div className="min-w-0">
                                                 <div className="flex items-center gap-2">
                                                     <span className={`text-xs font-black ${item.type === 'INCOME' ? 'text-emerald-600' : 'text-rose-600'}`}>{CASHFLOW_TYPES[item.type].label}</span>
@@ -3908,7 +2804,7 @@
                                                 <button
                                                     type="button"
                                                     onClick={() => startEditCashflowEntry(item)}
-                                                    className="px-2.5 py-1.5 rounded-lg bg-slate-100 text-slate-700 text-xs font-black hover:bg-slate-200"
+                                                    className="px-2.5 py-1.5 rounded-lg theme-tab-inactive text-xs font-black"
                                                 >
                                                     編輯
                                                 </button>
@@ -3927,7 +2823,7 @@
                                         <button
                                             type="button"
                                             onClick={() => setCashflowRulesVisibleCount(prev => prev + 20)}
-                                            className="w-full mt-1 px-3 py-2 rounded-lg bg-white border border-slate-200 text-slate-600 text-xs font-black hover:bg-slate-50"
+                                            className="w-full mt-1 px-3 py-2 rounded-lg theme-tab-inactive text-xs font-black"
                                         >
                                             顯示更多（剩餘 {filteredCashflowEntries.length - cashflowRulesVisibleCount} 筆）
                                         </button>
@@ -3942,7 +2838,7 @@
                     <div className="mb-6 flex md:flex-wrap items-center gap-2 overflow-x-auto -mx-2 px-2">
                         <button
                             onClick={() => setSelectedCategories(CATEGORY_KEYS)}
-                            className={`px-4 py-1.5 rounded-full text-xs font-black transition-all whitespace-nowrap shrink-0 ${selectedCategories.length === CATEGORY_KEYS.length ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-slate-500 hover:bg-slate-50 border border-slate-100'}`}
+                            className={`px-4 py-1.5 rounded-full text-xs font-black transition-all whitespace-nowrap shrink-0 ${selectedCategories.length === CATEGORY_KEYS.length ? 'theme-chip-active shadow-md' : 'theme-chip-inactive'}`}
                         >
                             全部項目
                         </button>
@@ -3950,7 +2846,7 @@
                             <button
                                 key={categoryKey}
                                 onClick={() => toggleCategory(categoryKey)}
-                                className={`px-4 py-1.5 rounded-full text-xs font-black transition-all whitespace-nowrap shrink-0 ${selectedCategories.includes(categoryKey) ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-slate-500 hover:bg-slate-50 border border-slate-100'}`}
+                                className={`px-4 py-1.5 rounded-full text-xs font-black transition-all whitespace-nowrap shrink-0 ${selectedCategories.includes(categoryKey) ? 'theme-chip-active shadow-md' : 'theme-chip-inactive'}`}
                             >
                                 {CATEGORIES[categoryKey].label}
                             </button>
@@ -3958,7 +2854,7 @@
                         <select
                             value={sortMode}
                             onChange={e => setSortMode(e.target.value)}
-                            className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 font-bold text-xs shadow-sm outline-none shrink-0"
+                            className="theme-input rounded-lg px-3 py-1.5 font-bold text-xs shadow-sm outline-none shrink-0"
                         >
                             <option value="AMOUNT_DESC">按金額排序（大到小）</option>
                             <option value="NAME_ASC">按名稱排序（A-Z）</option>
@@ -3966,7 +2862,7 @@
                         <select
                             value={viewMode}
                             onChange={e => setViewMode(e.target.value)}
-                            className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 font-bold text-xs shadow-sm outline-none shrink-0"
+                            className="theme-input rounded-lg px-3 py-1.5 font-bold text-xs shadow-sm outline-none shrink-0"
                         >
                             <option value="DETAIL">詳細模式</option>
                             <option value="SUMMARY">匯總模式</option>
@@ -4913,7 +3809,7 @@
                     </div>
 
                     <footer className="mt-20 text-center text-pink-300 text-[10px] font-bold uppercase tracking-[0.22em] pb-10">
-                        SweetPrinceLedger · 王子甜甜帳
+                        {appName}
                     </footer>
                 </div>
             );
