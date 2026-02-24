@@ -1,4 +1,85 @@
 (() => {
+    const INSURANCE_HEALTH_SUBTYPES = ['醫療險', '重大疾病險', '癌症險', '意外險', '失能/長照險', '健康'];
+    const INSURANCE_LIFE_WEALTH_SUBTYPES = ['定期壽險', '終身壽險', '年金險', '儲蓄險', '投資型壽險', '萬能壽險', '人壽/累積財富', '投資/投資相連'];
+    const pad2 = (value) => String(value).padStart(2, '0');
+    const toDateKeySafe = (date) => `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+    const parseDateStringSafe = (value) => {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return null;
+        const [year, month, day] = value.split('-').map(Number);
+        const parsed = new Date(year, month - 1, day);
+        if (parsed.getFullYear() !== year || parsed.getMonth() !== (month - 1) || parsed.getDate() !== day) return null;
+        return parsed;
+    };
+    const buildFirstBillingDate = (startDate, paymentDay, frequency) => {
+        if (!startDate) return null;
+        const freq = frequency === 'yearly' ? 'yearly' : 'monthly';
+        const normalizedDay = Number.isInteger(paymentDay) && paymentDay >= 1 && paymentDay <= 31
+            ? paymentDay
+            : startDate.getDate();
+        let year = startDate.getFullYear();
+        let month = startDate.getMonth();
+        const dayInMonth = Math.min(normalizedDay, new Date(year, month + 1, 0).getDate());
+        let candidate = new Date(year, month, dayInMonth);
+        if (candidate.getTime() < startDate.getTime()) {
+            if (freq === 'yearly') year += 1;
+            else month += 1;
+            const daysInNext = Math.min(normalizedDay, new Date(year, month + 1, 0).getDate());
+            candidate = new Date(year, month, daysInNext);
+        }
+        return candidate;
+    };
+    const getNextBillingDateKey = ({ startDateKey, paymentDay, frequency, endDateKey }) => {
+        const startDate = parseDateStringSafe(startDateKey);
+        if (!startDate) return '';
+        const endDate = parseDateStringSafe(endDateKey || '');
+        let cursor = buildFirstBillingDate(startDate, paymentDay, frequency);
+        if (!cursor) return '';
+        const today = new Date();
+        const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        const maxCycles = frequency === 'yearly' ? 200 : 2400;
+        for (let i = 0; i < maxCycles; i += 1) {
+            if (endDate && cursor.getTime() > endDate.getTime()) return '';
+            if (cursor.getTime() >= todayOnly.getTime()) return toDateKeySafe(cursor);
+            const nextYear = cursor.getFullYear() + (frequency === 'yearly' ? 1 : 0);
+            const nextMonth = cursor.getMonth() + (frequency === 'yearly' ? 0 : 1);
+            const normalizedDay = Number.isInteger(paymentDay) && paymentDay >= 1 && paymentDay <= 31 ? paymentDay : cursor.getDate();
+            const dayInMonth = Math.min(normalizedDay, new Date(nextYear, nextMonth + 1, 0).getDate());
+            cursor = new Date(nextYear, nextMonth, dayInMonth);
+        }
+        return '';
+    };
+    const getTotalBillingPeriods = ({ startDateKey, paymentDay, frequency, endDateKey }) => {
+        const startDate = parseDateStringSafe(startDateKey);
+        const endDate = parseDateStringSafe(endDateKey || '');
+        if (!startDate || !endDate) return null;
+        let cursor = buildFirstBillingDate(startDate, paymentDay, frequency);
+        if (!cursor || cursor.getTime() > endDate.getTime()) return 0;
+        let count = 0;
+        const maxCycles = frequency === 'yearly' ? 400 : 4800;
+        for (let i = 0; i < maxCycles; i += 1) {
+            if (cursor.getTime() > endDate.getTime()) break;
+            count += 1;
+            const nextYear = cursor.getFullYear() + (frequency === 'yearly' ? 1 : 0);
+            const nextMonth = cursor.getMonth() + (frequency === 'yearly' ? 0 : 1);
+            const normalizedDay = Number.isInteger(paymentDay) && paymentDay >= 1 && paymentDay <= 31 ? paymentDay : cursor.getDate();
+            const dayInMonth = Math.min(normalizedDay, new Date(nextYear, nextMonth + 1, 0).getDate());
+            cursor = new Date(nextYear, nextMonth, dayInMonth);
+        }
+        return count;
+    };
+    const normalizeDistributionStartPolicyYear = ({ startDateKey, rawValue }) => {
+        const parsedRaw = Number(rawValue || 0);
+        if (!Number.isFinite(parsedRaw) || parsedRaw <= 0) return 0;
+        const normalizedRaw = Math.floor(parsedRaw);
+        if (normalizedRaw >= 1000) {
+            const startDate = parseDateStringSafe(startDateKey || '');
+            if (!startDate) return 0;
+            return Math.max(1, normalizedRaw - startDate.getFullYear() + 1);
+        }
+        return normalizedRaw;
+    };
+    const PAID_OFF_BADGE_CLASS = 'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-black bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200';
+
     const AssetDetailMobileCards = ({
         items,
         isLiabilityCategory,
@@ -21,6 +102,8 @@
         fromHKD,
         openEdit,
         cashflowAutoRulesByLiquidAssetId,
+        insuranceAutoPaidCountByAssetId,
+        insurancePartialWithdrawalStatsByAssetId,
         CASHFLOW_FREQUENCIES
     }) => (
         <div className="md:hidden px-4 pt-4 pb-4 space-y-3">
@@ -36,6 +119,61 @@
                 const isFixedItem = isFixedCategory;
                 const amountPrefix = isLiabilityCategory ? '-' : '';
                 const highlightClass = isLiabilityCategory ? 'text-rose-500' : 'text-emerald-600';
+                const isHealthInsurance = isInsuranceCategory && INSURANCE_HEALTH_SUBTYPES.includes(item.subtype);
+                const isLifeInsurance = isInsuranceCategory && INSURANCE_LIFE_WEALTH_SUBTYPES.includes(item.subtype);
+                const isLinkedInsurance = isInsuranceCategory && ['投資型壽險', '投資/投資相連', '萬能壽險'].includes(item.subtype);
+                const insurancePaymentDay = Number(item.insurancePaymentDay || 0);
+                const insuranceHasPaymentDay = Number.isInteger(insurancePaymentDay) && insurancePaymentDay >= 1 && insurancePaymentDay <= 31;
+                const insuranceProvider = (item.insuranceProvider || '').trim();
+                const insurancePolicyNumber = (item.insurancePolicyNumber || '').trim();
+                const insuranceBeneficiary = (item.insuranceBeneficiary || '').trim();
+                const insuranceNote = (item.insuranceNote || '').trim();
+                const insuranceSupplementaryBenefitName = (item.insuranceSupplementaryBenefitName || '').trim();
+                const insuranceSupplementaryBenefitRegion = (item.insuranceSupplementaryBenefitRegion || '').trim();
+                const insuranceSupplementaryBenefitDeductible = (item.insuranceSupplementaryBenefitDeductible || '').trim();
+                const insuranceBasePremiumAmount = Number(item.insuranceBasePremiumAmount || 0);
+                const insuranceSupplementaryPremiumAmount = Number(item.insuranceSupplementaryPremiumAmount || 0);
+                const insuranceCoverageAmount = Number(item.insuranceCoverageAmount || 0);
+                const insuranceCoverageDisplay = fromHKD(toHKD(insuranceCoverageAmount, item.currency), displayCurrency);
+                const manualPremiumPaidCount = Number(item.premiumPaidCount || 0);
+                const autoPremiumPaidCount = Number(insuranceAutoPaidCountByAssetId?.[item.id] || 0);
+                const premiumPaymentYearsRaw = Number(item.insurancePremiumPaymentYears || 0);
+                const premiumPaymentYears = Number.isFinite(premiumPaymentYearsRaw) && premiumPaymentYearsRaw > 0
+                    ? Math.floor(premiumPaymentYearsRaw)
+                    : 0;
+                const premiumTermsPerYear = item.premiumFrequency === 'yearly' ? 1 : 12;
+                const premiumTermCap = premiumPaymentYears > 0 ? premiumPaymentYears * premiumTermsPerYear : 0;
+                const paidCountRaw = Math.max(manualPremiumPaidCount, autoPremiumPaidCount);
+                const effectivePremiumPaidCount = premiumTermCap > 0 ? Math.min(paidCountRaw, premiumTermCap) : paidCountRaw;
+                const isPolicyFullyPaid = premiumTermCap > 0 && effectivePremiumPaidCount >= premiumTermCap;
+                const currentPolicyYear = effectivePremiumPaidCount > 0
+                    ? (item.premiumFrequency === 'yearly' ? effectivePremiumPaidCount : (Math.floor((effectivePremiumPaidCount - 1) / 12) + 1))
+                    : 0;
+                const distributionStartYear = normalizeDistributionStartPolicyYear({
+                    startDateKey: item.insuranceStartDate,
+                    rawValue: item.insuranceDistributionStartPolicyYear
+                });
+                const annualDistributionAmount = Number(item.insuranceAnnualDistributionAmount || 0);
+                const distributionPaidYearsFromCalc = distributionStartYear > 0 && currentPolicyYear >= distributionStartYear
+                    ? (currentPolicyYear - distributionStartYear + 1)
+                    : 0;
+                const distributionPaidYears = Number(item.insuranceDistributionPaidYears || distributionPaidYearsFromCalc || 0);
+                const totalDistributedAmount = Number(item.insuranceTotalDistributedAmount || (annualDistributionAmount * distributionPaidYears) || 0);
+                const distributionMode = item.insuranceDistributionMode === 'accumulate' ? 'accumulate' : 'cash';
+                const accumulationBalance = Number(item.insuranceAccumulationBalance || 0);
+                const partialWithdrawalStats = insurancePartialWithdrawalStatsByAssetId?.[item.id] || { count: 0, totalAmount: 0, latestDate: '' };
+                const totalBillingPeriods = getTotalBillingPeriods({
+                    startDateKey: item.insuranceStartDate || '',
+                    paymentDay: insurancePaymentDay,
+                    frequency: item.premiumFrequency,
+                    endDateKey: item.insuranceEndDate || ''
+                });
+                const nextBillingDateKey = getNextBillingDateKey({
+                    startDateKey: item.insuranceStartDate || '',
+                    paymentDay: insurancePaymentDay,
+                    frequency: item.premiumFrequency,
+                    endDateKey: item.insuranceEndDate || ''
+                });
 
                 return (
                     <div key={item.id} onClick={() => openEdit(item)} className="rounded-xl border border-slate-100 bg-white shadow-sm p-4 space-y-2">
@@ -50,7 +188,94 @@
                         </div>
                         {isInsuranceCategory && (
                             <div className="text-xs text-slate-500 font-bold">
-                                保費 {formatAmount(item.premiumAmount || 0)} {item.currency} · 已繳 {Number(item.premiumPaidCount || 0)} 期
+                                {isHealthInsurance
+                                    ? <>
+                                        <span className="text-amber-700">保費 {formatAmount(item.premiumAmount || 0)} {item.currency}</span>
+                                        <span>
+                                            {isPolicyFullyPaid
+                                                ? ''
+                                                : ` · ${item.premiumFrequency === 'yearly' ? '每年' : '每月'} · 扣款日 ${insuranceHasPaymentDay ? `${insurancePaymentDay} 號` : '--'} · 下期 ${nextBillingDateKey || '--'}`}
+                                        </span>
+                                        {isPolicyFullyPaid && (
+                                            <span className={`ml-1 ${PAID_OFF_BADGE_CLASS}`}>{tByLang('保費全部繳清', 'Paid Off', '払込完了')}</span>
+                                        )}
+                                    </>
+                                    : isLifeInsurance
+                                        ? <span className="text-indigo-700">{tByLang(
+                                            isPolicyFullyPaid
+                                                ? `保費 ${formatAmount(item.premiumAmount || 0)} ${item.currency} · 已派發 ${distributionPaidYears} 年`
+                                                : `保費 ${formatAmount(item.premiumAmount || 0)} ${item.currency} · 已繳 ${effectivePremiumPaidCount}${premiumTermCap > 0 ? `/${premiumTermCap}` : ''} 期 · 已派發 ${distributionPaidYears} 年`,
+                                            isPolicyFullyPaid
+                                                ? `Premium ${formatAmount(item.premiumAmount || 0)} ${item.currency} · Distributed ${distributionPaidYears} years`
+                                                : `Premium ${formatAmount(item.premiumAmount || 0)} ${item.currency} · Paid ${effectivePremiumPaidCount}${premiumTermCap > 0 ? `/${premiumTermCap}` : ''} terms · Distributed ${distributionPaidYears} years`,
+                                            isPolicyFullyPaid
+                                                ? `保険料 ${formatAmount(item.premiumAmount || 0)} ${item.currency} ・配当 ${distributionPaidYears} 年`
+                                                : `保険料 ${formatAmount(item.premiumAmount || 0)} ${item.currency} ・支払済 ${effectivePremiumPaidCount}${premiumTermCap > 0 ? `/${premiumTermCap}` : ''} 期 ・配当 ${distributionPaidYears} 年`
+                                        )}</span>
+                                        : isLinkedInsurance
+                                            ? `保單市值 ${formatAmount(mktValDisplay)} ${displayCurrency} · 數量 ${formatAmount(item.quantity || 0)}`
+                                            : <span className="text-amber-700">保費 {formatAmount(item.premiumAmount || 0)} {item.currency}</span>}
+                                {isLifeInsurance && isPolicyFullyPaid && (
+                                    <span className={`ml-1 ${PAID_OFF_BADGE_CLASS}`}>{tByLang('保費全部繳清', 'Paid Off', '払込完了')}</span>
+                                )}
+                            </div>
+                        )}
+                        {isHealthInsurance && insuranceCoverageAmount > 0 && (
+                            <div className="text-xs text-slate-500 font-bold">
+                                <span className="text-amber-700">名義金額 {formatAmount(insuranceCoverageDisplay)} {displayCurrency}</span>
+                                <span className="text-[10px] text-amber-600">（{formatAmount(insuranceCoverageAmount)} {item.currency}）</span>
+                            </div>
+                        )}
+                        {isHealthInsurance && (
+                            isPolicyFullyPaid
+                                ? <div className="text-xs"><span className={PAID_OFF_BADGE_CLASS}>{tByLang('保費全部繳清', 'Policy fully paid', 'この保険は払込完了')}</span></div>
+                                : <div className="text-xs text-slate-500 font-bold">已繳 {effectivePremiumPaidCount} {item.insuranceEndDate ? `/ ${(totalBillingPeriods ?? '--').toString()}期` : '期'}</div>
+                        )}
+                        {isHealthInsurance && item.insuranceEndDate && (
+                            <div className="text-[11px] text-slate-500 font-bold space-y-1">
+                                <div>保單生效日: {item.insuranceStartDate || '--'}</div>
+                                <div>保單終止日: {item.insuranceEndDate}</div>
+                            </div>
+                        )}
+                        {isInsuranceCategory && (
+                            <div className="text-[11px] text-slate-500 font-bold space-y-1">
+                                {insuranceProvider && <div className="text-indigo-700">保險公司：{insuranceProvider}</div>}
+                                {insurancePolicyNumber && <div className="text-violet-700">保單號：{insurancePolicyNumber}</div>}
+                                {insuranceBeneficiary && <div className="text-emerald-700">受益人：{insuranceBeneficiary}</div>}
+                                {insuranceCoverageAmount > 0 && <div className="text-amber-700">保額：{formatAmount(insuranceCoverageAmount)} {item.currency}</div>}
+                                {isLifeInsurance && (insuranceBasePremiumAmount > 0 || insuranceSupplementaryPremiumAmount > 0) && (
+                                    <div className="text-amber-700">
+                                        {tByLang('保費組合：主約 ', 'Premium Mix: Base ', '保険料内訳：主契約 ')}{formatAmount(insuranceBasePremiumAmount)} {item.currency}
+                                        {insuranceSupplementaryPremiumAmount > 0
+                                            ? tByLang(` + 附加 ${formatAmount(insuranceSupplementaryPremiumAmount)} ${item.currency}`, ` + Supplementary ${formatAmount(insuranceSupplementaryPremiumAmount)} ${item.currency}`, ` + 特約 ${formatAmount(insuranceSupplementaryPremiumAmount)} ${item.currency}`)
+                                            : ''}
+                                    </div>
+                                )}
+                                {isLifeInsurance && insuranceSupplementaryBenefitName && (
+                                    <div className="text-indigo-700">
+                                        {tByLang('附加保障：', 'Supplementary Benefit:', '特約：')}
+                                        {insuranceSupplementaryBenefitName}
+                                        {insuranceSupplementaryBenefitRegion ? ` · ${insuranceSupplementaryBenefitRegion}` : ''}
+                                        {insuranceSupplementaryBenefitDeductible ? tByLang(` · 自付費 ${insuranceSupplementaryBenefitDeductible}`, ` · Deductible ${insuranceSupplementaryBenefitDeductible}`, ` ・自己負担 ${insuranceSupplementaryBenefitDeductible}`) : ''}
+                                    </div>
+                                )}
+                                {isLifeInsurance && annualDistributionAmount > 0 && (
+                                    <div className="text-indigo-700">
+                                        {tByLang('派發：', 'Distribution:', '配当：')} {formatAmount(annualDistributionAmount)} {item.currency}/{tByLang('年', 'yr', '年')} ·
+                                        {distributionMode === 'accumulate' ? tByLang(' 積存生息', ' Accumulate', ' 積立利息') : tByLang(' 直接入帳', ' Cash Out', ' 直接入金')}
+                                        {distributionMode === 'accumulate' ? ` · ${tByLang('積存', 'Accumulated', '積立')} ${formatAmount(accumulationBalance)} ${item.currency}` : ''}
+                                    </div>
+                                )}
+                                {isLifeInsurance && totalDistributedAmount > 0 && <div className="text-emerald-700">{tByLang('累計派發：', 'Total Distributed:', '累計配当：')}{formatAmount(totalDistributedAmount)} {item.currency}</div>}
+                                {isLifeInsurance && partialWithdrawalStats.count > 0 && (
+                                    <div className="text-rose-700">
+                                        {tByLang('部分提領：', 'Partial Withdrawals:', '一部引き出し：')}
+                                        {formatAmount(partialWithdrawalStats.totalAmount)} {item.currency}
+                                        {tByLang(`（${partialWithdrawalStats.count} 次）`, ` (${partialWithdrawalStats.count})`, `（${partialWithdrawalStats.count}回）`)}
+                                        {partialWithdrawalStats.latestDate ? tByLang(` · 最近 ${partialWithdrawalStats.latestDate}`, ` · Latest ${partialWithdrawalStats.latestDate}`, ` ・最新 ${partialWithdrawalStats.latestDate}`) : ''}
+                                    </div>
+                                )}
+                                {insuranceNote && <div>備註：{insuranceNote}</div>}
                             </div>
                         )}
                         {isMortgage && (
@@ -159,12 +384,18 @@
         formatAmount,
         displayCurrency,
         openEdit,
-        cashflowAutoRulesByLiquidAssetId
-    }) => (
+        cashflowAutoRulesByLiquidAssetId,
+        insuranceAutoPaidCountByAssetId,
+        insurancePartialWithdrawalStatsByAssetId
+    }) => {
+        const isHealthInsuranceGroup = isInsuranceCategory && items.length > 0 && items.every(item => INSURANCE_HEALTH_SUBTYPES.includes(item.subtype));
+        const isLifeInsuranceGroup = isInsuranceCategory && items.length > 0 && items.every(item => INSURANCE_LIFE_WEALTH_SUBTYPES.includes(item.subtype));
+
+        return (
         <div className="hidden md:block overflow-x-auto -mx-4 sm:mx-0">
             <div className="px-4 sm:px-0">
                 <div className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-2 md:hidden">左右滑動查看完整欄位</div>
-                <table className={`w-full text-left ${isInvestCategory ? 'min-w-[780px]' : isInsuranceCategory ? 'min-w-[700px]' : 'min-w-[620px]'}`}>
+                <table className={`w-full text-left ${isInvestCategory ? 'min-w-[780px]' : (isInsuranceCategory ? ((isHealthInsuranceGroup || isLifeInsuranceGroup) ? 'min-w-[980px]' : 'min-w-[700px]') : 'min-w-[620px]')}`}>
                     {isLiquidCategory && (
                         <colgroup>
                             <col style={{ width: '60%' }} />
@@ -172,12 +403,21 @@
                             <col style={{ width: '20%' }} />
                         </colgroup>
                     )}
-                    {isInsuranceCategory && (
+                    {isInsuranceCategory && !isHealthInsuranceGroup && !isLifeInsuranceGroup && (
                         <colgroup>
                             <col style={{ width: '40%' }} />
                             <col style={{ width: '20%' }} />
                             <col style={{ width: '20%' }} />
                             <col style={{ width: '20%' }} />
+                        </colgroup>
+                    )}
+                    {isInsuranceCategory && (isHealthInsuranceGroup || isLifeInsuranceGroup) && (
+                        <colgroup>
+                            <col style={{ width: '28%' }} />
+                            <col style={{ width: '14%' }} />
+                            <col style={{ width: '22%' }} />
+                            <col style={{ width: '18%' }} />
+                            <col style={{ width: '18%' }} />
                         </colgroup>
                     )}
                     {isInvestCategory && (
@@ -192,8 +432,9 @@
                     <thead className="text-[10px] font-black text-slate-400 uppercase tracking-tighter bg-slate-50/30">
                         <tr>
                             <th className="px-6 py-3">{translate('名稱 / 細項')}</th>
-                            <th className="px-6 py-3 text-right">{isInsuranceCategory ? translate('保費設定') : isLiquidCategory ? translate('數量 / 幣別') : isLiabilityCategory ? translate('金額 / 期數') : isReceivableCategory ? translate('應收金額 / 期數') : isFixedCategory ? translate('估值 / 成本') : translate('市值 / 數量')}</th>
-                            <th className="px-6 py-3 text-right">{isInsuranceCategory ? translate('已繳期數') : isLiquidCategory ? translate('餘額') : isLiabilityCategory ? translate('利率 / 到期') : isReceivableCategory ? translate('到期 / 對象') : isFixedCategory ? translate('購入日 / 備註') : translate('現價 / 成本')}</th>
+                            <th className="px-6 py-3 text-right">{isInsuranceCategory ? ((isHealthInsuranceGroup || isLifeInsuranceGroup) ? translate('保額/名義金額') : translate('保費設定')) : isLiquidCategory ? translate('數量 / 幣別') : isLiabilityCategory ? translate('金額 / 期數') : isReceivableCategory ? translate('應收金額 / 期數') : isFixedCategory ? translate('估值 / 成本') : translate('市值 / 數量')}</th>
+                            <th className="px-6 py-3 text-right">{isInsuranceCategory ? ((isHealthInsuranceGroup || isLifeInsuranceGroup) ? translate('保費設定') : translate('已繳期數')) : isLiquidCategory ? translate('餘額') : isLiabilityCategory ? translate('利率 / 到期') : isReceivableCategory ? translate('到期 / 對象') : isFixedCategory ? translate('購入日 / 備註') : translate('現價 / 成本')}</th>
+                            {isInsuranceCategory && (isHealthInsuranceGroup || isLifeInsuranceGroup) && <th className="px-6 py-3 text-right">{translate('已繳期數')}</th>}
                             {isInsuranceCategory && <th className="px-6 py-3 text-right">{translate('保單價值')}</th>}
                             {isInvestCategory && <th className="px-6 py-3 text-right">{translate('持倉盈虧')}</th>}
                             {isInvestCategory && <th className="px-6 py-3 text-right">{translate('績效')}</th>}
@@ -208,10 +449,64 @@
                             const profitDisplay = fromHKD(toHKD(profitOrig, item.currency), displayCurrency);
                             const perf = costValOrig > 0 ? (profitOrig / costValOrig) * 100 : 0;
                             const premiumAmount = Number(item.premiumAmount || 0);
-                            const premiumPaidCount = Number(item.premiumPaidCount || 0);
-                            const hasPremiumPlan = premiumAmount > 0 && premiumPaidCount >= 0;
-                            const premiumTotalOrig = premiumAmount * premiumPaidCount;
+                            const manualPremiumPaidCount = Number(item.premiumPaidCount || 0);
+                            const autoPremiumPaidCount = Number(insuranceAutoPaidCountByAssetId?.[item.id] || 0);
+                            const premiumPaymentYearsRaw = Number(item.insurancePremiumPaymentYears || 0);
+                            const premiumPaymentYears = Number.isFinite(premiumPaymentYearsRaw) && premiumPaymentYearsRaw > 0
+                                ? Math.floor(premiumPaymentYearsRaw)
+                                : 0;
+                            const premiumTermsPerYear = item.premiumFrequency === 'yearly' ? 1 : 12;
+                            const premiumTermCap = premiumPaymentYears > 0 ? premiumPaymentYears * premiumTermsPerYear : 0;
+                            const paidCountRaw = Math.max(manualPremiumPaidCount, autoPremiumPaidCount);
+                            const effectivePremiumPaidCount = premiumTermCap > 0 ? Math.min(paidCountRaw, premiumTermCap) : paidCountRaw;
+                            const isPolicyFullyPaid = premiumTermCap > 0 && effectivePremiumPaidCount >= premiumTermCap;
+                            const hasPremiumPlan = premiumAmount > 0 && effectivePremiumPaidCount >= 0;
+                            const premiumTotalOrig = premiumAmount * effectivePremiumPaidCount;
                             const premiumTotalDisplay = fromHKD(toHKD(premiumTotalOrig, item.currency), displayCurrency);
+                            const isHealthInsurance = isInsuranceCategory && INSURANCE_HEALTH_SUBTYPES.includes(item.subtype);
+                            const isLifeInsurance = isInsuranceCategory && INSURANCE_LIFE_WEALTH_SUBTYPES.includes(item.subtype);
+                            const isLinkedInsurance = isInsuranceCategory && ['投資型壽險', '投資/投資相連', '萬能壽險'].includes(item.subtype);
+                            const currentPolicyYear = effectivePremiumPaidCount > 0
+                                ? (item.premiumFrequency === 'yearly' ? effectivePremiumPaidCount : (Math.floor((effectivePremiumPaidCount - 1) / 12) + 1))
+                                : 0;
+                            const distributionStartYear = normalizeDistributionStartPolicyYear({
+                                startDateKey: item.insuranceStartDate,
+                                rawValue: item.insuranceDistributionStartPolicyYear
+                            });
+                            const annualDistributionAmount = Number(item.insuranceAnnualDistributionAmount || 0);
+                            const distributionPaidYearsFromCalc = distributionStartYear > 0 && currentPolicyYear >= distributionStartYear
+                                ? (currentPolicyYear - distributionStartYear + 1)
+                                : 0;
+                            const distributionPaidYears = Number(item.insuranceDistributionPaidYears || distributionPaidYearsFromCalc || 0);
+                            const totalDistributedAmount = Number(item.insuranceTotalDistributedAmount || (annualDistributionAmount * distributionPaidYears) || 0);
+                            const accumulationBalance = Number(item.insuranceAccumulationBalance || 0);
+                            const distributionMode = item.insuranceDistributionMode === 'accumulate' ? 'accumulate' : 'cash';
+                            const partialWithdrawalStats = insurancePartialWithdrawalStatsByAssetId?.[item.id] || { count: 0, totalAmount: 0, latestDate: '' };
+                            const insurancePaymentDay = Number(item.insurancePaymentDay || 0);
+                            const insuranceHasPaymentDay = Number.isInteger(insurancePaymentDay) && insurancePaymentDay >= 1 && insurancePaymentDay <= 31;
+                            const insuranceProvider = (item.insuranceProvider || '').trim();
+                            const insurancePolicyNumber = (item.insurancePolicyNumber || '').trim();
+                            const insuranceBeneficiary = (item.insuranceBeneficiary || '').trim();
+                            const insuranceNote = (item.insuranceNote || '').trim();
+                            const insuranceSupplementaryBenefitName = (item.insuranceSupplementaryBenefitName || '').trim();
+                            const insuranceSupplementaryBenefitRegion = (item.insuranceSupplementaryBenefitRegion || '').trim();
+                            const insuranceSupplementaryBenefitDeductible = (item.insuranceSupplementaryBenefitDeductible || '').trim();
+                            const insuranceBasePremiumAmount = Number(item.insuranceBasePremiumAmount || 0);
+                            const insuranceSupplementaryPremiumAmount = Number(item.insuranceSupplementaryPremiumAmount || 0);
+                            const insuranceCoverageAmount = Number(item.insuranceCoverageAmount || 0);
+                            const insuranceCoverageDisplay = fromHKD(toHKD(insuranceCoverageAmount, item.currency), displayCurrency);
+                            const nextBillingDateKey = getNextBillingDateKey({
+                                startDateKey: item.insuranceStartDate || '',
+                                paymentDay: insurancePaymentDay,
+                                frequency: item.premiumFrequency,
+                                endDateKey: item.insuranceEndDate || ''
+                            });
+                            const totalBillingPeriods = getTotalBillingPeriods({
+                                startDateKey: item.insuranceStartDate || '',
+                                paymentDay: insurancePaymentDay,
+                                frequency: item.premiumFrequency,
+                                endDateKey: item.insuranceEndDate || ''
+                            });
                             const isMortgageLiability = isLiabilityCategory && item.subtype === '房貸';
                             const isLoanLiability = isLiabilityCategory && item.subtype === '貸款';
                             const isCreditCardLiability = isLiabilityCategory && item.subtype === '信用卡';
@@ -280,14 +575,70 @@
                                                 {item.fixedNote}
                                             </div>
                                         )}
+                                        {isInsuranceCategory && (
+                                            <div className="text-[10px] text-slate-500 font-medium mt-1 space-y-0.5">
+                                                {insuranceProvider && <div className="text-indigo-700">保險公司：{insuranceProvider}</div>}
+                                                {insurancePolicyNumber && <div className="text-violet-700">保單號：{insurancePolicyNumber}</div>}
+                                                {insuranceBeneficiary && <div className="text-emerald-700">受益人：{insuranceBeneficiary}</div>}
+                                                {isLifeInsurance && (insuranceBasePremiumAmount > 0 || insuranceSupplementaryPremiumAmount > 0) && (
+                                                    <div className="text-amber-700">
+                                                        {tByLang('保費組合：主約 ', 'Premium Mix: Base ', '保険料内訳：主契約 ')}{formatAmount(insuranceBasePremiumAmount)} {item.currency}
+                                                        {insuranceSupplementaryPremiumAmount > 0
+                                                            ? tByLang(` + 附加 ${formatAmount(insuranceSupplementaryPremiumAmount)} ${item.currency}`, ` + Supplementary ${formatAmount(insuranceSupplementaryPremiumAmount)} ${item.currency}`, ` + 特約 ${formatAmount(insuranceSupplementaryPremiumAmount)} ${item.currency}`)
+                                                            : ''}
+                                                    </div>
+                                                )}
+                                                {isLifeInsurance && insuranceSupplementaryBenefitName && (
+                                                    <div className="text-indigo-700">
+                                                        {tByLang('附加保障：', 'Supplementary Benefit:', '特約：')}
+                                                        {insuranceSupplementaryBenefitName}
+                                                        {insuranceSupplementaryBenefitRegion ? ` · ${insuranceSupplementaryBenefitRegion}` : ''}
+                                                        {insuranceSupplementaryBenefitDeductible ? tByLang(` · 自付費 ${insuranceSupplementaryBenefitDeductible}`, ` · Deductible ${insuranceSupplementaryBenefitDeductible}`, ` ・自己負担 ${insuranceSupplementaryBenefitDeductible}`) : ''}
+                                                    </div>
+                                                )}
+                                                {isLifeInsurance && partialWithdrawalStats.count > 0 && (
+                                                    <div className="text-rose-700">
+                                                        {tByLang(
+                                                            `部分提領：${formatAmount(partialWithdrawalStats.totalAmount)} ${item.currency}（${partialWithdrawalStats.count} 次）${partialWithdrawalStats.latestDate ? ` · 最近 ${partialWithdrawalStats.latestDate}` : ''}`,
+                                                            `Partial Withdrawals: ${formatAmount(partialWithdrawalStats.totalAmount)} ${item.currency} (${partialWithdrawalStats.count})${partialWithdrawalStats.latestDate ? ` · Latest ${partialWithdrawalStats.latestDate}` : ''}`,
+                                                            `一部引き出し：${formatAmount(partialWithdrawalStats.totalAmount)} ${item.currency}（${partialWithdrawalStats.count}回）${partialWithdrawalStats.latestDate ? ` ・最新 ${partialWithdrawalStats.latestDate}` : ''}`
+                                                        )}
+                                                    </div>
+                                                )}
+                                                {insuranceNote && <div>備註：{insuranceNote}</div>}
+                                            </div>
+                                        )}
                                     </td>
                                     <td className="px-6 py-4 text-right">
                                         {isInsuranceCategory ? (
-                                            hasPremiumPlan ? (
-                                                <div className="font-bold text-slate-700">
+                                            (isHealthInsurance && isHealthInsuranceGroup) || (isLifeInsurance && isLifeInsuranceGroup) ? (
+                                                insuranceCoverageAmount > 0 ? (
+                                                    <>
+                                                        <div className="font-bold text-amber-700">{formatAmount(insuranceCoverageDisplay)} <span className="text-[9px] text-amber-500">{displayCurrency}</span></div>
+                                                        <div className="text-[10px] text-amber-600">{formatAmount(insuranceCoverageAmount)} {item.currency}</div>
+                                                    </>
+                                                ) : (
+                                                    <div className="font-bold text-slate-400">--</div>
+                                                )
+                                            ) : isHealthInsurance ? (
+                                                <div className="font-bold text-amber-700">
                                                     {formatAmount(premiumAmount)} {item.currency}
-                                                    <div className="text-[10px] text-slate-400">/{item.premiumFrequency === 'yearly' ? '每年' : '每月'}</div>
+                                                    <div className="text-[10px] text-slate-400">/{item.premiumFrequency === 'yearly' ? '每年' : '每月'} · 扣款日 {insuranceHasPaymentDay ? `${insurancePaymentDay} 號` : '--'}</div>
                                                 </div>
+                                            ) : isLifeInsurance ? (
+                                                hasPremiumPlan ? (
+                                                    <div className="font-bold text-amber-700">
+                                                        {formatAmount(premiumAmount)} {item.currency}
+                                                        <div className="text-[10px] text-slate-400">/{item.premiumFrequency === 'yearly' ? tByLang('每年', 'yearly', '毎年') : tByLang('每月', 'monthly', '毎月')}{premiumPaymentYears > 0 ? tByLang(` · 繳費 ${premiumPaymentYears} 年`, ` · Pay ${premiumPaymentYears} yrs`, ` ・払込 ${premiumPaymentYears} 年`) : ''}</div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="font-bold text-slate-400">--</div>
+                                                )
+                                            ) : isLinkedInsurance ? (
+                                                <>
+                                                    <div className="font-bold text-slate-800">{formatAmount(mktValDisplay)} <span className="text-[9px] text-slate-400">{displayCurrency}</span></div>
+                                                    <div className="text-[10px] text-slate-400">數量 {formatAmount(item.quantity || 0)}</div>
+                                                </>
                                             ) : (
                                                 <div className="font-bold text-slate-400">--</div>
                                             )
@@ -340,8 +691,46 @@
                                     </td>
                                     <td className="px-6 py-4 text-right">
                                         {isInsuranceCategory ? (
-                                            hasPremiumPlan ? (
-                                                <div className="font-medium text-slate-700">{premiumPaidCount.toLocaleString()} 期</div>
+                                            (isHealthInsurance && isHealthInsuranceGroup) || (isLifeInsurance && isLifeInsuranceGroup) ? (
+                                                <>
+                                                    <div className="font-bold text-amber-700">{formatAmount(premiumAmount)} {item.currency}</div>
+                                                    {!isPolicyFullyPaid ? (
+                                                        <>
+                                                            <div className="text-[10px] text-slate-400">繳費週期：{item.premiumFrequency === 'yearly' ? '每年' : '每月'}</div>
+                                                            <div className="text-[10px] text-slate-400">扣款日：{insuranceHasPaymentDay ? `${insurancePaymentDay} 號` : '--'}</div>
+                                                            <div className="text-[10px] text-slate-400">下期扣款日：{nextBillingDateKey || '--'}</div>
+                                                        </>
+                                                    ) : (
+                                                        <div className="text-[10px]"><span className={PAID_OFF_BADGE_CLASS}>{tByLang('保費全部繳清', 'Policy fully paid', 'この保険は払込完了')}</span></div>
+                                                    )}
+                                                    {isLifeInsurance && annualDistributionAmount > 0 && (
+                                                        <div className="text-[10px] text-indigo-600">{tByLang(`每年派發 ${formatAmount(annualDistributionAmount)} ${item.currency}`, `Annual Distribution ${formatAmount(annualDistributionAmount)} ${item.currency}`, `年間配当 ${formatAmount(annualDistributionAmount)} ${item.currency}`)}</div>
+                                                    )}
+                                                </>
+                                            ) : isHealthInsurance ? (
+                                                <>
+                                                    <div className="font-medium text-slate-700">{effectivePremiumPaidCount.toLocaleString()} 期</div>
+                                                    <div className="text-[10px] text-slate-400">生效 {item.insuranceStartDate || '--'}{item.insuranceEndDate ? ` · 終止 ${item.insuranceEndDate}` : ''}</div>
+                                                </>
+                                            ) : isLifeInsurance ? (
+                                                hasPremiumPlan ? (
+                                                    <>
+                                                        <div className={`font-medium ${isPolicyFullyPaid ? 'text-emerald-700 font-black' : 'text-slate-700'}`}>
+                                                            {isPolicyFullyPaid
+                                                                ? tByLang('保費全部繳清', 'Paid Off', '払込完了')
+                                                                : `${effectivePremiumPaidCount.toLocaleString()}${premiumTermCap > 0 ? ` / ${premiumTermCap}` : ''} 期`}
+                                                        </div>
+                                                        <div className="text-[10px] text-slate-400">{tByLang(`保單年度 ${currentPolicyYear || '--'} · 已派發 ${distributionPaidYears} 年`, `Policy Year ${currentPolicyYear || '--'} · Distributed ${distributionPaidYears} yrs`, `保険年度 ${currentPolicyYear || '--'} ・配当 ${distributionPaidYears} 年`)}</div>
+                                                        {annualDistributionAmount > 0 && <div className="text-[10px] text-indigo-600">{tByLang(`每年派發 ${formatAmount(annualDistributionAmount)} ${item.currency}`, `Annual Distribution ${formatAmount(annualDistributionAmount)} ${item.currency}`, `年間配当 ${formatAmount(annualDistributionAmount)} ${item.currency}`)}</div>}
+                                                    </>
+                                                ) : (
+                                                    <div className="font-medium text-slate-400">--</div>
+                                                )
+                                            ) : isLinkedInsurance ? (
+                                                <>
+                                                    <div className="font-medium text-slate-700">{effectivePremiumPaidCount.toLocaleString()} 期</div>
+                                                    <div className="text-[10px] text-slate-400">現價 {formatAmount(item.currentPrice || 0)} · 成本 {formatAmount(item.costBasis || 0)} {item.currency}</div>
+                                                </>
                                             ) : (
                                                 <div className="font-medium text-slate-400">--</div>
                                             )
@@ -402,13 +791,52 @@
                                             </>
                                         )}
                                     </td>
+                                    {isInsuranceCategory && (isHealthInsuranceGroup || isLifeInsuranceGroup) && (
+                                        <td className="px-6 py-4 text-right">
+                                            {isPolicyFullyPaid ? (
+                                                <>
+                                                    <div className="font-medium"><span className={PAID_OFF_BADGE_CLASS}>{tByLang('保費全部繳清', 'Policy fully paid', 'この保険は払込完了')}</span></div>
+                                                    <div className="text-[10px] text-slate-400">保單生效日: {item.insuranceStartDate || '--'}</div>
+                                                    {item.insuranceEndDate && <div className="text-[10px] text-slate-400">保單終止日: {item.insuranceEndDate}</div>}
+                                                    {isLifeInsurance && <div className="text-[10px] text-slate-400">{tByLang(`保單年度 ${currentPolicyYear || '--'} · 已派發 ${distributionPaidYears} 年`, `Policy Year ${currentPolicyYear || '--'} · Distributed ${distributionPaidYears} yrs`, `保険年度 ${currentPolicyYear || '--'} ・配当 ${distributionPaidYears} 年`)}</div>}
+                                                </>
+                                            ) : item.insuranceEndDate ? (
+                                                <>
+                                                    <div className="font-medium text-slate-700">{effectivePremiumPaidCount.toLocaleString()}{premiumTermCap > 0 ? ` / ${premiumTermCap}` : ` / ${(totalBillingPeriods ?? '--').toString()}`}期</div>
+                                                    <div className="text-[10px] text-slate-400">保單生效日: {item.insuranceStartDate || '--'}</div>
+                                                    <div className="text-[10px] text-slate-400">保單終止日: {item.insuranceEndDate}</div>
+                                                    {isLifeInsurance && <div className="text-[10px] text-slate-400">{tByLang(`保單年度 ${currentPolicyYear || '--'} · 已派發 ${distributionPaidYears} 年`, `Policy Year ${currentPolicyYear || '--'} · Distributed ${distributionPaidYears} yrs`, `保険年度 ${currentPolicyYear || '--'} ・配当 ${distributionPaidYears} 年`)}</div>}
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <div className="font-medium text-slate-700">{effectivePremiumPaidCount.toLocaleString()} 期</div>
+                                                    {isLifeInsurance && <div className="text-[10px] text-slate-400">{tByLang(`保單年度 ${currentPolicyYear || '--'} · 已派發 ${distributionPaidYears} 年`, `Policy Year ${currentPolicyYear || '--'} · Distributed ${distributionPaidYears} yrs`, `保険年度 ${currentPolicyYear || '--'} ・配当 ${distributionPaidYears} 年`)}</div>}
+                                                </>
+                                            )}
+                                        </td>
+                                    )}
                                     {isInsuranceCategory && (
                                         <td className="px-6 py-4 text-right">
-                                            {hasPremiumPlan ? (
-                                                <>
-                                                    <div className="font-bold text-slate-800">{formatAmount(premiumTotalDisplay)} <span className="text-[9px] text-slate-400">{displayCurrency}</span></div>
-                                                    <div className="text-[10px] text-slate-400">{formatAmount(premiumTotalOrig)} {item.currency}</div>
-                                                </>
+                                            {isHealthInsurance || isLifeInsurance ? (
+                                                hasPremiumPlan ? (
+                                                    <>
+                                                        <div className="font-bold text-emerald-700">{formatAmount(mktValDisplay)} <span className="text-[9px] text-emerald-500">{displayCurrency}</span></div>
+                                                        <div className="text-[10px] text-emerald-600">{formatAmount(mktValOrig)} {item.currency}</div>
+                                                        {isLifeInsurance && annualDistributionAmount > 0 && (
+                                                            <div className="text-[10px] text-indigo-600">
+                                                                {tByLang(`派發 ${formatAmount(annualDistributionAmount)} /年 ·`, `Distribution ${formatAmount(annualDistributionAmount)} /yr ·`, `配当 ${formatAmount(annualDistributionAmount)} /年 ・`)}
+                                                                {distributionMode === 'accumulate' ? tByLang(' 積存', ' Accum.', ' 積立') : tByLang(' 入帳', ' Cash', ' 入金')}
+                                                                {distributionMode === 'accumulate' ? ` ${formatAmount(accumulationBalance)}` : ''}
+                                                            </div>
+                                                        )}
+                                                        {isLifeInsurance && totalDistributedAmount > 0 && <div className="text-[10px] text-emerald-600">{tByLang(`累計派發 ${formatAmount(totalDistributedAmount)} ${item.currency}`, `Total Distributed ${formatAmount(totalDistributedAmount)} ${item.currency}`, `累計配当 ${formatAmount(totalDistributedAmount)} ${item.currency}`)}</div>}
+                                                        {isLifeInsurance && partialWithdrawalStats.count > 0 && (
+                                                            <div className="text-[10px] text-rose-600">{tByLang(`部分提領 ${formatAmount(partialWithdrawalStats.totalAmount)} ${item.currency}（${partialWithdrawalStats.count} 次）`, `Partial Withdrawals ${formatAmount(partialWithdrawalStats.totalAmount)} ${item.currency} (${partialWithdrawalStats.count})`, `一部引き出し ${formatAmount(partialWithdrawalStats.totalAmount)} ${item.currency}（${partialWithdrawalStats.count}回）`)}</div>
+                                                        )}
+                                                    </>
+                                                ) : (
+                                                    <div className="font-bold text-slate-400">--</div>
+                                                )
                                             ) : (
                                                 <>
                                                     <div className="font-bold text-slate-800">{formatAmount(mktValDisplay)} <span className="text-[9px] text-slate-400">{displayCurrency}</span></div>
@@ -444,7 +872,8 @@
                 </table>
             </div>
         </div>
-    );
+        );
+    };
 
     const AssetDetailListView = ({
         groupedAssets,
@@ -460,6 +889,8 @@
         openEdit,
         tByLang,
         cashflowAutoRulesByLiquidAssetId,
+        insuranceAutoPaidCountByAssetId,
+        insurancePartialWithdrawalStatsByAssetId,
         CASHFLOW_FREQUENCIES
     }) => (
         <div className="space-y-10">
@@ -488,6 +919,20 @@
                         const isPayableLiability = item => isLiabilityCategory && item.subtype === '應付款';
                         const isOtherLiability = item => isLiabilityCategory && item.subtype === '其他負債';
 
+                        const insuranceSubtypeOrder = CATEGORIES[catKey]?.subtypes || [];
+                        const detailGroups = isInsuranceCategory
+                            ? [
+                                ...insuranceSubtypeOrder,
+                                ...Array.from(new Set(items.map(item => item.subtype).filter(subtype => !insuranceSubtypeOrder.includes(subtype))))
+                            ]
+                                .map(subtype => ({
+                                    groupKey: subtype,
+                                    groupLabel: subtype,
+                                    groupItems: items.filter(item => item.subtype === subtype)
+                                }))
+                                .filter(group => group.groupItems.length > 0)
+                            : [{ groupKey: 'ALL', groupLabel: '', groupItems: items }];
+
                         return (
                             <div key={accountName} className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm">
                                 <button
@@ -507,48 +952,62 @@
                                 </button>
                                 {isExpanded && (
                                     <>
-                                        <AssetDetailMobileCards
-                                            items={items}
-                                            isLiabilityCategory={isLiabilityCategory}
-                                            isInsuranceCategory={isInsuranceCategory}
-                                            isMortgageLiability={isMortgageLiability}
-                                            isLoanLiability={isLoanLiability}
-                                            isCreditCardLiability={isCreditCardLiability}
-                                            isPayableLiability={isPayableLiability}
-                                            isOtherLiability={isOtherLiability}
-                                            isReceivableCategory={isReceivableCategory}
-                                            isFixedCategory={isFixedCategory}
-                                            isLiquidCategory={isLiquidCategory}
-                                            isInvestCategory={isInvestCategory}
-                                            CATEGORIES={CATEGORIES}
-                                            translate={translate}
-                                            tByLang={tByLang}
-                                            formatAmount={formatAmount}
-                                            displayCurrency={displayCurrency}
-                                            toHKD={toHKD}
-                                            fromHKD={fromHKD}
-                                            openEdit={openEdit}
-                                            cashflowAutoRulesByLiquidAssetId={cashflowAutoRulesByLiquidAssetId}
-                                            CASHFLOW_FREQUENCIES={CASHFLOW_FREQUENCIES}
-                                        />
-                                        <AssetDetailDesktopTable
-                                            items={items}
-                                            isInvestCategory={isInvestCategory}
-                                            isInsuranceCategory={isInsuranceCategory}
-                                            isLiquidCategory={isLiquidCategory}
-                                            isLiabilityCategory={isLiabilityCategory}
-                                            isReceivableCategory={isReceivableCategory}
-                                            isFixedCategory={isFixedCategory}
-                                            CATEGORIES={CATEGORIES}
-                                            translate={translate}
-                                            tByLang={tByLang}
-                                            toHKD={toHKD}
-                                            fromHKD={fromHKD}
-                                            formatAmount={formatAmount}
-                                            displayCurrency={displayCurrency}
-                                            openEdit={openEdit}
-                                            cashflowAutoRulesByLiquidAssetId={cashflowAutoRulesByLiquidAssetId}
-                                        />
+                                        {detailGroups.map(({ groupKey, groupLabel, groupItems }) => (
+                                            <div key={groupKey} className={isInsuranceCategory ? 'border-t border-slate-100 first:border-t-0' : ''}>
+                                                {isInsuranceCategory && (
+                                                    <div className="px-6 pt-4 pb-1 flex items-center justify-between">
+                                                        <div className="text-xs font-black text-slate-600 tracking-wide">{translate(groupLabel)}</div>
+                                                        <div className="text-[10px] font-black text-slate-400">{groupItems.length} 筆</div>
+                                                    </div>
+                                                )}
+                                                <AssetDetailMobileCards
+                                                    items={groupItems}
+                                                    isLiabilityCategory={isLiabilityCategory}
+                                                    isInsuranceCategory={isInsuranceCategory}
+                                                    isMortgageLiability={isMortgageLiability}
+                                                    isLoanLiability={isLoanLiability}
+                                                    isCreditCardLiability={isCreditCardLiability}
+                                                    isPayableLiability={isPayableLiability}
+                                                    isOtherLiability={isOtherLiability}
+                                                    isReceivableCategory={isReceivableCategory}
+                                                    isFixedCategory={isFixedCategory}
+                                                    isLiquidCategory={isLiquidCategory}
+                                                    isInvestCategory={isInvestCategory}
+                                                    CATEGORIES={CATEGORIES}
+                                                    translate={translate}
+                                                    tByLang={tByLang}
+                                                    formatAmount={formatAmount}
+                                                    displayCurrency={displayCurrency}
+                                                    toHKD={toHKD}
+                                                    fromHKD={fromHKD}
+                                                    openEdit={openEdit}
+                                                    cashflowAutoRulesByLiquidAssetId={cashflowAutoRulesByLiquidAssetId}
+                                                    insuranceAutoPaidCountByAssetId={insuranceAutoPaidCountByAssetId}
+                                                    insurancePartialWithdrawalStatsByAssetId={insurancePartialWithdrawalStatsByAssetId}
+                                                    CASHFLOW_FREQUENCIES={CASHFLOW_FREQUENCIES}
+                                                />
+                                                <AssetDetailDesktopTable
+                                                    items={groupItems}
+                                                    isInvestCategory={isInvestCategory}
+                                                    isInsuranceCategory={isInsuranceCategory}
+                                                    isLiquidCategory={isLiquidCategory}
+                                                    isLiabilityCategory={isLiabilityCategory}
+                                                    isReceivableCategory={isReceivableCategory}
+                                                    isFixedCategory={isFixedCategory}
+                                                    CATEGORIES={CATEGORIES}
+                                                    translate={translate}
+                                                    tByLang={tByLang}
+                                                    toHKD={toHKD}
+                                                    fromHKD={fromHKD}
+                                                    formatAmount={formatAmount}
+                                                    displayCurrency={displayCurrency}
+                                                    openEdit={openEdit}
+                                                    cashflowAutoRulesByLiquidAssetId={cashflowAutoRulesByLiquidAssetId}
+                                                    insuranceAutoPaidCountByAssetId={insuranceAutoPaidCountByAssetId}
+                                                    insurancePartialWithdrawalStatsByAssetId={insurancePartialWithdrawalStatsByAssetId}
+                                                />
+                                            </div>
+                                        ))}
                                     </>
                                 )}
                             </div>

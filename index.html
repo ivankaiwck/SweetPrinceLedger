@@ -399,6 +399,10 @@
         }
 
         function App() {
+            const INSURANCE_SUBTYPE_GROUPS = {
+                HEALTH: ['醫療險', '重大疾病險', '癌症險', '意外險', '失能/長照險', '健康'],
+                LIFE_WEALTH: ['定期壽險', '終身壽險', '年金險', '儲蓄險', '投資型壽險', '萬能壽險', '人壽/累積財富', '投資/投資相連']
+            };
             const FIELD_LABEL_CLASS = 'text-[10px] font-black theme-text-sub uppercase tracking-widest ml-1';
             const CASHFLOW_INPUT_CLASS = 'w-full p-3 bg-white rounded-xl font-bold outline-none';
             const CASHFLOW_INPUT_FOCUS_CLASS = `${CASHFLOW_INPUT_CLASS} ring-2 ring-transparent focus:ring-indigo-100`;
@@ -449,8 +453,44 @@
                 costBasis: '',
                 currency: 'HKD',
                 premiumAmount: '',
+                insuranceBasePremiumAmount: '',
+                insuranceSupplementaryPremiumAmount: '',
+                insuranceSupplementaryBenefitName: '',
+                insuranceSupplementaryBenefitRegion: '',
+                insuranceSupplementaryBenefitDeductible: '',
                 premiumFrequency: 'monthly',
                 premiumPaidCount: '',
+                insuranceProvider: '',
+                insurancePolicyNumber: '',
+                insuranceCoverageAmount: '',
+                insuranceBeneficiary: '',
+                insurancePaymentAccountId: '',
+                insurancePaymentDay: '',
+                insuranceStartDate: '',
+                insuranceEndDate: '',
+                insuranceNote: '',
+                insuranceWaitingPeriodDays: '',
+                insuranceDeductible: '',
+                insurancePolicyValue: '',
+                insurancePremiumPaymentYears: '',
+                insuranceExpectedMaturityDate: '',
+                insuranceAnnuityStartDate: '',
+                insuranceDistributionStartPolicyYear: '',
+                insuranceAnnualDistributionAmount: '',
+                insuranceDistributionMode: 'cash',
+                insuranceAccumulationRate: '',
+                insuranceAccumulationBalance: '',
+                insuranceGuaranteedCashValue: '',
+                insuranceNonGuaranteedCashValue: '',
+                insuranceDistributionPaidYears: '',
+                insuranceTotalDistributedAmount: '',
+                insuranceProjectedRate: '',
+                insuranceFundAllocation: '',
+                insurancePartialWithdrawalAmount: '',
+                insurancePartialWithdrawalDate: '',
+                insurancePartialWithdrawalAccountId: '',
+                insurancePartialWithdrawalNote: '',
+                insurancePartialWithdrawalEditCashflowId: '',
                 propertyPrice: '',
                 ltvRatio: '',
                 annualInterestRate: '',
@@ -488,8 +528,44 @@
                 quantity: '',
                 costBasis: '',
                 premiumAmount: '',
+                insuranceBasePremiumAmount: '',
+                insuranceSupplementaryPremiumAmount: '',
+                insuranceSupplementaryBenefitName: '',
+                insuranceSupplementaryBenefitRegion: '',
+                insuranceSupplementaryBenefitDeductible: '',
                 premiumPaidCount: '',
                 premiumFrequency: 'monthly',
+                insuranceProvider: '',
+                insurancePolicyNumber: '',
+                insuranceCoverageAmount: '',
+                insuranceBeneficiary: '',
+                insurancePaymentAccountId: '',
+                insurancePaymentDay: '',
+                insuranceStartDate: '',
+                insuranceEndDate: '',
+                insuranceNote: '',
+                insuranceWaitingPeriodDays: '',
+                insuranceDeductible: '',
+                insurancePolicyValue: '',
+                insurancePremiumPaymentYears: '',
+                insuranceExpectedMaturityDate: '',
+                insuranceAnnuityStartDate: '',
+                insuranceDistributionStartPolicyYear: '',
+                insuranceAnnualDistributionAmount: '',
+                insuranceDistributionMode: 'cash',
+                insuranceAccumulationRate: '',
+                insuranceAccumulationBalance: '',
+                insuranceGuaranteedCashValue: '',
+                insuranceNonGuaranteedCashValue: '',
+                insuranceDistributionPaidYears: '',
+                insuranceTotalDistributedAmount: '',
+                insuranceProjectedRate: '',
+                insuranceFundAllocation: '',
+                insurancePartialWithdrawalAmount: '',
+                insurancePartialWithdrawalDate: '',
+                insurancePartialWithdrawalAccountId: '',
+                insurancePartialWithdrawalNote: '',
+                insurancePartialWithdrawalEditCashflowId: '',
                 propertyPrice: '',
                 ltvRatio: '',
                 annualInterestRate: '',
@@ -522,11 +598,25 @@
                 fixedDepositMonths: '',
                 fixedDepositStartDate: ''
             };
-            const buildFormDataFromAsset = (asset) => ({
-                ...createInitialAssetFormData(),
-                ...asset,
-                premiumFrequency: asset?.premiumFrequency ?? 'monthly'
-            });
+            const buildFormDataFromAsset = (asset) => {
+                const INSURANCE_LIFE_WEALTH_SUBTYPES = ['定期壽險', '終身壽險', '年金險', '儲蓄險', '投資型壽險', '萬能壽險', '人壽/累積財富', '投資/投資相連'];
+                const isLifeWealthSubtype = INSURANCE_LIFE_WEALTH_SUBTYPES.includes(asset?.subtype);
+                const basePremiumRaw = Number(asset?.insuranceBasePremiumAmount || 0);
+                const supplementaryPremiumRaw = Number(asset?.insuranceSupplementaryPremiumAmount || 0);
+                const shouldBackfillBasePremium = isLifeWealthSubtype && basePremiumRaw <= 0 && supplementaryPremiumRaw <= 0;
+                return {
+                    ...createInitialAssetFormData(),
+                    ...asset,
+                    premiumFrequency: asset?.premiumFrequency ?? 'monthly',
+                    insuranceBasePremiumAmount: shouldBackfillBasePremium
+                        ? (asset?.premiumAmount ?? '')
+                        : (asset?.insuranceBasePremiumAmount ?? ''),
+                    insuranceSupplementaryPremiumAmount: asset?.insuranceSupplementaryPremiumAmount ?? '',
+                    insuranceSupplementaryBenefitName: asset?.insuranceSupplementaryBenefitName ?? '',
+                    insuranceSupplementaryBenefitRegion: asset?.insuranceSupplementaryBenefitRegion ?? '',
+                    insuranceSupplementaryBenefitDeductible: asset?.insuranceSupplementaryBenefitDeductible ?? ''
+                };
+            };
 
             const [assets, setAssets] = useState(() => parseStorage(STORAGE_KEYS.assets, seedAssets));
             const [displayCurrency, setDisplayCurrency] = useState(() => parseStorage(STORAGE_KEYS.displayCurrency, 'HKD'));
@@ -824,7 +914,9 @@
             const isCreditCardForm = isLiabilityForm && formData.subtype === '信用卡';
             const isPayableForm = isLiabilityForm && formData.subtype === '應付款';
             const isOtherLiabilityForm = isLiabilityForm && formData.subtype === '其他負債';
-            const needsPremium = isInsuranceForm && ['人壽/累積財富', '健康'].includes(formData.subtype);
+            const isHealthInsuranceForm = isInsuranceForm && INSURANCE_SUBTYPE_GROUPS.HEALTH.includes(formData.subtype);
+            const isLifeWealthInsuranceForm = isInsuranceForm && INSURANCE_SUBTYPE_GROUPS.LIFE_WEALTH.includes(formData.subtype);
+            const needsPremium = isInsuranceForm && (isHealthInsuranceForm || isLifeWealthInsuranceForm);
             const premiumTotal = (Number(formData.premiumAmount) || 0) * (Number(formData.premiumPaidCount) || 0);
             const mortgageMetrics = isMortgageForm ? calculateMortgageMetrics(formData) : null;
             const loanMetrics = isLoanForm ? calculateInstallmentLoanMetrics({
@@ -1476,6 +1568,77 @@
                     grouped[key].sort((a, b) => a.title.localeCompare(b.title, 'zh-Hant', { sensitivity: 'base' }));
                 });
                 return grouped;
+            }, [cashflowEntries]);
+
+            const insuranceAutoPaidCountByAssetId = useMemo(() => {
+                const postingCountByEntryId = {};
+                Object.values(cashflowAppliedPostings).forEach(posting => {
+                    if (!posting || typeof posting !== 'object') return;
+                    const entryId = typeof posting.entryId === 'string' ? posting.entryId : '';
+                    if (!entryId) return;
+                    postingCountByEntryId[entryId] = (postingCountByEntryId[entryId] || 0) + 1;
+                });
+
+                const countByAssetId = {};
+                cashflowEntries.forEach(entry => {
+                    if (entry.linkedSource !== 'INSURANCE_AUTO') return;
+                    if (!entry.linkedAssetId) return;
+                    const appliedCount = postingCountByEntryId[entry.id] || 0;
+                    countByAssetId[entry.linkedAssetId] = (countByAssetId[entry.linkedAssetId] || 0) + appliedCount;
+                });
+                return countByAssetId;
+            }, [cashflowEntries, cashflowAppliedPostings]);
+
+            const insurancePartialWithdrawalStatsByAssetId = useMemo(() => {
+                const statsByAssetId = {};
+                cashflowEntries.forEach(entry => {
+                    if (entry.linkedSource !== 'INSURANCE_PARTIAL_WITHDRAWAL') return;
+                    if (!entry.linkedAssetId) return;
+                    const amount = Number(entry.amount || 0);
+                    const dateKey = (Array.isArray(entry.oneTimeDates) && entry.oneTimeDates.length > 0)
+                        ? entry.oneTimeDates[0]
+                        : (entry.startDate || '');
+
+                    if (!statsByAssetId[entry.linkedAssetId]) {
+                        statsByAssetId[entry.linkedAssetId] = {
+                            count: 0,
+                            totalAmount: 0,
+                            latestDate: ''
+                        };
+                    }
+
+                    const current = statsByAssetId[entry.linkedAssetId];
+                    current.count += 1;
+                    current.totalAmount += (Number.isFinite(amount) ? amount : 0);
+                    if (dateKey && (!current.latestDate || dateKey > current.latestDate)) {
+                        current.latestDate = dateKey;
+                    }
+                });
+                return statsByAssetId;
+            }, [cashflowEntries]);
+
+            const insurancePartialWithdrawalRecordsByAssetId = useMemo(() => {
+                const recordsByAssetId = {};
+                cashflowEntries.forEach(entry => {
+                    if (entry.linkedSource !== 'INSURANCE_PARTIAL_WITHDRAWAL') return;
+                    if (!entry.linkedAssetId) return;
+                    if (!recordsByAssetId[entry.linkedAssetId]) recordsByAssetId[entry.linkedAssetId] = [];
+                    const normalizedDate = (Array.isArray(entry.oneTimeDates) && entry.oneTimeDates.length > 0)
+                        ? entry.oneTimeDates[0]
+                        : (entry.startDate || '');
+                    recordsByAssetId[entry.linkedAssetId].push({
+                        id: entry.id,
+                        amount: Number(entry.amount || 0),
+                        date: normalizedDate,
+                        accountId: entry.targetLiquidAssetId || '',
+                        note: (entry.note || '').trim(),
+                        currency: entry.currency || 'HKD'
+                    });
+                });
+                Object.keys(recordsByAssetId).forEach(assetId => {
+                    recordsByAssetId[assetId].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+                });
+                return recordsByAssetId;
             }, [cashflowEntries]);
 
             const cashflowAccountOptions = useMemo(() => {
@@ -2258,15 +2421,322 @@
                 setIsModalOpen(true);
             };
 
+            const loadInsurancePartialWithdrawalRecordForEdit = (recordId) => {
+                if (!recordId || !editingId) return;
+                const targetEntry = cashflowEntries.find(entry => (
+                    entry.id === recordId
+                    && entry.linkedSource === 'INSURANCE_PARTIAL_WITHDRAWAL'
+                    && entry.linkedAssetId === editingId
+                ));
+                if (!targetEntry) {
+                    showSubmissionErrorAlert(tByLang('找不到該提領紀錄，可能已被刪除。', 'The withdrawal record was not found and may have been deleted.', '対象の引き出し記録が見つかりません。すでに削除された可能性があります。'));
+                    return;
+                }
+                const normalizedDate = (Array.isArray(targetEntry.oneTimeDates) && targetEntry.oneTimeDates.length > 0)
+                    ? targetEntry.oneTimeDates[0]
+                    : (targetEntry.startDate || '');
+                const noteSegments = String(targetEntry.note || '')
+                    .split('｜')
+                    .map(item => item.trim())
+                    .filter(Boolean);
+                const extractedCustomNote = noteSegments.length >= 3 ? noteSegments.slice(2).join('｜') : '';
+                setFormData(prev => ({
+                    ...prev,
+                    insurancePartialWithdrawalEditCashflowId: targetEntry.id,
+                    insurancePartialWithdrawalAmount: Number(targetEntry.amount || 0) > 0 ? String(targetEntry.amount) : '',
+                    insurancePartialWithdrawalDate: normalizedDate,
+                    insurancePartialWithdrawalAccountId: targetEntry.targetLiquidAssetId || '',
+                    insurancePartialWithdrawalNote: extractedCustomNote
+                }));
+            };
+
+            const clearInsurancePartialWithdrawalEditTarget = () => {
+                setFormData(prev => ({
+                    ...prev,
+                    insurancePartialWithdrawalEditCashflowId: '',
+                    insurancePartialWithdrawalAmount: '',
+                    insurancePartialWithdrawalDate: '',
+                    insurancePartialWithdrawalAccountId: '',
+                    insurancePartialWithdrawalNote: ''
+                }));
+            };
+
+            const deleteInsurancePartialWithdrawalRecord = (recordId) => {
+                if (!recordId || !editingId) return;
+                const targetEntry = cashflowEntries.find(entry => (
+                    entry.id === recordId
+                    && entry.linkedSource === 'INSURANCE_PARTIAL_WITHDRAWAL'
+                    && entry.linkedAssetId === editingId
+                ));
+                if (!targetEntry) {
+                    showSubmissionErrorAlert(tByLang('找不到該提領紀錄，可能已被刪除。', 'The withdrawal record was not found and may have been deleted.', '対象の引き出し記録が見つかりません。すでに削除された可能性があります。'));
+                    return;
+                }
+
+                const confirmMessage = tByLang(
+                    `確定刪除此提領紀錄嗎？\n金額：${formatAmount(Number(targetEntry.amount || 0))} ${targetEntry.currency || 'HKD'}\n刪除後會回補保單價值。`,
+                    `Delete this withdrawal record?\nAmount: ${formatAmount(Number(targetEntry.amount || 0))} ${targetEntry.currency || 'HKD'}\nPolicy value will be rolled back after deletion.`,
+                    `この引き出し記録を削除しますか？\n金額：${formatAmount(Number(targetEntry.amount || 0))} ${targetEntry.currency || 'HKD'}\n削除後、保険価値は戻されます。`
+                );
+                if (!showConfirmDialog(confirmMessage)) return;
+
+                const rollbackAmount = Number(targetEntry.amount || 0);
+                setAssets(prev => prev.map(asset => {
+                    if (asset.id !== editingId) return asset;
+                    const nextPolicyValue = Math.max(0, Number(asset.insurancePolicyValue || 0) + rollbackAmount);
+                    const nextCurrentPrice = Math.max(0, Number(asset.currentPrice || 0) + rollbackAmount);
+                    return {
+                        ...asset,
+                        insurancePolicyValue: nextPolicyValue,
+                        currentPrice: nextCurrentPrice
+                    };
+                }));
+                setCashflowEntries(prev => sanitizeCashflowEntries(prev.filter(entry => entry.id !== recordId)));
+
+                setFormData(prev => {
+                    if (prev.insurancePartialWithdrawalEditCashflowId !== recordId) return prev;
+                    return {
+                        ...prev,
+                        insurancePartialWithdrawalEditCashflowId: '',
+                        insurancePartialWithdrawalAmount: '',
+                        insurancePartialWithdrawalDate: '',
+                        insurancePartialWithdrawalAccountId: '',
+                        insurancePartialWithdrawalNote: ''
+                    };
+                });
+            };
+
             const handleDelete = (id) => {
-                const result = buildAssetDeleteResult({ assets, id });
+                const linkedInsuranceRuleCount = cashflowEntries.filter(entry => (
+                    (entry.linkedSource === 'INSURANCE_AUTO' || entry.linkedSource === 'INSURANCE_DISTRIBUTION_AUTO')
+                    && entry.linkedAssetId === id
+                )).length;
+                const confirmMessage = linkedInsuranceRuleCount > 0
+                    ? tByLang(
+                        `確定要刪除此資產嗎？\n將一併刪除 ${linkedInsuranceRuleCount} 條保險自動現金流規則。`,
+                        `Delete this asset?\n${linkedInsuranceRuleCount} linked insurance auto-cashflow rule(s) will also be removed.`,
+                        `この資産を削除しますか？\n連動する保険自動キャッシュフロールール ${linkedInsuranceRuleCount} 件も削除されます。`
+                    )
+                    : tByLang('確定要刪除此資產嗎？', 'Delete this asset?', 'この資産を削除しますか？');
+                const result = buildAssetDeleteResult({ assets, id, confirmMessage });
                 if (!result.ok) return;
                 setAssets(result.nextAssets);
+                setCashflowEntries(prev => prev.filter(entry => !(
+                    (entry.linkedSource === 'INSURANCE_AUTO' || entry.linkedSource === 'INSURANCE_DISTRIBUTION_AUTO')
+                    && entry.linkedAssetId === id
+                )));
                 setIsModalOpen(false);
             };
 
             const handleSubmit = (e) => {
                 e.preventDefault();
+                const previousAsset = editingId ? assets.find(item => item.id === editingId) : null;
+                const wasAutoInsurance = Boolean(previousAsset && previousAsset.category === 'INSURANCE');
+                const normalizeDistributionStartPolicyYear = (startDateKey, rawValue) => {
+                    const parsedRaw = Number(rawValue || 0);
+                    if (!Number.isFinite(parsedRaw) || parsedRaw <= 0) return 0;
+                    const normalizedRaw = Math.floor(parsedRaw);
+                    if (normalizedRaw >= 1000) {
+                        const startDate = parseDateKey(startDateKey || '');
+                        if (!startDate) return 0;
+                        return Math.max(1, normalizedRaw - startDate.getFullYear() + 1);
+                    }
+                    return normalizedRaw;
+                };
+
+                const resolveDistributionStartCalendarYear = (sourceAsset) => {
+                    const startDate = parseDateKey(sourceAsset.insuranceStartDate) || new Date();
+                    const normalizedRaw = Math.floor(Number(sourceAsset.insuranceDistributionStartPolicyYear || 0));
+                    if (Number.isFinite(normalizedRaw) && normalizedRaw >= 1000) {
+                        return normalizedRaw;
+                    }
+                    const policyYear = normalizeDistributionStartPolicyYear(sourceAsset.insuranceStartDate, sourceAsset.insuranceDistributionStartPolicyYear);
+                    return startDate.getFullYear() + Math.max(0, policyYear - 1);
+                };
+
+                const buildInsuranceCashflowEntry = (assetId, sourceAsset, existingCashflowId = '') => {
+                    const selectedLiquidAsset = liquidAssetOptions.find(option => option.id === sourceAsset.insurancePaymentAccountId);
+                    const start = parseDateKey(sourceAsset.insuranceStartDate) || new Date();
+                    const configuredPaymentDayRaw = Number(sourceAsset.insurancePaymentDay);
+                    const configuredPaymentDay = Number.isInteger(configuredPaymentDayRaw) && configuredPaymentDayRaw >= 1 && configuredPaymentDayRaw <= 31
+                        ? configuredPaymentDayRaw
+                        : start.getDate();
+                    const daysInStartMonth = new Date(start.getFullYear(), start.getMonth() + 1, 0).getDate();
+                    const targetDay = Math.min(configuredPaymentDay, daysInStartMonth);
+                    const adjustedStartDate = toDateKey(new Date(start.getFullYear(), start.getMonth(), targetDay));
+                    return {
+                        id: existingCashflowId || `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+                        title: (sourceAsset.name || '').trim() || '保險扣款',
+                        account: selectedLiquidAsset?.account || sourceAsset.account || '',
+                        category: getDefaultCashflowCategory('EXPENSE'),
+                        note: [
+                            (sourceAsset.insuranceProvider || '').trim(),
+                            (sourceAsset.insurancePolicyNumber || '').trim(),
+                            (sourceAsset.insuranceNote || '').trim()
+                        ].filter(Boolean).join('｜'),
+                        type: 'EXPENSE',
+                        amount: Number(sourceAsset.premiumAmount) || 0,
+                        currency: sourceAsset.currency || 'HKD',
+                        startDate: adjustedStartDate,
+                        oneTimeDates: [],
+                        endDate: sourceAsset.insuranceEndDate || '',
+                        scheduleType: 'RECURRING',
+                        frequency: sourceAsset.premiumFrequency === 'yearly' ? 'YEARLY' : 'MONTHLY',
+                        weekday: 0,
+                        monthday: configuredPaymentDay,
+                        payday: String(configuredPaymentDay),
+                        targetLiquidAssetId: sourceAsset.insurancePaymentAccountId,
+                        linkedAssetId: assetId,
+                        linkedSource: 'INSURANCE_AUTO'
+                    };
+                };
+
+                const buildInsuranceDistributionCashflowEntry = (assetId, sourceAsset, existingCashflowId = '') => {
+                    const selectedLiquidAsset = liquidAssetOptions.find(option => option.id === sourceAsset.insurancePaymentAccountId);
+                    const start = parseDateKey(sourceAsset.insuranceStartDate) || new Date();
+                    const configuredPaymentDayRaw = Number(sourceAsset.insurancePaymentDay);
+                    const configuredPaymentDay = Number.isInteger(configuredPaymentDayRaw) && configuredPaymentDayRaw >= 1 && configuredPaymentDayRaw <= 31
+                        ? configuredPaymentDayRaw
+                        : start.getDate();
+                    const distributionYear = resolveDistributionStartCalendarYear(sourceAsset);
+                    const daysInDistributionMonth = new Date(distributionYear, start.getMonth() + 1, 0).getDate();
+                    const distributionDay = Math.min(configuredPaymentDay, daysInDistributionMonth);
+                    const adjustedStartDate = toDateKey(new Date(distributionYear, start.getMonth(), distributionDay));
+                    return {
+                        id: existingCashflowId || `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+                        title: (sourceAsset.name || '').trim() ? `${(sourceAsset.name || '').trim()} 派發` : '保險派發',
+                        account: selectedLiquidAsset?.account || sourceAsset.account || '',
+                        category: getDefaultCashflowCategory('INCOME'),
+                        note: [
+                            (sourceAsset.insuranceProvider || '').trim(),
+                            (sourceAsset.insurancePolicyNumber || '').trim(),
+                            tByLang('保險派發（自動）', 'Insurance Distribution (Auto)', '保険配当（自動）')
+                        ].filter(Boolean).join('｜'),
+                        type: 'INCOME',
+                        amount: Number(sourceAsset.insuranceAnnualDistributionAmount) || 0,
+                        currency: sourceAsset.currency || 'HKD',
+                        startDate: adjustedStartDate,
+                        oneTimeDates: [],
+                        endDate: sourceAsset.insuranceEndDate || '',
+                        scheduleType: 'RECURRING',
+                        frequency: 'YEARLY',
+                        weekday: 0,
+                        monthday: configuredPaymentDay,
+                        payday: String(configuredPaymentDay),
+                        targetLiquidAssetId: sourceAsset.insurancePaymentAccountId,
+                        linkedAssetId: assetId,
+                        linkedSource: 'INSURANCE_DISTRIBUTION_AUTO'
+                    };
+                };
+
+                const shouldEnableDistributionRule = Boolean(
+                    needsPremium
+                    && isLifeWealthInsuranceForm
+                    && formData.insuranceDistributionMode === 'cash'
+                    && (Number(formData.insuranceAnnualDistributionAmount) || 0) > 0
+                    && (Number(formData.insuranceDistributionStartPolicyYear) || 0) >= 1
+                    && formData.insurancePaymentAccountId
+                    && formData.insuranceStartDate
+                );
+                const resolvedPremiumAmount = (() => {
+                    const basePremiumAmount = Number(formData.insuranceBasePremiumAmount || 0);
+                    const supplementaryPremiumAmount = Number(formData.insuranceSupplementaryPremiumAmount || 0);
+                    if (isLifeWealthInsuranceForm && (basePremiumAmount > 0 || supplementaryPremiumAmount > 0)) {
+                        return basePremiumAmount + supplementaryPremiumAmount;
+                    }
+                    return Number(formData.premiumAmount || 0);
+                })();
+
+                const partialWithdrawalAmount = Number(formData.insurancePartialWithdrawalAmount || 0);
+                const partialWithdrawalEditCashflowId = (formData.insurancePartialWithdrawalEditCashflowId || '').trim();
+                const partialWithdrawalEditEntry = partialWithdrawalEditCashflowId
+                    ? cashflowEntries.find(entry => (
+                        entry.id === partialWithdrawalEditCashflowId
+                        && entry.linkedSource === 'INSURANCE_PARTIAL_WITHDRAWAL'
+                        && entry.linkedAssetId === editingId
+                    ))
+                    : null;
+                const hasPartialWithdrawal = Boolean(editingId && isLifeWealthInsuranceForm && partialWithdrawalAmount > 0);
+                const partialWithdrawalTargetAccountId = formData.insurancePartialWithdrawalAccountId || formData.insurancePaymentAccountId;
+                const parsedPartialWithdrawalDate = parseDateKey(formData.insurancePartialWithdrawalDate || '');
+                const partialWithdrawalDateKey = parsedPartialWithdrawalDate
+                    ? toDateKey(parsedPartialWithdrawalDate)
+                    : toDateKey(new Date());
+
+                const buildInsurancePartialWithdrawalCashflowEntry = (assetId, sourceAsset, existingCashflowId = '') => {
+                    const selectedLiquidAsset = liquidAssetOptions.find(option => option.id === partialWithdrawalTargetAccountId);
+                    const [year, month, day] = partialWithdrawalDateKey.split('-').map(Number);
+                    return {
+                        id: existingCashflowId || `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+                        title: (sourceAsset.name || '').trim() ? `${(sourceAsset.name || '').trim()} 部分提領` : '保單部分提領',
+                        account: selectedLiquidAsset?.account || sourceAsset.account || '',
+                        category: getDefaultCashflowCategory('INCOME'),
+                        note: [
+                            tByLang('保單部分提領（自動）', 'Policy Partial Withdrawal (Auto)', '保険一部引き出し（自動）'),
+                            (sourceAsset.insurancePolicyNumber || '').trim(),
+                            (formData.insurancePartialWithdrawalNote || '').trim()
+                        ].filter(Boolean).join('｜'),
+                        type: 'INCOME',
+                        amount: partialWithdrawalAmount,
+                        currency: sourceAsset.currency || 'HKD',
+                        startDate: partialWithdrawalDateKey,
+                        oneTimeDates: [partialWithdrawalDateKey],
+                        endDate: '',
+                        scheduleType: 'ONE_TIME',
+                        frequency: 'ONE_TIME',
+                        weekday: 0,
+                        monthday: day || 1,
+                        payday: String(day || 1),
+                        targetLiquidAssetId: partialWithdrawalTargetAccountId,
+                        linkedAssetId: assetId,
+                        linkedSource: 'INSURANCE_PARTIAL_WITHDRAWAL'
+                    };
+                };
+
+                if (needsPremium) {
+                    if (!formData.insurancePaymentAccountId) {
+                        showSubmissionErrorAlert(tByLang('保險請選擇扣款帳戶', 'Please select a payment account for insurance.', '保険の引落口座を選択してください。'));
+                        return;
+                    }
+                    if (!formData.insuranceStartDate || !parseDateKey(formData.insuranceStartDate)) {
+                        showSubmissionErrorAlert(tByLang('保險請輸入有效的保單生效日', 'Please enter a valid policy effective date.', '有効な保険開始日を入力してください。'));
+                        return;
+                    }
+                    const paymentDay = Number(formData.insurancePaymentDay);
+                    if (!Number.isInteger(paymentDay) || paymentDay < 1 || paymentDay > 31) {
+                        showSubmissionErrorAlert(tByLang('保險請設定固定扣款日（1-31）', 'Please set a fixed debit day (1-31).', '固定引落日（1〜31）を設定してください。'));
+                        return;
+                    }
+                    if (resolvedPremiumAmount <= 0) {
+                        showSubmissionErrorAlert(tByLang('保險請輸入有效的每期保費', 'Please enter a valid premium per term.', '有効な1期あたり保険料を入力してください。'));
+                        return;
+                    }
+                }
+
+                if (hasPartialWithdrawal && !partialWithdrawalTargetAccountId) {
+                    showSubmissionErrorAlert(tByLang('部分提領請選擇入帳帳戶，或先設定扣款帳戶', 'Please select a target account for partial withdrawal, or set a payment account first.', '一部引き出しの入金口座を選択するか、先に引落口座を設定してください。'));
+                    return;
+                }
+
+                if (hasPartialWithdrawal) {
+                    const currentPolicyValueForGuard = Number(formData.insurancePolicyValue || 0);
+                    const rollbackAmountWhenEditing = Number(partialWithdrawalEditEntry?.amount || 0);
+                    const maxWithdrawableAmount = Math.max(0, currentPolicyValueForGuard + rollbackAmountWhenEditing);
+                    if (partialWithdrawalAmount > maxWithdrawableAmount) {
+                        showSubmissionErrorAlert(tByLang(
+                            `部分提領金額不可超過可提領上限：${formatAmount(maxWithdrawableAmount)} ${formData.currency}`,
+                            `Withdrawal amount cannot exceed the maximum available amount: ${formatAmount(maxWithdrawableAmount)} ${formData.currency}`,
+                            `引き出し金額は上限を超えられません：${formatAmount(maxWithdrawableAmount)} ${formData.currency}`
+                        ));
+                        return;
+                    }
+                }
+
+                if (partialWithdrawalEditCashflowId && !partialWithdrawalEditEntry) {
+                    showSubmissionErrorAlert(tByLang('找不到要修改的提領紀錄，請重新選擇。', 'Cannot find the withdrawal record to edit. Please select it again.', '編集対象の引き出し記録が見つかりません。再選択してください。'));
+                    return;
+                }
+
                 const submission = buildAssetSubmission({
                     formData,
                     editingId,
@@ -2293,12 +2763,81 @@
                     return;
                 }
 
-                const data = submission.data;
+                let data = submission.data;
+                const newAssetId = editingId || Date.now().toString();
+
+                if (hasPartialWithdrawal) {
+                    const currentPolicyValue = Number(data.insurancePolicyValue || 0);
+                    const currentPriceValue = Number(data.currentPrice || 0);
+                    const previousAmount = Number(partialWithdrawalEditEntry?.amount || 0);
+                    const adjustmentAmount = partialWithdrawalEditEntry
+                        ? (partialWithdrawalAmount - previousAmount)
+                        : partialWithdrawalAmount;
+                    const nextPolicyValue = Math.max(0, currentPolicyValue - adjustmentAmount);
+                    const nextCurrentPrice = Math.max(0, currentPriceValue - adjustmentAmount);
+                    data = {
+                        ...data,
+                        insurancePolicyValue: nextPolicyValue,
+                        currentPrice: nextCurrentPrice
+                    };
+                }
 
                 if (editingId) {
                     setAssets(assets.map(a => a.id === editingId ? { ...data, id: editingId } : a));
+
+                    setCashflowEntries(prev => {
+                        const upsertBySource = (entries, source, createEntry) => {
+                            const index = entries.findIndex(entry => entry.linkedSource === source && entry.linkedAssetId === editingId);
+                            const existingId = index >= 0 ? (entries[index].id || '') : '';
+                            const nextEntry = createEntry(existingId);
+                            if (index >= 0) {
+                                return entries.map((entry, i) => (i === index ? nextEntry : entry));
+                            }
+                            return [...entries, nextEntry];
+                        };
+
+                        const removeBySource = (entries, source) => entries.filter(entry => !(entry.linkedSource === source && entry.linkedAssetId === editingId));
+
+                        let nextEntries = prev;
+                        if (needsPremium) {
+                            nextEntries = upsertBySource(nextEntries, 'INSURANCE_AUTO', (existingId) => buildInsuranceCashflowEntry(editingId, data, existingId));
+                        } else if (wasAutoInsurance) {
+                            nextEntries = removeBySource(nextEntries, 'INSURANCE_AUTO');
+                        }
+
+                        if (shouldEnableDistributionRule) {
+                            nextEntries = upsertBySource(nextEntries, 'INSURANCE_DISTRIBUTION_AUTO', (existingId) => buildInsuranceDistributionCashflowEntry(editingId, data, existingId));
+                        } else if (wasAutoInsurance) {
+                            nextEntries = removeBySource(nextEntries, 'INSURANCE_DISTRIBUTION_AUTO');
+                        }
+
+                        if (hasPartialWithdrawal) {
+                            if (partialWithdrawalEditEntry) {
+                                nextEntries = nextEntries.map(entry => (
+                                    entry.id === partialWithdrawalEditEntry.id
+                                        ? buildInsurancePartialWithdrawalCashflowEntry(editingId, data, partialWithdrawalEditEntry.id)
+                                        : entry
+                                ));
+                            } else {
+                                nextEntries = [...nextEntries, buildInsurancePartialWithdrawalCashflowEntry(editingId, data)];
+                            }
+                        }
+
+                        return sanitizeCashflowEntries(nextEntries);
+                    });
                 } else {
-                    setAssets([...assets, { ...data, id: Date.now().toString() }]);
+                    setAssets([...assets, { ...data, id: newAssetId }]);
+
+                    setCashflowEntries(prev => {
+                        let nextEntries = prev;
+                        if (needsPremium) {
+                            nextEntries = [...nextEntries, buildInsuranceCashflowEntry(newAssetId, data)];
+                        }
+                        if (shouldEnableDistributionRule) {
+                            nextEntries = [...nextEntries, buildInsuranceDistributionCashflowEntry(newAssetId, data)];
+                        }
+                        return sanitizeCashflowEntries(nextEntries);
+                    });
                 }
 
                 setIsModalOpen(false);
@@ -2497,6 +3036,8 @@
                             openEdit={openEdit}
                             tByLang={tByLang}
                             cashflowAutoRulesByLiquidAssetId={cashflowAutoRulesByLiquidAssetId}
+                            insuranceAutoPaidCountByAssetId={insuranceAutoPaidCountByAssetId}
+                            insurancePartialWithdrawalStatsByAssetId={insurancePartialWithdrawalStatsByAssetId}
                             CASHFLOW_FREQUENCIES={CASHFLOW_FREQUENCIES}
                         />
                     )}
@@ -2529,6 +3070,8 @@
                         isReceivableForm={isReceivableForm}
                         isFixedForm={isFixedForm}
                         needsPremium={needsPremium}
+                        isHealthInsuranceForm={isHealthInsuranceForm}
+                        isLifeWealthInsuranceForm={isLifeWealthInsuranceForm}
                         formData={formData}
                         updateFormField={updateFormField}
                         updateFormFieldUpper={updateFormFieldUpper}
@@ -2542,6 +3085,10 @@
                         premiumTotal={premiumTotal}
                         orderedCurrencies={orderedCurrencies}
                         handleDelete={handleDelete}
+                        insurancePartialWithdrawalRecords={editingId ? (insurancePartialWithdrawalRecordsByAssetId[editingId] || []) : []}
+                        loadInsurancePartialWithdrawalRecordForEdit={loadInsurancePartialWithdrawalRecordForEdit}
+                        clearInsurancePartialWithdrawalEditTarget={clearInsurancePartialWithdrawalEditTarget}
+                        deleteInsurancePartialWithdrawalRecord={deleteInsurancePartialWithdrawalRecord}
                         pageLanguage={pageLanguage}
                         isCashflowModalOpen={isCashflowModalOpen}
                         setIsCashflowModalOpen={setIsCashflowModalOpen}

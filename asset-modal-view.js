@@ -25,6 +25,8 @@
         isReceivableForm,
         isFixedForm,
         needsPremium,
+        isHealthInsuranceForm,
+        isLifeWealthInsuranceForm,
         formData,
         updateFormField,
         updateFormFieldUpper,
@@ -37,7 +39,12 @@
         formatAmount,
         premiumTotal,
         CURRENCIES,
-        handleDelete
+        liquidAssetOptions,
+        handleDelete,
+        insurancePartialWithdrawalRecords,
+        loadInsurancePartialWithdrawalRecordForEdit,
+        clearInsurancePartialWithdrawalEditTarget,
+        deleteInsurancePartialWithdrawalRecord
     }) => {
         if (!isModalOpen) return null;
 
@@ -50,6 +57,165 @@
         if (!DatePicker) {
             throw new Error('date-picker-view.js is missing or incomplete.');
         }
+        const partialWithdrawalEditId = (formData.insurancePartialWithdrawalEditCashflowId || '').trim();
+        const partialWithdrawalEditRecord = partialWithdrawalEditId
+            ? (insurancePartialWithdrawalRecords || []).find(record => String(record.id || '') === partialWithdrawalEditId)
+            : null;
+        const partialWithdrawalAmountInput = Number(formData.insurancePartialWithdrawalAmount || 0);
+        const partialWithdrawalMaxAmount = Math.max(0, Number(formData.insurancePolicyValue || 0) + Number(partialWithdrawalEditRecord?.amount || 0));
+        const isPartialWithdrawalOverLimit = partialWithdrawalAmountInput > 0 && partialWithdrawalAmountInput > partialWithdrawalMaxAmount;
+
+        const autoPremiumPaidCount = (() => {
+            if (!needsPremium) return 0;
+            const parseDate = (value) => {
+                if (!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return null;
+                const [year, month, day] = value.split('-').map(Number);
+                const parsed = new Date(year, month - 1, day);
+                if (parsed.getFullYear() !== year || parsed.getMonth() !== (month - 1) || parsed.getDate() !== day) return null;
+                return parsed;
+            };
+            const startDate = parseDate(formData.insuranceStartDate);
+            if (!startDate) return Number(formData.premiumPaidCount || 0) || 0;
+            const endDate = parseDate(formData.insuranceEndDate || '');
+            const today = new Date();
+            const upperBound = endDate && endDate.getTime() < today.getTime()
+                ? new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate())
+                : new Date(today.getFullYear(), today.getMonth(), today.getDate());
+            if (upperBound.getTime() < startDate.getTime()) return 0;
+
+            const paymentDayRaw = Number(formData.insurancePaymentDay);
+            const paymentDay = Number.isInteger(paymentDayRaw) && paymentDayRaw >= 1 && paymentDayRaw <= 31
+                ? paymentDayRaw
+                : startDate.getDate();
+            const isYearly = formData.premiumFrequency === 'yearly';
+
+            let year = startDate.getFullYear();
+            let month = startDate.getMonth();
+            let day = Math.min(paymentDay, new Date(year, month + 1, 0).getDate());
+            let cursor = new Date(year, month, day);
+            if (cursor.getTime() < startDate.getTime()) {
+                if (isYearly) year += 1;
+                else month += 1;
+                day = Math.min(paymentDay, new Date(year, month + 1, 0).getDate());
+                cursor = new Date(year, month, day);
+            }
+
+            let count = 0;
+            const maxCycles = isYearly ? 400 : 4800;
+            for (let i = 0; i < maxCycles; i += 1) {
+                if (cursor.getTime() > upperBound.getTime()) break;
+                count += 1;
+                year = cursor.getFullYear() + (isYearly ? 1 : 0);
+                month = cursor.getMonth() + (isYearly ? 0 : 1);
+                day = Math.min(paymentDay, new Date(year, month + 1, 0).getDate());
+                cursor = new Date(year, month, day);
+            }
+            if (upperBound.getTime() >= startDate.getTime()) return Math.max(1, count);
+            return count;
+        })();
+
+        const premiumTermsPerYear = formData.premiumFrequency === 'yearly' ? 1 : 12;
+        const lifeBasePremiumAmount = Number(formData.insuranceBasePremiumAmount || 0);
+        const lifeSupplementaryPremiumAmount = Number(formData.insuranceSupplementaryPremiumAmount || 0);
+        const resolvedPremiumPerTerm = isLifeWealthInsuranceForm && (lifeBasePremiumAmount > 0 || lifeSupplementaryPremiumAmount > 0)
+            ? (lifeBasePremiumAmount + lifeSupplementaryPremiumAmount)
+            : (Number(formData.premiumAmount) || 0);
+        const normalizeDistributionStartPolicyYear = ({ startDateKey, rawValue }) => {
+            const parsedRaw = Number(rawValue || 0);
+            if (!Number.isFinite(parsedRaw) || parsedRaw <= 0) return 0;
+            const normalizedRaw = Math.floor(parsedRaw);
+            if (normalizedRaw >= 1000) {
+                const startDate = (() => {
+                    if (!/^\d{4}-\d{2}-\d{2}$/.test(startDateKey || '')) return null;
+                    const [year, month, day] = String(startDateKey).split('-').map(Number);
+                    const parsed = new Date(year, month - 1, day);
+                    if (parsed.getFullYear() !== year || parsed.getMonth() !== (month - 1) || parsed.getDate() !== day) return null;
+                    return parsed;
+                })();
+                if (!startDate) return 0;
+                return Math.max(1, normalizedRaw - startDate.getFullYear() + 1);
+            }
+            return normalizedRaw;
+        };
+        const premiumPaymentYearsRaw = Number(formData.insurancePremiumPaymentYears || 0);
+        const premiumPaymentYears = Number.isFinite(premiumPaymentYearsRaw) && premiumPaymentYearsRaw > 0
+            ? Math.floor(premiumPaymentYearsRaw)
+            : 0;
+        const premiumTotalTerms = premiumPaymentYears > 0 ? premiumPaymentYears * premiumTermsPerYear : 0;
+        const effectivePremiumPaidCount = premiumTotalTerms > 0
+            ? Math.min(autoPremiumPaidCount, premiumTotalTerms)
+            : autoPremiumPaidCount;
+        const currentPolicyYear = effectivePremiumPaidCount > 0
+            ? (formData.premiumFrequency === 'yearly' ? effectivePremiumPaidCount : (Math.floor((effectivePremiumPaidCount - 1) / 12) + 1))
+            : 0;
+        const distributionStartYear = normalizeDistributionStartPolicyYear({
+            startDateKey: formData.insuranceStartDate,
+            rawValue: formData.insuranceDistributionStartPolicyYear
+        });
+        const annualDistributionAmount = Number(formData.insuranceAnnualDistributionAmount || 0);
+        const distributionPaidYears = distributionStartYear > 0 && currentPolicyYear >= distributionStartYear
+            ? (currentPolicyYear - distributionStartYear + 1)
+            : 0;
+        const totalDistributedAmount = annualDistributionAmount > 0
+            ? annualDistributionAmount * distributionPaidYears
+            : 0;
+        const distributionMode = formData.insuranceDistributionMode === 'accumulate' ? 'accumulate' : 'cash';
+        const accumulationRatePercent = Number(formData.insuranceAccumulationRate || 0);
+        const accumulationRate = Number.isFinite(accumulationRatePercent) ? (accumulationRatePercent / 100) : 0;
+        let accumulationBalancePreview = 0;
+        if (distributionMode === 'accumulate' && annualDistributionAmount > 0 && distributionPaidYears > 0) {
+            for (let i = 0; i < distributionPaidYears; i += 1) {
+                const remainYears = distributionPaidYears - 1 - i;
+                accumulationBalancePreview += annualDistributionAmount * Math.pow(1 + accumulationRate, Math.max(0, remainYears));
+            }
+        }
+
+        const autoLifePolicyEndDate = (() => {
+            if (!isLifeWealthInsuranceForm) return '';
+            if (!formData.insuranceStartDate || premiumTotalTerms <= 0) return '';
+
+            const parseDate = (value) => {
+                if (!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return null;
+                const [year, month, day] = value.split('-').map(Number);
+                const parsed = new Date(year, month - 1, day);
+                if (parsed.getFullYear() !== year || parsed.getMonth() !== (month - 1) || parsed.getDate() !== day) return null;
+                return parsed;
+            };
+            const toDateKey = (date) => {
+                const pad2 = (value) => String(value).padStart(2, '0');
+                return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+            };
+
+            const startDate = parseDate(formData.insuranceStartDate);
+            if (!startDate) return '';
+
+            const paymentDayRaw = Number(formData.insurancePaymentDay);
+            const paymentDay = Number.isInteger(paymentDayRaw) && paymentDayRaw >= 1 && paymentDayRaw <= 31
+                ? paymentDayRaw
+                : startDate.getDate();
+            const isYearly = formData.premiumFrequency === 'yearly';
+
+            let year = startDate.getFullYear();
+            let month = startDate.getMonth();
+            let day = Math.min(paymentDay, new Date(year, month + 1, 0).getDate());
+            let cursor = new Date(year, month, day);
+            if (cursor.getTime() < startDate.getTime()) {
+                if (isYearly) year += 1;
+                else month += 1;
+                day = Math.min(paymentDay, new Date(year, month + 1, 0).getDate());
+                cursor = new Date(year, month, day);
+            }
+
+            for (let i = 1; i < premiumTotalTerms; i += 1) {
+                year = cursor.getFullYear() + (isYearly ? 1 : 0);
+                month = cursor.getMonth() + (isYearly ? 0 : 1);
+                day = Math.min(paymentDay, new Date(year, month + 1, 0).getDate());
+                cursor = new Date(year, month, day);
+            }
+
+            return toDateKey(cursor);
+        })();
+        const isAnnuitySubtype = formData.subtype === '年金險';
 
         return (
             <div className="fixed inset-0 z-50 flex items-stretch md:items-center justify-center p-0 md:p-4 modal-overlay">
@@ -384,9 +550,19 @@
                         {needsPremium && (
                             <div className={`${MODAL_GROUP_CLASS} grid grid-cols-2 gap-4`}>
                                 <div className="space-y-1">
-                                    <label className={FIELD_LABEL_CLASS}>{translate('每期保費')}</label>
-                                    <input required type="number" step="any" className={MODAL_INPUT_CLASS} value={formData.premiumAmount} onChange={updateFormField('premiumAmount')} />
+                                    <label className={FIELD_LABEL_CLASS}>{isLifeWealthInsuranceForm ? tByLang('主約每期保費', 'Base Premium per Term', '主契約の各期保険料') : translate('每期保費')}</label>
+                                    {isLifeWealthInsuranceForm ? (
+                                        <input required type="number" step="any" min="0" className={MODAL_INPUT_CLASS} value={formData.insuranceBasePremiumAmount || ''} onChange={updateFormField('insuranceBasePremiumAmount')} />
+                                    ) : (
+                                        <input required type="number" step="any" className={MODAL_INPUT_CLASS} value={formData.premiumAmount} onChange={updateFormField('premiumAmount')} />
+                                    )}
                                 </div>
+                                {isLifeWealthInsuranceForm && (
+                                    <div className="space-y-1">
+                                        <label className={FIELD_LABEL_CLASS}>{tByLang('附加保障每期保費（選填）', 'Supplementary Premium per Term (Optional)', '特約の各期保険料（任意）')}</label>
+                                        <input type="number" step="any" min="0" className={MODAL_INPUT_CLASS} value={formData.insuranceSupplementaryPremiumAmount || ''} onChange={updateFormField('insuranceSupplementaryPremiumAmount')} />
+                                    </div>
+                                )}
                                 <div className="space-y-1">
                                     <label className={FIELD_LABEL_CLASS}>{translate('繳費週期')}</label>
                                     <select className={MODAL_INPUT_CLASS} value={formData.premiumFrequency} onChange={updateFormField('premiumFrequency')}>
@@ -394,14 +570,346 @@
                                         <option value="yearly">{translate('每年')}</option>
                                     </select>
                                 </div>
+                                {isLifeWealthInsuranceForm && (
+                                    <div className="space-y-1">
+                                        <label className={FIELD_LABEL_CLASS}>{tByLang('每期總保費（自動）', 'Total Premium per Term (Auto)', '各期保険料合計（自動）')}</label>
+                                        <div className={MODAL_OUTPUT_CLASS}>{formatAmount(resolvedPremiumPerTerm)} {formData.currency}</div>
+                                    </div>
+                                )}
                                 <div className="space-y-1">
-                                    <label className={FIELD_LABEL_CLASS}>{translate('已繳期數')}</label>
-                                    <input required type="number" step="1" min="0" className={MODAL_INPUT_CLASS} value={formData.premiumPaidCount} onChange={updateFormField('premiumPaidCount')} />
+                                    <label className={FIELD_LABEL_CLASS}>{tByLang('已繳期數（自動）', 'Paid Terms (Auto)', '支払済期数（自動）')}</label>
+                                    <div className={MODAL_OUTPUT_CLASS}>{effectivePremiumPaidCount}</div>
                                 </div>
                                 <div className="space-y-1">
                                     <label className={FIELD_LABEL_CLASS}>{translate('已繳總保費')}</label>
-                                    <div className={MODAL_OUTPUT_CLASS}>{formatAmount(premiumTotal)} {formData.currency}</div>
+                                    <div className={MODAL_OUTPUT_CLASS}>{formatAmount(resolvedPremiumPerTerm * effectivePremiumPaidCount)} {formData.currency}</div>
                                 </div>
+
+                                {isHealthInsuranceForm && (
+                                    <>
+                                        <div className="space-y-1">
+                                            <label className={FIELD_LABEL_CLASS}>{translate('保險公司 (選填)')}</label>
+                                            <input type="text" className={MODAL_INPUT_CLASS} value={formData.insuranceProvider || ''} onChange={updateFormField('insuranceProvider')} />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className={FIELD_LABEL_CLASS}>{translate('保單號碼 (選填)')}</label>
+                                            <input type="text" className={MODAL_INPUT_CLASS} value={formData.insurancePolicyNumber || ''} onChange={updateFormField('insurancePolicyNumber')} />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className={FIELD_LABEL_CLASS}>{translate('保額 (選填)')}</label>
+                                            <input type="number" step="any" min="0" className={MODAL_INPUT_CLASS} value={formData.insuranceCoverageAmount || ''} onChange={updateFormField('insuranceCoverageAmount')} />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className={FIELD_LABEL_CLASS}>{translate('受益人 (選填)')}</label>
+                                            <input type="text" className={MODAL_INPUT_CLASS} value={formData.insuranceBeneficiary || ''} onChange={updateFormField('insuranceBeneficiary')} />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className={FIELD_LABEL_CLASS}>{translate('扣款帳戶 (必填)')}</label>
+                                            <select className={MODAL_INPUT_CLASS} required value={formData.insurancePaymentAccountId || ''} onChange={updateFormField('insurancePaymentAccountId')}>
+                                                <option value="">{translate('請選擇流動資金帳戶')}</option>
+                                                {(liquidAssetOptions || []).map(option => (
+                                                    <option key={option.id} value={option.id}>{option.label}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className={FIELD_LABEL_CLASS}>{translate('固定扣款日 (必填)')}</label>
+                                            <input
+                                                required
+                                                type="number"
+                                                min="1"
+                                                max="31"
+                                                step="1"
+                                                className={MODAL_INPUT_CLASS}
+                                                value={formData.insurancePaymentDay || ''}
+                                                onChange={updateFormField('insurancePaymentDay')}
+                                                placeholder={translate('例如：15')}
+                                            />
+                                            <div className="text-[10px] text-slate-400 font-bold">
+                                                {translate('若設定為 29-31 號，遇到短月份會自動改為月底扣款')}
+                                            </div>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className={FIELD_LABEL_CLASS}>{translate('保單生效日 (必填)')}</label>
+                                            <DatePicker
+                                                value={formData.insuranceStartDate || ''}
+                                                onChange={updateFormField('insuranceStartDate')}
+                                                className={MODAL_INPUT_CLASS}
+                                                pageLanguage={pageLanguage}
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className={FIELD_LABEL_CLASS}>{tByLang('保單終止日（自動）', 'Policy End Date (Auto)', '保険終了日（自動）')}</label>
+                                            <div className={MODAL_OUTPUT_CLASS}>{autoLifePolicyEndDate || '--'}</div>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className={FIELD_LABEL_CLASS}>{translate('保單備註 (選填)')}</label>
+                                            <input type="text" className={MODAL_INPUT_CLASS} value={formData.insuranceNote || ''} onChange={updateFormField('insuranceNote')} />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className={FIELD_LABEL_CLASS}>{translate('等待期天數 (選填)')}</label>
+                                            <input type="number" step="1" min="0" className={MODAL_INPUT_CLASS} value={formData.insuranceWaitingPeriodDays || ''} onChange={updateFormField('insuranceWaitingPeriodDays')} />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className={FIELD_LABEL_CLASS}>{translate('免賠額 (選填)')}</label>
+                                            <input type="number" step="any" min="0" className={MODAL_INPUT_CLASS} value={formData.insuranceDeductible || ''} onChange={updateFormField('insuranceDeductible')} />
+                                        </div>
+                                    </>
+                                )}
+
+                                {isLifeWealthInsuranceForm && (
+                                    <>
+                                        <div className="space-y-1">
+                                            <label className={FIELD_LABEL_CLASS}>{translate('保險公司 (選填)')}</label>
+                                            <input type="text" className={MODAL_INPUT_CLASS} value={formData.insuranceProvider || ''} onChange={updateFormField('insuranceProvider')} />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className={FIELD_LABEL_CLASS}>{translate('保單號碼 (選填)')}</label>
+                                            <input type="text" className={MODAL_INPUT_CLASS} value={formData.insurancePolicyNumber || ''} onChange={updateFormField('insurancePolicyNumber')} />
+                                        </div>
+                                        <div className="space-y-1 md:col-span-2">
+                                            <label className={FIELD_LABEL_CLASS}>{tByLang('附加保障名稱（選填）', 'Supplementary Benefit Name (Optional)', '特約名称（任意）')}</label>
+                                            <input type="text" className={MODAL_INPUT_CLASS} value={formData.insuranceSupplementaryBenefitName || ''} onChange={updateFormField('insuranceSupplementaryBenefitName')} />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className={FIELD_LABEL_CLASS}>{tByLang('附加保障地區（選填）', 'Supplementary Benefit Region (Optional)', '特約エリア（任意）')}</label>
+                                            <input type="text" className={MODAL_INPUT_CLASS} value={formData.insuranceSupplementaryBenefitRegion || ''} onChange={updateFormField('insuranceSupplementaryBenefitRegion')} />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className={FIELD_LABEL_CLASS}>{tByLang('附加保障自付費（選填）', 'Supplementary Deductible (Optional)', '特約自己負担額（任意）')}</label>
+                                            <input type="text" className={MODAL_INPUT_CLASS} value={formData.insuranceSupplementaryBenefitDeductible || ''} onChange={updateFormField('insuranceSupplementaryBenefitDeductible')} placeholder={tByLang('例如：$3,125', 'e.g. $3,125', '例：$3,125')} />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className={FIELD_LABEL_CLASS}>{translate('保額/名義金額 (選填)')}</label>
+                                            <input type="number" step="any" min="0" className={MODAL_INPUT_CLASS} value={formData.insuranceCoverageAmount || ''} onChange={updateFormField('insuranceCoverageAmount')} />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className={FIELD_LABEL_CLASS}>{translate('保單價值 (選填)')}</label>
+                                            <input type="number" step="any" min="0" className={MODAL_INPUT_CLASS} value={formData.insurancePolicyValue || ''} onChange={updateFormField('insurancePolicyValue')} />
+                                            <div className="text-[10px] text-slate-400 font-bold">{tByLang('建議先填總保單價值；若要更精細可在下方進階欄位填保證/非保證', 'Use total policy value first; add guaranteed/non-guaranteed values in Advanced only when needed', 'まず保険価値合計を入力し、必要時のみ詳細欄で保証/非保証を入力')}</div>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className={FIELD_LABEL_CLASS}>{translate('繳費年期 (年，選填)')}</label>
+                                            <input type="number" step="1" min="1" className={MODAL_INPUT_CLASS} value={formData.insurancePremiumPaymentYears || ''} onChange={updateFormField('insurancePremiumPaymentYears')} />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className={FIELD_LABEL_CLASS}>{translate('受益人 (選填)')}</label>
+                                            <input type="text" className={MODAL_INPUT_CLASS} value={formData.insuranceBeneficiary || ''} onChange={updateFormField('insuranceBeneficiary')} />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className={FIELD_LABEL_CLASS}>{translate('扣款帳戶 (必填)')}</label>
+                                            <select className={MODAL_INPUT_CLASS} required value={formData.insurancePaymentAccountId || ''} onChange={updateFormField('insurancePaymentAccountId')}>
+                                                <option value="">{translate('請選擇流動資金帳戶')}</option>
+                                                {(liquidAssetOptions || []).map(option => (
+                                                    <option key={option.id} value={option.id}>{option.label}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className={FIELD_LABEL_CLASS}>{translate('固定扣款日 (必填)')}</label>
+                                            <input
+                                                required
+                                                type="number"
+                                                min="1"
+                                                max="31"
+                                                step="1"
+                                                className={MODAL_INPUT_CLASS}
+                                                value={formData.insurancePaymentDay || ''}
+                                                onChange={updateFormField('insurancePaymentDay')}
+                                                placeholder={translate('例如：15')}
+                                            />
+                                            <div className="text-[10px] text-slate-400 font-bold">
+                                                {translate('若設定為 29-31 號，遇到短月份會自動改為月底扣款')}
+                                            </div>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className={FIELD_LABEL_CLASS}>{translate('保單生效日 (必填)')}</label>
+                                            <DatePicker
+                                                value={formData.insuranceStartDate || ''}
+                                                onChange={updateFormField('insuranceStartDate')}
+                                                className={MODAL_INPUT_CLASS}
+                                                pageLanguage={pageLanguage}
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className={FIELD_LABEL_CLASS}>{tByLang('保單終止日（自動）', 'Policy End Date (Auto)', '保険終了日（自動）')}</label>
+                                            <div className={MODAL_OUTPUT_CLASS}>{autoLifePolicyEndDate || '--'}</div>
+                                        </div>
+                                        {isAnnuitySubtype && (
+                                            <div className="space-y-1">
+                                                <label className={FIELD_LABEL_CLASS}>{translate('年金開始日 (選填)')}</label>
+                                                <DatePicker
+                                                    value={formData.insuranceAnnuityStartDate || ''}
+                                                    onChange={updateFormField('insuranceAnnuityStartDate')}
+                                                    className={MODAL_INPUT_CLASS}
+                                                    pageLanguage={pageLanguage}
+                                                />
+                                            </div>
+                                        )}
+                                        <div className="space-y-1">
+                                            <label className={FIELD_LABEL_CLASS}>{tByLang('派發開始保單年度/年份 (選填)', 'Distribution Start Policy Year / Calendar Year (Optional)', '配当開始の保険年度/西暦（任意）')}</label>
+                                            <input type="number" step="1" min="1" className={MODAL_INPUT_CLASS} value={formData.insuranceDistributionStartPolicyYear || ''} onChange={updateFormField('insuranceDistributionStartPolicyYear')} />
+                                            <div className="text-[10px] text-slate-400 font-bold">
+                                                {tByLang('可填保單年度（例：6）或西元年份（例：2025）', 'You can enter policy year (e.g. 6) or calendar year (e.g. 2025)', '保険年度（例：6）または西暦（例：2025）を入力できます')}
+                                            </div>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className={FIELD_LABEL_CLASS}>{translate('每年派發金額 (選填)')}</label>
+                                            <input type="number" step="any" min="0" className={MODAL_INPUT_CLASS} value={formData.insuranceAnnualDistributionAmount || ''} onChange={updateFormField('insuranceAnnualDistributionAmount')} />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className={FIELD_LABEL_CLASS}>{translate('派發處理方式')}</label>
+                                            <select className={MODAL_INPUT_CLASS} value={distributionMode} onChange={updateFormField('insuranceDistributionMode')}>
+                                                <option value="cash">{translate('直接入帳')}</option>
+                                                <option value="accumulate">{translate('積存生息')}</option>
+                                            </select>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className={FIELD_LABEL_CLASS}>{translate('總繳費期數上限（自動）')}</label>
+                                            <div className={MODAL_OUTPUT_CLASS}>{premiumTotalTerms > 0 ? premiumTotalTerms : '--'}</div>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className={FIELD_LABEL_CLASS}>{translate('目前保單年度（自動）')}</label>
+                                            <div className={MODAL_OUTPUT_CLASS}>{currentPolicyYear || '--'}</div>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className={FIELD_LABEL_CLASS}>{translate('已派發年數（自動）')}</label>
+                                            <div className={MODAL_OUTPUT_CLASS}>{distributionPaidYears}</div>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className={FIELD_LABEL_CLASS}>{translate('累計派發金額（自動）')}</label>
+                                            <div className={MODAL_OUTPUT_CLASS}>{formatAmount(totalDistributedAmount)} {formData.currency}</div>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className={FIELD_LABEL_CLASS}>{translate('積存餘額（自動）')}</label>
+                                            <div className={MODAL_OUTPUT_CLASS}>{formatAmount(accumulationBalancePreview)} {formData.currency}</div>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className={FIELD_LABEL_CLASS}>{translate('保單備註 (選填)')}</label>
+                                            <input type="text" className={MODAL_INPUT_CLASS} value={formData.insuranceNote || ''} onChange={updateFormField('insuranceNote')} />
+                                        </div>
+                                        <details className="col-span-2 rounded-xl border border-slate-200/70 bg-slate-50/50 p-3">
+                                            <summary className="cursor-pointer text-[11px] font-black text-slate-600 tracking-wide">{tByLang('進階欄位（非必要）', 'Advanced Fields (Optional)', '詳細項目（任意）')}</summary>
+                                            <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                                                <div className="space-y-1">
+                                                    <label className={FIELD_LABEL_CLASS}>{translate('預估滿期日 (選填)')}</label>
+                                                    <DatePicker
+                                                        value={formData.insuranceExpectedMaturityDate || ''}
+                                                        onChange={updateFormField('insuranceExpectedMaturityDate')}
+                                                        className={MODAL_INPUT_CLASS}
+                                                        pageLanguage={pageLanguage}
+                                                    />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className={FIELD_LABEL_CLASS}>{translate('積存年利率 (%) (選填)')}</label>
+                                                    <input type="number" step="any" min="0" className={MODAL_INPUT_CLASS} value={formData.insuranceAccumulationRate || ''} onChange={updateFormField('insuranceAccumulationRate')} />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className={FIELD_LABEL_CLASS}>{translate('保證現金價值 (選填)')}</label>
+                                                    <input type="number" step="any" min="0" className={MODAL_INPUT_CLASS} value={formData.insuranceGuaranteedCashValue || ''} onChange={updateFormField('insuranceGuaranteedCashValue')} />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className={FIELD_LABEL_CLASS}>{translate('非保證現金價值 (選填)')}</label>
+                                                    <input type="number" step="any" min="0" className={MODAL_INPUT_CLASS} value={formData.insuranceNonGuaranteedCashValue || ''} onChange={updateFormField('insuranceNonGuaranteedCashValue')} />
+                                                </div>
+                                            </div>
+                                        </details>
+                                        {editingId && (
+                                            <details className="col-span-2 rounded-xl border border-emerald-200/70 bg-emerald-50/40 p-3">
+                                                <summary className="cursor-pointer text-[11px] font-black text-emerald-700 tracking-wide">{tByLang('部分提領快捷（單次）', 'Partial Withdrawal Shortcut (One-time)', '一部引き出しショートカット（単発）')}</summary>
+                                                <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                                                    {!!(formData.insurancePartialWithdrawalEditCashflowId || '').trim() && (
+                                                        <div className="md:col-span-2 flex items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-black text-amber-700">
+                                                            <span>{tByLang('目前為「修改既有提領紀錄」模式', 'Editing an existing withdrawal record', '既存の引き出し記録を編集中')}</span>
+                                                            <button
+                                                                type="button"
+                                                                onClick={clearInsurancePartialWithdrawalEditTarget}
+                                                                className="rounded-md border border-amber-300 bg-white px-2 py-1 text-[10px] font-black text-amber-700"
+                                                            >
+                                                                {tByLang('改為新增', 'Switch to New', '新規追加に戻す')}
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                    <div className="space-y-1">
+                                                        <label className={FIELD_LABEL_CLASS}>{tByLang('提領金額（選填）', 'Withdrawal Amount (Optional)', '引き出し金額（任意）')}</label>
+                                                        <input type="number" step="any" min="0" className={MODAL_INPUT_CLASS} value={formData.insurancePartialWithdrawalAmount || ''} onChange={updateFormField('insurancePartialWithdrawalAmount')} />
+                                                        <div className={`text-[10px] font-bold ${isPartialWithdrawalOverLimit ? 'text-rose-600' : 'text-emerald-700'}`}>
+                                                            {tByLang('可提領上限：', 'Max Withdrawable:', '引き出し上限：')} {formatAmount(partialWithdrawalMaxAmount)} {formData.currency}
+                                                            {isPartialWithdrawalOverLimit
+                                                                ? tByLang('（已超過上限）', ' (Exceeds limit)', '（上限超過）')
+                                                                : ''}
+                                                        </div>
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <label className={FIELD_LABEL_CLASS}>{tByLang('提領日期（選填）', 'Withdrawal Date (Optional)', '引き出し日（任意）')}</label>
+                                                        <DatePicker
+                                                            value={formData.insurancePartialWithdrawalDate || ''}
+                                                            onChange={updateFormField('insurancePartialWithdrawalDate')}
+                                                            className={MODAL_INPUT_CLASS}
+                                                            pageLanguage={pageLanguage}
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <label className={FIELD_LABEL_CLASS}>{tByLang('入帳帳戶（選填）', 'Target Account (Optional)', '入金口座（任意）')}</label>
+                                                        <select className={MODAL_INPUT_CLASS} value={formData.insurancePartialWithdrawalAccountId || ''} onChange={updateFormField('insurancePartialWithdrawalAccountId')}>
+                                                            <option value="">{tByLang('留空沿用扣款帳戶', 'Use payment account when empty', '未入力時は引落口座を使用')}</option>
+                                                            {(liquidAssetOptions || []).map(option => (
+                                                                <option key={option.id} value={option.id}>{option.label}</option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <label className={FIELD_LABEL_CLASS}>{tByLang('提領備註（選填）', 'Withdrawal Note (Optional)', '引き出しメモ（任意）')}</label>
+                                                        <input type="text" className={MODAL_INPUT_CLASS} value={formData.insurancePartialWithdrawalNote || ''} onChange={updateFormField('insurancePartialWithdrawalNote')} />
+                                                    </div>
+                                                    <div className="md:col-span-2 text-[10px] text-emerald-700 font-bold">
+                                                        {((formData.insurancePartialWithdrawalEditCashflowId || '').trim())
+                                                            ? tByLang('送出後會更新該筆提領現金流，並依差額同步調整保單價值。', 'On submit, the selected withdrawal cashflow will be updated and policy value will be adjusted by the delta.', '送信後、選択した引き出しキャッシュフローを更新し、差額で保険価値を調整します。')
+                                                            : tByLang('送出後會自動新增一筆「單次收入」現金流，並同步扣減本保單價值。', 'On submit, a one-time income cashflow will be created and policy value will be reduced automatically.', '送信後、単発収入キャッシュフローを自動作成し、保険価値を自動で減額します。')}
+                                                    </div>
+                                                    <div className="md:col-span-2 space-y-2">
+                                                        <div className="text-[10px] font-black text-emerald-700 tracking-wide">{tByLang('既有提領紀錄', 'Existing Withdrawal Records', '既存の引き出し記録')}</div>
+                                                        {(insurancePartialWithdrawalRecords || []).length === 0 ? (
+                                                            <div className="text-[11px] text-slate-500 font-bold">{tByLang('目前沒有提領紀錄', 'No withdrawal records yet', '引き出し記録はありません')}</div>
+                                                        ) : (
+                                                            <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+                                                                {(insurancePartialWithdrawalRecords || []).map(record => {
+                                                                    const accountLabel = (liquidAssetOptions || []).find(option => option.id === record.accountId)?.label || tByLang('未指定帳戶', 'Unspecified account', '口座未指定');
+                                                                    const isEditingTarget = String(formData.insurancePartialWithdrawalEditCashflowId || '') === String(record.id || '');
+                                                                    return (
+                                                                        <div key={record.id} className={`rounded-lg border px-3 py-2 ${isEditingTarget ? 'border-amber-300 bg-amber-50' : 'border-emerald-200 bg-white/80'}`}>
+                                                                            <div className="text-[11px] font-black text-slate-700">
+                                                                                {record.date || '--'} · {formatAmount(Number(record.amount || 0))} {record.currency || formData.currency}
+                                                                            </div>
+                                                                            <div className="text-[10px] text-slate-500 font-bold break-all">{accountLabel}</div>
+                                                                            {!!record.note && <div className="text-[10px] text-slate-500 font-bold break-all">{record.note}</div>}
+                                                                            <div className="mt-2 flex gap-2">
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => loadInsurancePartialWithdrawalRecordForEdit(record.id)}
+                                                                                    className="rounded-md border border-slate-300 bg-white px-2 py-1 text-[10px] font-black text-slate-700"
+                                                                                >
+                                                                                    {tByLang('載入修改', 'Load to Edit', '編集に読み込む')}
+                                                                                </button>
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => deleteInsurancePartialWithdrawalRecord(record.id)}
+                                                                                    className="rounded-md border border-rose-300 bg-white px-2 py-1 text-[10px] font-black text-rose-700"
+                                                                                >
+                                                                                    {tByLang('刪除', 'Delete', '削除')}
+                                                                                </button>
+                                                                            </div>
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </details>
+                                        )}
+                                    </>
+                                )}
                             </div>
                         )}
 

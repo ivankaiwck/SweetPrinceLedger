@@ -60,7 +60,7 @@
     const CATEGORIES = {
         LIQUID: { label: '流動資金', color: 'text-emerald-500', bgColor: 'bg-emerald-50', icon: 'wallet', subtypes: ['現金', '電子錢包', '金融卡', '其他'] },
         INVEST: { label: '投資', color: 'text-blue-500', bgColor: 'bg-blue-50', icon: 'trending-up', subtypes: ['基金', '股票', '加密貨幣', '銀行理財', '定期存款', '其他投資'] },
-        INSURANCE: { label: '保險', color: 'text-cyan-500', bgColor: 'bg-cyan-50', icon: 'shield', subtypes: ['投資/投資相連', '人壽/累積財富', '健康'] },
+        INSURANCE: { label: '保險', color: 'text-cyan-500', bgColor: 'bg-cyan-50', icon: 'shield', subtypes: ['醫療險', '重大疾病險', '癌症險', '意外險', '失能/長照險', '定期壽險', '終身壽險', '年金險', '儲蓄險', '投資型壽險', '萬能壽險'] },
         FIXED: { label: '固定資產', color: 'text-amber-500', bgColor: 'bg-amber-50', icon: 'home', subtypes: ['房產', '汽車', '其他固定資產'] },
         RECEIVABLE: { label: '應收款', color: 'text-indigo-500', bgColor: 'bg-indigo-50', icon: 'hand-coins', subtypes: ['個人借款', '公司應收', '退稅/補貼', '保證金', '租金', '其他應收'] },
         LIABILITY: { label: '負債', color: 'text-rose-500', bgColor: 'bg-rose-50', icon: 'credit-card', isNegative: true, subtypes: ['房貸', '信用卡', '貸款', '應付款', '其他負債'] }

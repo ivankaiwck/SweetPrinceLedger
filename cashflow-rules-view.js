@@ -79,12 +79,24 @@
                 <div className="space-y-2 max-h-72 overflow-y-auto pr-1 custom-scrollbar">
                     {filteredCashflowEntries.slice(0, cashflowRulesVisibleCount).map(item => (
                         <div key={item.id} className={`rounded-xl p-3 ${editingCashflowId === item.id ? 'theme-soft-surface' : 'theme-surface'}`}>
+                            {(() => {
+                                const isInsuranceAutoDebit = item.linkedSource === 'INSURANCE_AUTO';
+                                const isInsuranceAutoDistribution = item.linkedSource === 'INSURANCE_DISTRIBUTION_AUTO';
+                                const insuranceAutoTag = isInsuranceAutoDistribution
+                                    ? tByLang('保險派發自動', 'Insurance Distribution Auto', '保険配当・自動')
+                                    : (isInsuranceAutoDebit ? tByLang('保險扣款自動', 'Insurance Debit Auto', '保険引落・自動') : '');
+
+                                return (
+                            <>
                             <div className="md:hidden space-y-2">
                                 <div className="flex items-start justify-between gap-2">
                                     <div className="min-w-0">
                                         <div className="flex items-center gap-2">
                                             <span className={`text-xs font-black ${item.type === 'INCOME' ? 'text-emerald-600' : 'text-rose-600'}`}>{CASHFLOW_TYPES[item.type].label}</span>
                                             <span className="text-sm font-black text-slate-800 truncate">{item.title}</span>
+                                            {insuranceAutoTag && (
+                                                <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-cyan-50 text-cyan-700 border border-cyan-100">{insuranceAutoTag}</span>
+                                            )}
                                         </div>
                                         <div className="text-[10px] text-slate-400 font-bold mt-1 truncate">
                                             {item.category} · {(item.frequency === 'ONE_TIME' ? tByLang('單次', 'One-time', '単発') : (CASHFLOW_FREQUENCIES.find(entry => entry.value === item.frequency)?.label || item.frequency))}
@@ -132,6 +144,9 @@
                                     <div className="flex items-center gap-2">
                                         <span className={`text-xs font-black ${item.type === 'INCOME' ? 'text-emerald-600' : 'text-rose-600'}`}>{CASHFLOW_TYPES[item.type].label}</span>
                                         <span className="text-sm font-black text-slate-800 truncate">{item.title}</span>
+                                        {insuranceAutoTag && (
+                                            <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-cyan-50 text-cyan-700 border border-cyan-100">{insuranceAutoTag}</span>
+                                        )}
                                     </div>
                                     <div className="text-[10px] text-slate-400 font-bold mt-1">
                                         {item.account ? tByLang(`帳戶：${item.account} · `, `Account: ${item.account} · `, `口座：${item.account} · `) : ''}
@@ -175,6 +190,9 @@
                                     </button>
                                 </div>
                             </div>
+                            </>
+                                );
+                            })()}
                         </div>
                     ))}
 

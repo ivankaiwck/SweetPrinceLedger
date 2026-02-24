@@ -27,6 +27,8 @@
         isReceivableForm,
         isFixedForm,
         needsPremium,
+        isHealthInsuranceForm,
+        isLifeWealthInsuranceForm,
         formData,
         updateFormField,
         updateFormFieldUpper,
@@ -40,6 +42,10 @@
         premiumTotal,
         orderedCurrencies,
         handleDelete,
+        insurancePartialWithdrawalRecords,
+        loadInsurancePartialWithdrawalRecordForEdit,
+        clearInsurancePartialWithdrawalEditTarget,
+        deleteInsurancePartialWithdrawalRecord,
         pageLanguage,
         isCashflowModalOpen,
         setIsCashflowModalOpen,
@@ -95,6 +101,8 @@
                 isReceivableForm={isReceivableForm}
                 isFixedForm={isFixedForm}
                 needsPremium={needsPremium}
+                isHealthInsuranceForm={isHealthInsuranceForm}
+                isLifeWealthInsuranceForm={isLifeWealthInsuranceForm}
                 formData={formData}
                 updateFormField={updateFormField}
                 updateFormFieldUpper={updateFormFieldUpper}
@@ -107,7 +115,12 @@
                 formatAmount={formatAmount}
                 premiumTotal={premiumTotal}
                 CURRENCIES={orderedCurrencies}
+                liquidAssetOptions={liquidAssetOptions}
                 handleDelete={handleDelete}
+                insurancePartialWithdrawalRecords={insurancePartialWithdrawalRecords}
+                loadInsurancePartialWithdrawalRecordForEdit={loadInsurancePartialWithdrawalRecordForEdit}
+                clearInsurancePartialWithdrawalEditTarget={clearInsurancePartialWithdrawalEditTarget}
+                deleteInsurancePartialWithdrawalRecord={deleteInsurancePartialWithdrawalRecord}
                 pageLanguage={pageLanguage}
             />
 

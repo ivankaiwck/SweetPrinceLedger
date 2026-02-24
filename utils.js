@@ -487,7 +487,9 @@
                     weekday,
                     monthday,
                     payday,
-                    targetLiquidAssetId: typeof item.targetLiquidAssetId === 'string' ? item.targetLiquidAssetId : ''
+                    targetLiquidAssetId: typeof item.targetLiquidAssetId === 'string' ? item.targetLiquidAssetId : '',
+                    linkedAssetId: typeof item.linkedAssetId === 'string' ? item.linkedAssetId : '',
+                    linkedSource: typeof item.linkedSource === 'string' ? item.linkedSource : ''
                 };
             })
             .filter(Boolean)
