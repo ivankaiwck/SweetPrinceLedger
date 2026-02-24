@@ -19,6 +19,7 @@
         fromHKD,
         toHKD,
         displayCurrency,
+        startNewCashflowEntry,
         startEditCashflowEntry,
         handleDeleteCashflowEntry,
         pageLanguage
@@ -58,18 +59,25 @@
                     <option value="START_DESC">{tByLang('按建立/開始日（新到舊）', 'By Created/Start Date (Newest first)', '作成/開始日順（新しい順）')}</option>
                     <option value="NEXT_TRIGGER_ASC">{tByLang('按下次觸發日（近期優先）', 'By Next Trigger Date (Soonest first)', '次回実行日順（近日優先）')}</option>
                 </select>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center justify-end gap-2">
                     {editingCashflowId ? (
                         <button
                             type="button"
                             onClick={cancelCashflowEdit}
-                            className="w-full px-3 py-2.5 rounded-lg theme-tab-inactive text-xs font-black"
+                            className="px-3 py-2.5 rounded-lg theme-tab-inactive text-xs font-black whitespace-nowrap"
                         >
                             {tByLang('取消編輯', 'Cancel Edit', '編集をキャンセル')}
                         </button>
                     ) : (
-                        <div className="w-full" />
+                        <div />
                     )}
+                    <button
+                        type="button"
+                        onClick={startNewCashflowEntry}
+                        className="inline-flex items-center justify-center px-3 py-2.5 rounded-lg text-xs font-black theme-tab-active w-full sm:w-auto whitespace-nowrap"
+                    >
+                        {tByLang('新增現金流', 'Add Cashflow', 'キャッシュフローを追加')}
+                    </button>
                 </div>
             </div>
 

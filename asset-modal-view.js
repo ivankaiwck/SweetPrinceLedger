@@ -16,6 +16,7 @@
         isStockForm,
         isFundForm,
         isFixedDepositForm,
+        isBankWealthForm,
         isMortgageForm,
         isLoanForm,
         isCreditCardForm,
@@ -34,6 +35,7 @@
         onCategoryChange,
         onSubtypeChange,
         fixedDepositMetrics,
+        bankWealthMetrics,
         mortgageMetrics,
         loanMetrics,
         formatAmount,
@@ -53,6 +55,13 @@
         const translate = (text) => (pageLanguage === 'zh-Hant' ? text : (dictionary[text] || text));
         const tByLang = (zh, en, ja) => (pageLanguage === 'en-US' ? en : (pageLanguage === 'ja-JP' ? ja : zh));
         const formatPeriods = (value) => tByLang(`${value} 期`, `${value} terms`, `${value}期`);
+        const parseDateKeySafe = (value) => {
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return null;
+            const [year, month, day] = String(value).split('-').map(Number);
+            const parsed = new Date(year, month - 1, day);
+            if (parsed.getFullYear() !== year || parsed.getMonth() !== (month - 1) || parsed.getDate() !== day) return null;
+            return parsed;
+        };
         const { DatePicker } = window.APP_DATE_PICKER || {};
         if (!DatePicker) {
             throw new Error('date-picker-view.js is missing or incomplete.');
@@ -325,6 +334,15 @@
             return toDateKey(cursor);
         })();
         const isAnnuitySubtype = formData.subtype === '年金險';
+        const bankWealthComputedMaturityDate = (() => {
+            if (!isBankWealthForm) return '';
+            const startDate = parseDateKeySafe(formData.bankWealthStartDate || '');
+            const termDays = Math.max(1, Math.floor(Number(formData.bankWealthTermDays || 0) || 0));
+            if (!startDate) return '';
+            const maturity = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate() + termDays);
+            const pad2 = (value) => String(value).padStart(2, '0');
+            return `${maturity.getFullYear()}-${pad2(maturity.getMonth() + 1)}-${pad2(maturity.getDate())}`;
+        })();
 
         return (
             <div className="fixed inset-0 z-50 flex items-stretch md:items-center justify-center p-0 md:p-4 modal-overlay">
@@ -386,7 +404,7 @@
                             </div>
                         </div>
 
-                        {!needsPremium && !isMortgageForm && !isLiabilityForm && !isReceivableForm && !isFixedForm && !isFixedDepositForm && (
+                        {!needsPremium && !isMortgageForm && !isLiabilityForm && !isReceivableForm && !isFixedForm && !isFixedDepositForm && !isBankWealthForm && (
                             <div className={`${MODAL_GROUP_CLASS} grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4`}>
                                 <div className="space-y-1">
                                     <label className={FIELD_LABEL_CLASS}>{isLiquidForm ? translate('金額') : translate('數量')}</label>
@@ -418,13 +436,32 @@
                                         <input required type="number" step="1" min="1" className={MODAL_INPUT_CLASS} value={formData.fixedDepositMonths} onChange={updateFormField('fixedDepositMonths')} />
                                     </div>
                                     <div className="space-y-1">
-                                        <label className={FIELD_LABEL_CLASS}>{translate('起存日 (選填)')}</label>
+                                        <label className={FIELD_LABEL_CLASS}>{translate('起存日')}</label>
                                         <DatePicker
                                             value={formData.fixedDepositStartDate}
                                             onChange={updateFormField('fixedDepositStartDate')}
                                             className={MODAL_INPUT_CLASS}
                                             pageLanguage={pageLanguage}
                                         />
+                                    </div>
+                                    <div className="space-y-1 md:col-span-2">
+                                        <label className={FIELD_LABEL_CLASS}>{tByLang('到期入帳帳戶', 'Maturity Payout Account', '満期入金口座')}</label>
+                                        <select
+                                            required
+                                            className={MODAL_INPUT_CLASS}
+                                            value={formData.fixedDepositTargetLiquidAssetId || ''}
+                                            onChange={updateFormField('fixedDepositTargetLiquidAssetId')}
+                                        >
+                                            <option value="">{tByLang('請選擇流動資產帳戶', 'Select a liquid asset account', '流動資産口座を選択')}</option>
+                                            {liquidAssetOptions.map(option => (
+                                                <option key={option.id} value={option.id}>{option.label}</option>
+                                            ))}
+                                        </select>
+                                        {liquidAssetOptions.length === 0 && (
+                                            <div className="text-[10px] font-bold text-rose-600">
+                                                {tByLang('請先新增至少一個流動資產帳戶，才能設定到期自動入帳。', 'Add at least one liquid asset account first to enable auto payout at maturity.', '満期自動入金を有効にするには、先に流動資産口座を追加してください。')}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 
@@ -436,6 +473,98 @@
                                     <div className="space-y-1">
                                         <label className={FIELD_LABEL_CLASS}>{translate('到期本利和')}</label>
                                         <div className={MODAL_OUTPUT_CLASS}>{fixedDepositMetrics ? `${formatAmount(fixedDepositMetrics.maturityAmount)} ${formData.currency}` : '--'}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {isBankWealthForm && (
+                            <div className={`${MODAL_GROUP_CLASS} space-y-4`}>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                                    <div className="space-y-1">
+                                        <label className={FIELD_LABEL_CLASS}>{tByLang('本金', 'Principal', '元本')}</label>
+                                        <input required type="number" step="any" min="0" className={MODAL_INPUT_CLASS} value={formData.bankWealthPrincipal} onChange={updateFormField('bankWealthPrincipal')} />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className={FIELD_LABEL_CLASS}>{tByLang('保底年收益率 (%)', 'Guaranteed Annual Yield (%)', '最低年利回り (%)')}</label>
+                                        <input required type="number" step="any" min="0" className={MODAL_INPUT_CLASS} value={formData.bankWealthGuaranteedAnnualRate} onChange={updateFormField('bankWealthGuaranteedAnnualRate')} />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className={FIELD_LABEL_CLASS}>{tByLang('最高年收益率 (%)', 'Maximum Annual Yield (%)', '最高年利回り (%)')}</label>
+                                        <input required type="number" step="any" min="0" className={MODAL_INPUT_CLASS} value={formData.bankWealthMaxAnnualRate} onChange={updateFormField('bankWealthMaxAnnualRate')} />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className={FIELD_LABEL_CLASS}>{tByLang('期限 (天)', 'Term (Days)', '期間 (日)')}</label>
+                                        <input required type="number" step="1" min="1" className={MODAL_INPUT_CLASS} value={formData.bankWealthTermDays} onChange={updateFormField('bankWealthTermDays')} />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className={FIELD_LABEL_CLASS}>{tByLang('起息日', 'Interest Start Date', '起算日')}</label>
+                                        <DatePicker
+                                            value={formData.bankWealthStartDate}
+                                            onChange={updateFormField('bankWealthStartDate')}
+                                            className={MODAL_INPUT_CLASS}
+                                            pageLanguage={pageLanguage}
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className={FIELD_LABEL_CLASS}>{tByLang('到期日', 'Maturity Date', '満期日')}</label>
+                                        <DatePicker
+                                            value={formData.bankWealthMaturityDate || bankWealthComputedMaturityDate}
+                                            onChange={updateFormField('bankWealthMaturityDate')}
+                                            className={MODAL_INPUT_CLASS}
+                                            pageLanguage={pageLanguage}
+                                        />
+                                    </div>
+                                    <div className="space-y-1 md:col-span-2">
+                                        <label className={FIELD_LABEL_CLASS}>{tByLang('到期入帳帳戶', 'Maturity Payout Account', '満期入金口座')}</label>
+                                        <select
+                                            required
+                                            className={MODAL_INPUT_CLASS}
+                                            value={formData.bankWealthTargetLiquidAssetId || ''}
+                                            onChange={updateFormField('bankWealthTargetLiquidAssetId')}
+                                        >
+                                            <option value="">{tByLang('請選擇流動資產帳戶', 'Select a liquid asset account', '流動資産口座を選択')}</option>
+                                            {liquidAssetOptions.map(option => (
+                                                <option key={option.id} value={option.id}>{option.label}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className={FIELD_LABEL_CLASS}>{tByLang('到期入帳金額模式', 'Maturity Payout Mode', '満期入金モード')}</label>
+                                        <select
+                                            className={MODAL_INPUT_CLASS}
+                                            value={formData.bankWealthMaturityPayoutMode || 'guaranteed'}
+                                            onChange={updateFormField('bankWealthMaturityPayoutMode')}
+                                        >
+                                            <option value="guaranteed">{tByLang('保底本利和', 'Guaranteed Maturity', '最低満期受取')}</option>
+                                            <option value="max">{tByLang('最高本利和', 'Maximum Maturity', '最高満期受取')}</option>
+                                            <option value="manual">{tByLang('手動輸入', 'Manual Amount', '手動入力')}</option>
+                                        </select>
+                                    </div>
+                                    {(formData.bankWealthMaturityPayoutMode || 'guaranteed') === 'manual' && (
+                                        <div className="space-y-1">
+                                            <label className={FIELD_LABEL_CLASS}>{tByLang('手動到期入帳金額', 'Manual Maturity Payout Amount', '手動満期入金額')}</label>
+                                            <input required type="number" step="any" min="0" className={MODAL_INPUT_CLASS} value={formData.bankWealthMaturityManualAmount || ''} onChange={updateFormField('bankWealthMaturityManualAmount')} />
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                                    <div className="space-y-1">
+                                        <label className={FIELD_LABEL_CLASS}>{tByLang('保底收益', 'Guaranteed Yield', '最低利回り')}</label>
+                                        <div className={MODAL_OUTPUT_CLASS}>{bankWealthMetrics ? `${formatAmount(bankWealthMetrics.guaranteedInterestAmount)} ${formData.currency}` : '--'}</div>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className={FIELD_LABEL_CLASS}>{tByLang('最高收益', 'Maximum Yield', '最高利回り')}</label>
+                                        <div className={MODAL_OUTPUT_CLASS}>{bankWealthMetrics ? `${formatAmount(bankWealthMetrics.maxInterestAmount)} ${formData.currency}` : '--'}</div>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className={FIELD_LABEL_CLASS}>{tByLang('到期本利和（保底）', 'Guaranteed Maturity Amount', '満期受取額（最低）')}</label>
+                                        <div className={MODAL_OUTPUT_CLASS}>{bankWealthMetrics ? `${formatAmount(bankWealthMetrics.guaranteedMaturityAmount)} ${formData.currency}` : '--'}</div>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className={FIELD_LABEL_CLASS}>{tByLang('到期本利和（最高）', 'Maximum Maturity Amount', '満期受取額（最高）')}</label>
+                                        <div className={MODAL_OUTPUT_CLASS}>{bankWealthMetrics ? `${formatAmount(bankWealthMetrics.maxMaturityAmount)} ${formData.currency}` : '--'}</div>
                                     </div>
                                 </div>
                             </div>
@@ -1080,7 +1209,7 @@
                         </div>
 
 
-                        {editingId && !isLiquidForm && !needsPremium && !isMortgageForm && !isLiabilityForm && !isReceivableForm && !isFixedForm && !isFixedDepositForm && (
+                        {editingId && !isLiquidForm && !needsPremium && !isMortgageForm && !isLiabilityForm && !isReceivableForm && !isFixedForm && !isFixedDepositForm && !isBankWealthForm && (
                             <div className="space-y-1">
                                 <label className={FIELD_LABEL_CLASS}>{translate('當前現價 (手動修正)')}</label>
                                 <input type="number" step="any" className={MODAL_INPUT_CLASS} value={formData.currentPrice} onChange={updateFormField('currentPrice')} />

@@ -8,6 +8,8 @@
         isFundForm,
         isFixedDepositForm,
         fixedDepositMetrics,
+        isBankWealthForm,
+        bankWealthMetrics,
         needsPremium,
         isMortgageForm,
         mortgageMetrics,
@@ -72,6 +74,14 @@
         const toDateKeySafe = (date) => {
             const pad2 = (value) => String(value).padStart(2, '0');
             return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+        };
+
+        const calculateBankWealthMaturityDateKey = ({ startDateKey, termDays }) => {
+            const startDate = parseDateKeySafe(startDateKey || '');
+            const days = Math.max(1, Math.floor(Number(termDays || 0) || 0));
+            if (!startDate) return '';
+            const maturity = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate() + days);
+            return toDateKeySafe(maturity);
         };
 
         const calculatePremiumEndDateKey = ({ startDateKey, paymentDay, frequency, totalTerms }) => {
@@ -157,8 +167,37 @@
                 fixedDepositAnnualRate: fixedDepositMetrics.annualInterestRate,
                 fixedDepositMonths: fixedDepositMetrics.months,
                 fixedDepositStartDate: formData.fixedDepositStartDate || '',
+                fixedDepositTargetLiquidAssetId: formData.fixedDepositTargetLiquidAssetId || '',
                 fixedDepositInterestAmount: fixedDepositMetrics.interestAmount,
                 fixedDepositMaturityAmount: fixedDepositMetrics.maturityAmount
+            };
+        }
+
+        let bankWealthPayload = {};
+        if (isBankWealthForm) {
+            if (!bankWealthMetrics) {
+                return { ok: false, error: '請輸入有效的銀行理財資料（本金、保底/最高年化、期限）' };
+            }
+            quantity = 1;
+            costBasis = bankWealthMetrics.principal;
+            currentPrice = bankWealthMetrics.guaranteedMaturityAmount;
+            bankWealthPayload = {
+                bankWealthPrincipal: bankWealthMetrics.principal,
+                bankWealthGuaranteedAnnualRate: bankWealthMetrics.guaranteedAnnualRate,
+                bankWealthMaxAnnualRate: bankWealthMetrics.maxAnnualRate,
+                bankWealthTermDays: bankWealthMetrics.termDays,
+                bankWealthStartDate: formData.bankWealthStartDate || '',
+                bankWealthMaturityDate: formData.bankWealthMaturityDate || calculateBankWealthMaturityDateKey({
+                    startDateKey: formData.bankWealthStartDate,
+                    termDays: formData.bankWealthTermDays
+                }),
+                bankWealthTargetLiquidAssetId: formData.bankWealthTargetLiquidAssetId || '',
+                bankWealthMaturityPayoutMode: formData.bankWealthMaturityPayoutMode || 'guaranteed',
+                bankWealthMaturityManualAmount: Number(formData.bankWealthMaturityManualAmount || 0) > 0 ? Number(formData.bankWealthMaturityManualAmount || 0) : '',
+                bankWealthGuaranteedInterestAmount: bankWealthMetrics.guaranteedInterestAmount,
+                bankWealthMaxInterestAmount: bankWealthMetrics.maxInterestAmount,
+                bankWealthGuaranteedMaturityAmount: bankWealthMetrics.guaranteedMaturityAmount,
+                bankWealthMaxMaturityAmount: bankWealthMetrics.maxMaturityAmount
             };
         }
 
@@ -430,6 +469,7 @@
                 currentPrice,
                 currency: baseCurrency,
                 ...fixedDepositPayload,
+                ...bankWealthPayload,
                 ...mortgagePayload,
                 ...loanPayload,
                 ...creditCardPayload,

@@ -18,6 +18,7 @@
         isStockForm,
         isFundForm,
         isFixedDepositForm,
+        isBankWealthForm,
         isMortgageForm,
         isLoanForm,
         isCreditCardForm,
@@ -36,6 +37,7 @@
         handleAssetCategoryChange,
         handleAssetSubtypeChange,
         fixedDepositMetrics,
+        bankWealthMetrics,
         mortgageMetrics,
         loanMetrics,
         formatAmount,
@@ -92,6 +94,7 @@
                 isStockForm={isStockForm}
                 isFundForm={isFundForm}
                 isFixedDepositForm={isFixedDepositForm}
+                isBankWealthForm={isBankWealthForm}
                 isMortgageForm={isMortgageForm}
                 isLoanForm={isLoanForm}
                 isCreditCardForm={isCreditCardForm}
@@ -110,6 +113,7 @@
                 onCategoryChange={handleAssetCategoryChange}
                 onSubtypeChange={handleAssetSubtypeChange}
                 fixedDepositMetrics={fixedDepositMetrics}
+                bankWealthMetrics={bankWealthMetrics}
                 mortgageMetrics={mortgageMetrics}
                 loanMetrics={loanMetrics}
                 formatAmount={formatAmount}

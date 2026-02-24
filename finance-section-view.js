@@ -51,6 +51,8 @@
         cashflowTriggerInfoById,
         fromHKD,
         toHKD,
+        startNewAssetEntry,
+        startNewCashflowEntry,
         startEditCashflowEntry,
         handleDeleteCashflowEntry
     }) => (
@@ -115,6 +117,13 @@
                                     )}
                                 </select>
                             )}
+                            <button
+                                type="button"
+                                onClick={startNewAssetEntry}
+                                className="inline-flex items-center justify-center px-3 py-2.5 rounded-lg text-xs font-black theme-tab-active w-full sm:w-auto whitespace-nowrap"
+                            >
+                                {tByLang('新增資產', 'Add Asset', '資産を追加')}
+                            </button>
                         </div>
                     </div>
 
@@ -278,6 +287,7 @@
                             toHKD={toHKD}
                             displayCurrency={displayCurrency}
                             pageLanguage={pageLanguage}
+                            startNewCashflowEntry={startNewCashflowEntry}
                             startEditCashflowEntry={startEditCashflowEntry}
                             handleDeleteCashflowEntry={handleDeleteCashflowEntry}
                         />

@@ -109,6 +109,7 @@
             calculateMortgageMetrics,
             calculateInstallmentLoanMetrics,
             calculateFixedDepositMetrics,
+            calculateBankWealthMetrics,
             pad2,
             toDateKey,
             toMonthKey,
@@ -524,7 +525,17 @@
                 fixedDepositPrincipal: '',
                 fixedDepositAnnualRate: '',
                 fixedDepositMonths: '',
-                fixedDepositStartDate: ''
+                fixedDepositStartDate: '',
+                fixedDepositTargetLiquidAssetId: '',
+                bankWealthPrincipal: '',
+                bankWealthGuaranteedAnnualRate: '',
+                bankWealthMaxAnnualRate: '',
+                bankWealthTermDays: '',
+                bankWealthStartDate: '',
+                bankWealthMaturityDate: '',
+                bankWealthTargetLiquidAssetId: '',
+                bankWealthMaturityPayoutMode: 'guaranteed',
+                bankWealthMaturityManualAmount: ''
             });
             const ASSET_FORM_DETAIL_RESET_FIELDS = {
                 symbol: '',
@@ -602,7 +613,17 @@
                 fixedDepositPrincipal: '',
                 fixedDepositAnnualRate: '',
                 fixedDepositMonths: '',
-                fixedDepositStartDate: ''
+                fixedDepositStartDate: '',
+                fixedDepositTargetLiquidAssetId: '',
+                bankWealthPrincipal: '',
+                bankWealthGuaranteedAnnualRate: '',
+                bankWealthMaxAnnualRate: '',
+                bankWealthTermDays: '',
+                bankWealthStartDate: '',
+                bankWealthMaturityDate: '',
+                bankWealthTargetLiquidAssetId: '',
+                bankWealthMaturityPayoutMode: 'guaranteed',
+                bankWealthMaturityManualAmount: ''
             };
             const buildFormDataFromAsset = (asset) => {
                 const INSURANCE_LIFE_WEALTH_SUBTYPES = ['定期壽險', '終身壽險', '年金險', '儲蓄險', '投資型壽險', '萬能壽險', '人壽/累積財富', '投資/投資相連'];
@@ -914,6 +935,7 @@
             const isStockForm = isInvestForm && formData.subtype === '股票';
             const isFundForm = isInvestForm && formData.subtype === '基金';
             const isFixedDepositForm = isInvestForm && formData.subtype === '定期存款';
+            const isBankWealthForm = isInvestForm && formData.subtype === '銀行理財';
             const isInsuranceForm = formData.category === 'INSURANCE';
             const isLiabilityForm = formData.category === 'LIABILITY';
             const isReceivableForm = formData.category === 'RECEIVABLE';
@@ -938,6 +960,12 @@
                 principal: formData.fixedDepositPrincipal,
                 annualInterestRate: formData.fixedDepositAnnualRate,
                 months: formData.fixedDepositMonths
+            }) : null;
+            const bankWealthMetrics = isBankWealthForm ? calculateBankWealthMetrics({
+                principal: formData.bankWealthPrincipal,
+                guaranteedAnnualRate: formData.bankWealthGuaranteedAnnualRate,
+                maxAnnualRate: formData.bankWealthMaxAnnualRate,
+                termDays: formData.bankWealthTermDays
             }) : null;
 
             const assetsRef = useRef(assets);
@@ -2068,6 +2096,13 @@
                 setSelectedCashflowMonth(toMonthKey(next));
             };
 
+            const startNewAssetEntry = () => {
+                setEditingId(null);
+                setFormData(createInitialAssetFormData());
+                setFinanceSectionTab('ASSET_ACCOUNT');
+                setIsModalOpen(true);
+            };
+
             const startNewCashflowEntry = () => {
                 setEditingCashflowId('');
                 setCashflowForm(createInitialCashflowForm());
@@ -2791,18 +2826,27 @@
                     (entry.linkedSource === 'INSURANCE_AUTO' || entry.linkedSource === 'INSURANCE_DISTRIBUTION_AUTO')
                     && entry.linkedAssetId === id
                 )).length;
-                const confirmMessage = linkedInsuranceRuleCount > 0
+                const linkedFixedDepositRuleCount = cashflowEntries.filter(entry => (
+                    entry.linkedSource === 'FIXED_DEPOSIT_MATURITY_AUTO'
+                    && entry.linkedAssetId === id
+                )).length;
+                const linkedBankWealthRuleCount = cashflowEntries.filter(entry => (
+                    entry.linkedSource === 'BANK_WEALTH_MATURITY_AUTO'
+                    && entry.linkedAssetId === id
+                )).length;
+                const linkedAutoRuleCount = linkedInsuranceRuleCount + linkedFixedDepositRuleCount + linkedBankWealthRuleCount;
+                const confirmMessage = linkedAutoRuleCount > 0
                     ? tByLang(
-                        `確定要刪除此資產嗎？\n將一併刪除 ${linkedInsuranceRuleCount} 條保險自動現金流規則。`,
-                        `Delete this asset?\n${linkedInsuranceRuleCount} linked insurance auto-cashflow rule(s) will also be removed.`,
-                        `この資産を削除しますか？\n連動する保険自動キャッシュフロールール ${linkedInsuranceRuleCount} 件も削除されます。`
+                        `確定要刪除此資產嗎？\n將一併刪除 ${linkedAutoRuleCount} 條自動現金流規則。`,
+                        `Delete this asset?\n${linkedAutoRuleCount} linked auto-cashflow rule(s) will also be removed.`,
+                        `この資産を削除しますか？\n連動する自動キャッシュフロールール ${linkedAutoRuleCount} 件も削除されます。`
                     )
                     : tByLang('確定要刪除此資產嗎？', 'Delete this asset?', 'この資産を削除しますか？');
                 const result = buildAssetDeleteResult({ assets, id, confirmMessage });
                 if (!result.ok) return;
                 setAssets(result.nextAssets);
                 setCashflowEntries(prev => prev.filter(entry => !(
-                    (entry.linkedSource === 'INSURANCE_AUTO' || entry.linkedSource === 'INSURANCE_DISTRIBUTION_AUTO')
+                    (entry.linkedSource === 'INSURANCE_AUTO' || entry.linkedSource === 'INSURANCE_DISTRIBUTION_AUTO' || entry.linkedSource === 'FIXED_DEPOSIT_MATURITY_AUTO' || entry.linkedSource === 'BANK_WEALTH_MATURITY_AUTO')
                     && entry.linkedAssetId === id
                 )));
                 setIsModalOpen(false);
@@ -2812,6 +2856,8 @@
                 e.preventDefault();
                 const previousAsset = editingId ? assets.find(item => item.id === editingId) : null;
                 const wasAutoInsurance = Boolean(previousAsset && previousAsset.category === 'INSURANCE');
+                const wasAutoFixedDeposit = Boolean(previousAsset && previousAsset.category === 'INVEST' && previousAsset.subtype === '定期存款');
+                const wasAutoBankWealth = Boolean(previousAsset && previousAsset.category === 'INVEST' && previousAsset.subtype === '銀行理財');
                 const normalizeDistributionStartPolicyYear = (startDateKey, rawValue) => {
                     const parsedRaw = Number(rawValue || 0);
                     if (!Number.isFinite(parsedRaw) || parsedRaw <= 0) return 0;
@@ -2909,6 +2955,99 @@
                     };
                 };
 
+                const resolveFixedDepositMaturityDateKey = (sourceAsset) => {
+                    const startDate = parseDateKey(sourceAsset.fixedDepositStartDate) || new Date();
+                    const termMonths = Math.max(1, Math.floor(Number(sourceAsset.fixedDepositMonths || 0) || 0));
+                    const targetMonthDate = new Date(startDate.getFullYear(), startDate.getMonth() + termMonths, 1);
+                    const daysInTargetMonth = new Date(targetMonthDate.getFullYear(), targetMonthDate.getMonth() + 1, 0).getDate();
+                    const targetDay = Math.min(startDate.getDate(), daysInTargetMonth);
+                    return toDateKey(new Date(targetMonthDate.getFullYear(), targetMonthDate.getMonth(), targetDay));
+                };
+
+                const buildFixedDepositMaturityCashflowEntry = (assetId, sourceAsset, existingCashflowId = '') => {
+                    const selectedLiquidAsset = liquidAssetOptions.find(option => option.id === sourceAsset.fixedDepositTargetLiquidAssetId);
+                    const maturityDateKey = resolveFixedDepositMaturityDateKey(sourceAsset);
+                    const maturityDate = parseDateKey(maturityDateKey) || new Date();
+                    const maturityDay = maturityDate.getDate();
+                    const maturityAmount = Number(sourceAsset.fixedDepositMaturityAmount || sourceAsset.currentPrice || 0);
+                    return {
+                        id: existingCashflowId || `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+                        title: (sourceAsset.name || '').trim() ? `${(sourceAsset.name || '').trim()} 到期入帳` : '定期存款到期入帳',
+                        account: selectedLiquidAsset?.account || sourceAsset.account || '',
+                        category: getDefaultCashflowCategory('INCOME'),
+                        note: [
+                            tByLang('定期存款到期（自動）', 'Fixed Deposit Maturity (Auto)', '定期預金満期（自動）'),
+                            tByLang('本金＋利息', 'Principal + Interest', '元本＋利息')
+                        ].join('｜'),
+                        type: 'INCOME',
+                        amount: maturityAmount,
+                        currency: sourceAsset.currency || 'HKD',
+                        startDate: maturityDateKey,
+                        oneTimeDates: [maturityDateKey],
+                        endDate: '',
+                        scheduleType: 'ONE_TIME',
+                        frequency: 'ONE_TIME',
+                        weekday: 0,
+                        monthday: maturityDay,
+                        payday: String(maturityDay),
+                        targetLiquidAssetId: sourceAsset.fixedDepositTargetLiquidAssetId,
+                        linkedAssetId: assetId,
+                        linkedSource: 'FIXED_DEPOSIT_MATURITY_AUTO'
+                    };
+                };
+
+                const resolveBankWealthMaturityDateKey = (sourceAsset) => {
+                    const explicitMaturityDate = parseDateKey(sourceAsset.bankWealthMaturityDate || '');
+                    if (explicitMaturityDate) return toDateKey(explicitMaturityDate);
+                    const startDate = parseDateKey(sourceAsset.bankWealthStartDate) || new Date();
+                    const termDays = Math.max(1, Math.floor(Number(sourceAsset.bankWealthTermDays || 0) || 0));
+                    const maturity = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate() + termDays);
+                    return toDateKey(maturity);
+                };
+
+                const buildBankWealthMaturityCashflowEntry = (assetId, sourceAsset, existingCashflowId = '') => {
+                    const selectedLiquidAsset = liquidAssetOptions.find(option => option.id === sourceAsset.bankWealthTargetLiquidAssetId);
+                    const maturityDateKey = resolveBankWealthMaturityDateKey(sourceAsset);
+                    const maturityDate = parseDateKey(maturityDateKey) || new Date();
+                    const maturityDay = maturityDate.getDate();
+                    const payoutMode = sourceAsset.bankWealthMaturityPayoutMode === 'max'
+                        ? 'max'
+                        : (sourceAsset.bankWealthMaturityPayoutMode === 'manual' ? 'manual' : 'guaranteed');
+                    const maturityAmount = (() => {
+                        if (payoutMode === 'max') {
+                            return Number(sourceAsset.bankWealthMaxMaturityAmount || sourceAsset.bankWealthGuaranteedMaturityAmount || sourceAsset.currentPrice || 0);
+                        }
+                        if (payoutMode === 'manual') {
+                            return Number(sourceAsset.bankWealthMaturityManualAmount || 0);
+                        }
+                        return Number(sourceAsset.bankWealthGuaranteedMaturityAmount || sourceAsset.currentPrice || 0);
+                    })();
+                    return {
+                        id: existingCashflowId || `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+                        title: (sourceAsset.name || '').trim() ? `${(sourceAsset.name || '').trim()} 到期入帳` : '銀行理財到期入帳',
+                        account: selectedLiquidAsset?.account || sourceAsset.account || '',
+                        category: getDefaultCashflowCategory('INCOME'),
+                        note: [
+                            tByLang('銀行理財到期（自動）', 'Bank Wealth Maturity (Auto)', '銀行理財満期（自動）'),
+                            tByLang('本金＋保底收益', 'Principal + Guaranteed Yield', '元本＋最低收益')
+                        ].join('｜'),
+                        type: 'INCOME',
+                        amount: maturityAmount,
+                        currency: sourceAsset.currency || 'HKD',
+                        startDate: maturityDateKey,
+                        oneTimeDates: [maturityDateKey],
+                        endDate: '',
+                        scheduleType: 'ONE_TIME',
+                        frequency: 'ONE_TIME',
+                        weekday: 0,
+                        monthday: maturityDay,
+                        payday: String(maturityDay),
+                        targetLiquidAssetId: sourceAsset.bankWealthTargetLiquidAssetId,
+                        linkedAssetId: assetId,
+                        linkedSource: 'BANK_WEALTH_MATURITY_AUTO'
+                    };
+                };
+
                 const shouldEnableDistributionRule = Boolean(
                     needsPremium
                     && isLifeWealthInsuranceForm
@@ -2995,6 +3134,36 @@
                     }
                 }
 
+                if (isFixedDepositForm) {
+                    if (!formData.fixedDepositTargetLiquidAssetId) {
+                        showSubmissionErrorAlert(tByLang('定期存款請選擇到期入帳帳戶', 'Please select a maturity payout account for fixed deposit.', '定期預金の満期入金口座を選択してください。'));
+                        return;
+                    }
+                    if (!formData.fixedDepositStartDate || !parseDateKey(formData.fixedDepositStartDate)) {
+                        showSubmissionErrorAlert(tByLang('定期存款請輸入有效的起存日', 'Please enter a valid start date for fixed deposit.', '定期預金の有効な開始日を入力してください。'));
+                        return;
+                    }
+                }
+
+                if (isBankWealthForm) {
+                    if (!formData.bankWealthTargetLiquidAssetId) {
+                        showSubmissionErrorAlert(tByLang('銀行理財請選擇到期入帳帳戶', 'Please select a maturity payout account for bank wealth.', '銀行理財の満期入金口座を選択してください。'));
+                        return;
+                    }
+                    if (!formData.bankWealthStartDate || !parseDateKey(formData.bankWealthStartDate)) {
+                        showSubmissionErrorAlert(tByLang('銀行理財請輸入有效的起息日', 'Please enter a valid start date for bank wealth.', '銀行理財の有効な起算日を入力してください。'));
+                        return;
+                    }
+                    if ((Number(formData.bankWealthTermDays || 0) || 0) <= 0) {
+                        showSubmissionErrorAlert(tByLang('銀行理財請輸入有效的期限天數', 'Please enter valid term days for bank wealth.', '銀行理財の有効な日数を入力してください。'));
+                        return;
+                    }
+                    if ((formData.bankWealthMaturityPayoutMode || 'guaranteed') === 'manual' && (Number(formData.bankWealthMaturityManualAmount || 0) || 0) <= 0) {
+                        showSubmissionErrorAlert(tByLang('銀行理財手動到期入帳金額需大於 0', 'Manual maturity payout amount must be greater than 0.', '手動満期入金額は 0 より大きくしてください。'));
+                        return;
+                    }
+                }
+
                 if (hasPartialWithdrawal && !partialWithdrawalTargetAccountId) {
                     showSubmissionErrorAlert(tByLang('部分提領請選擇入帳帳戶，或先設定扣款帳戶', 'Please select a target account for partial withdrawal, or set a payment account first.', '一部引き出しの入金口座を選択するか、先に引落口座を設定してください。'));
                     return;
@@ -3028,6 +3197,8 @@
                     isFundForm,
                     isFixedDepositForm,
                     fixedDepositMetrics,
+                    isBankWealthForm,
+                    bankWealthMetrics,
                     needsPremium,
                     isMortgageForm,
                     mortgageMetrics,
@@ -3047,6 +3218,23 @@
 
                 let data = submission.data;
                 const newAssetId = editingId || Date.now().toString();
+                const shouldEnableFixedDepositMaturityRule = Boolean(
+                    isFixedDepositForm
+                    && data.fixedDepositTargetLiquidAssetId
+                    && (Number(data.fixedDepositMaturityAmount || data.currentPrice || 0) > 0)
+                );
+                const shouldEnableBankWealthMaturityRule = Boolean(
+                    isBankWealthForm
+                    && data.bankWealthTargetLiquidAssetId
+                    && (() => {
+                        const payoutMode = data.bankWealthMaturityPayoutMode === 'max'
+                            ? 'max'
+                            : (data.bankWealthMaturityPayoutMode === 'manual' ? 'manual' : 'guaranteed');
+                        if (payoutMode === 'max') return Number(data.bankWealthMaxMaturityAmount || data.bankWealthGuaranteedMaturityAmount || data.currentPrice || 0) > 0;
+                        if (payoutMode === 'manual') return Number(data.bankWealthMaturityManualAmount || 0) > 0;
+                        return Number(data.bankWealthGuaranteedMaturityAmount || data.currentPrice || 0) > 0;
+                    })()
+                );
 
                 if (hasPartialWithdrawal) {
                     const currentPolicyValue = Number(data.insurancePolicyValue || 0);
@@ -3093,6 +3281,18 @@
                             nextEntries = removeBySource(nextEntries, 'INSURANCE_DISTRIBUTION_AUTO');
                         }
 
+                        if (shouldEnableFixedDepositMaturityRule) {
+                            nextEntries = upsertBySource(nextEntries, 'FIXED_DEPOSIT_MATURITY_AUTO', (existingId) => buildFixedDepositMaturityCashflowEntry(editingId, data, existingId));
+                        } else if (wasAutoFixedDeposit) {
+                            nextEntries = removeBySource(nextEntries, 'FIXED_DEPOSIT_MATURITY_AUTO');
+                        }
+
+                        if (shouldEnableBankWealthMaturityRule) {
+                            nextEntries = upsertBySource(nextEntries, 'BANK_WEALTH_MATURITY_AUTO', (existingId) => buildBankWealthMaturityCashflowEntry(editingId, data, existingId));
+                        } else if (wasAutoBankWealth) {
+                            nextEntries = removeBySource(nextEntries, 'BANK_WEALTH_MATURITY_AUTO');
+                        }
+
                         if (hasPartialWithdrawal) {
                             if (partialWithdrawalEditEntry) {
                                 nextEntries = nextEntries.map(entry => (
@@ -3117,6 +3317,12 @@
                         }
                         if (shouldEnableDistributionRule) {
                             nextEntries = [...nextEntries, buildInsuranceDistributionCashflowEntry(newAssetId, data)];
+                        }
+                        if (shouldEnableFixedDepositMaturityRule) {
+                            nextEntries = [...nextEntries, buildFixedDepositMaturityCashflowEntry(newAssetId, data)];
+                        }
+                        if (shouldEnableBankWealthMaturityRule) {
+                            nextEntries = [...nextEntries, buildBankWealthMaturityCashflowEntry(newAssetId, data)];
                         }
                         return sanitizeCashflowEntries(nextEntries);
                     });
@@ -3271,6 +3477,8 @@
                         cashflowTriggerInfoById={cashflowTriggerInfoById}
                         fromHKD={fromHKD}
                         toHKD={toHKD}
+                        startNewAssetEntry={startNewAssetEntry}
+                        startNewCashflowEntry={startNewCashflowEntry}
                         startEditCashflowEntry={startEditCashflowEntry}
                         handleDeleteCashflowEntry={handleDeleteCashflowEntry}
                     />
@@ -3329,6 +3537,7 @@
                             onInsuranceFundClearRows={handleInsuranceFundClearRows}
                             fundCurrencyOptions={orderedCurrencies}
                             chartPalette={detailMixPalette}
+                            liquidAssetLabelById={liquidAssetLabelById}
                         />
                     )}
 
@@ -3351,6 +3560,7 @@
                         isStockForm={isStockForm}
                         isFundForm={isFundForm}
                         isFixedDepositForm={isFixedDepositForm}
+                        isBankWealthForm={isBankWealthForm}
                         isMortgageForm={isMortgageForm}
                         isLoanForm={isLoanForm}
                         isCreditCardForm={isCreditCardForm}
@@ -3369,6 +3579,7 @@
                         handleAssetCategoryChange={handleAssetCategoryChange}
                         handleAssetSubtypeChange={handleAssetSubtypeChange}
                         fixedDepositMetrics={fixedDepositMetrics}
+                        bankWealthMetrics={bankWealthMetrics}
                         mortgageMetrics={mortgageMetrics}
                         loanMetrics={loanMetrics}
                         formatAmount={formatAmount}

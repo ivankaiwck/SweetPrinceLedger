@@ -398,6 +398,31 @@
         };
     };
 
+    const calculateBankWealthMetrics = ({ principal, guaranteedAnnualRate, maxAnnualRate, termDays }) => {
+        const principalValue = Number(principal) || 0;
+        const guaranteedRate = Number(guaranteedAnnualRate) || 0;
+        const maxRate = Number(maxAnnualRate) || 0;
+        const days = Number(termDays) || 0;
+
+        if (principalValue <= 0 || days <= 0 || guaranteedRate < 0 || maxRate < 0 || maxRate < guaranteedRate) return null;
+
+        const guaranteedMaturityAmount = principalValue * (1 + (guaranteedRate / 100) * (days / 365));
+        const maxMaturityAmount = principalValue * (1 + (maxRate / 100) * (days / 365));
+        const guaranteedInterestAmount = guaranteedMaturityAmount - principalValue;
+        const maxInterestAmount = maxMaturityAmount - principalValue;
+
+        return {
+            principal: principalValue,
+            guaranteedAnnualRate: guaranteedRate,
+            maxAnnualRate: maxRate,
+            termDays: days,
+            guaranteedMaturityAmount,
+            maxMaturityAmount,
+            guaranteedInterestAmount,
+            maxInterestAmount
+        };
+    };
+
     const pad2 = (value) => String(value).padStart(2, '0');
     const toDateKey = (date) => `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
     const toMonthKey = (date) => `${date.getFullYear()}-${pad2(date.getMonth() + 1)}`;
@@ -612,6 +637,7 @@
         calculateMortgageMetrics,
         calculateInstallmentLoanMetrics,
         calculateFixedDepositMetrics,
+        calculateBankWealthMetrics,
         pad2,
         toDateKey,
         toMonthKey,

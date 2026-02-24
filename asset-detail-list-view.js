@@ -10,6 +10,21 @@
         if (parsed.getFullYear() !== year || parsed.getMonth() !== (month - 1) || parsed.getDate() !== day) return null;
         return parsed;
     };
+    const resolveFixedDepositMaturityDateKey = ({ startDateKey, months }) => {
+        const startDate = parseDateStringSafe(startDateKey || '');
+        if (!startDate) return '';
+        const termMonths = Math.max(1, Math.floor(Number(months || 0) || 0));
+        const targetMonthDate = new Date(startDate.getFullYear(), startDate.getMonth() + termMonths, 1);
+        const daysInTargetMonth = new Date(targetMonthDate.getFullYear(), targetMonthDate.getMonth() + 1, 0).getDate();
+        const targetDay = Math.min(startDate.getDate(), daysInTargetMonth);
+        return toDateKeySafe(new Date(targetMonthDate.getFullYear(), targetMonthDate.getMonth(), targetDay));
+    };
+    const resolveMaturityDateByDays = ({ startDateKey, days }) => {
+        const startDate = parseDateStringSafe(startDateKey || '');
+        if (!startDate) return '';
+        const termDays = Math.max(1, Math.floor(Number(days || 0) || 0));
+        return toDateKeySafe(new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate() + termDays));
+    };
     const buildFirstBillingDate = (startDate, paymentDay, frequency) => {
         if (!startDate) return null;
         const freq = frequency === 'yearly' ? 'yearly' : 'monthly';
@@ -222,6 +237,7 @@
         const totalPremiumValue = safeFromHKD(safeToHKD(Number(premiumTotalAmount || 0), item.currency || globalCurrency), globalCurrency);
         const totalPnlAmount = totalMarketValue - totalPremiumValue;
         const totalPnlPercent = totalPremiumValue > 0 ? ((totalPnlAmount / totalPremiumValue) * 100) : 0;
+        const totalPnlClass = totalPnlAmount >= 0 ? 'text-emerald-700' : 'text-rose-700';
 
         const commitRow = (rowIndex, draft) => {
             onInsuranceFundRowFieldChange(item.id, rowIndex, 'investmentOption', draft.investmentOption || '');
@@ -297,21 +313,46 @@
                 </div>
 
                 <div className={layout === 'desktop' ? 'grid grid-cols-1 lg:grid-cols-3 gap-3' : 'space-y-3'}>
-                    <div className="rounded-lg border theme-surface p-3 flex items-center gap-3" style={{ borderColor: `${resolvedAccentColor}55` }}>
-                        <div className="w-24 h-24 rounded-full border-4 border-white shadow-sm" style={{ background: chartGradient }}></div>
-                        <div className="text-[11px] font-bold theme-text-sub space-y-1">
-                            <div>{tByLang('基金數量', 'Fund Count', 'ファンド数')}：{investmentFundRows.length}</div>
-                            <div>{tByLang('保費總額', 'Total Premium', '総保険料')}：{formatAmount(totalPremiumValue)} {globalCurrency}</div>
-                            <div>{tByLang('基金加總', 'Total Funds', 'ファンド合計')}：{formatAmount(totalMarketValue)} {globalCurrency}</div>
-                            {fundBalanceByCurrencyText && (
-                                <div className="text-[10px]">{fundBalanceByCurrencyText}</div>
-                            )}
-                            <div className={totalPnlAmount >= 0 ? 'text-emerald-700' : 'text-rose-700'}>
-                                {tByLang('帳戶盈虧', 'Account P/L', '口座損益')}：{totalPnlAmount >= 0 ? '+' : ''}{formatAmount(totalPnlAmount)} {globalCurrency}
-                                {' · '}
-                                {totalPnlPercent >= 0 ? '+' : ''}{totalPnlPercent.toFixed(2)}%
+                    <div className={layout === 'desktop' ? 'rounded-lg border theme-surface p-3 flex items-center gap-3' : 'rounded-lg border theme-surface p-3 space-y-3'} style={{ borderColor: `${resolvedAccentColor}55` }}>
+                        <div className={layout === 'desktop' ? 'w-24 h-24 rounded-full border-4 border-white shadow-sm' : 'mx-auto w-20 h-20 rounded-full border-4 border-white shadow-sm'} style={{ background: chartGradient }}></div>
+                        {layout === 'desktop' ? (
+                            <div className="text-[11px] font-bold theme-text-sub space-y-1">
+                                <div>{tByLang('基金數量', 'Fund Count', 'ファンド数')}：{investmentFundRows.length}</div>
+                                <div>{tByLang('保費總額', 'Total Premium', '総保険料')}：{formatAmount(totalPremiumValue)} {globalCurrency}</div>
+                                <div>{tByLang('保單價值', 'Policy Value', '保単価値')}：{formatAmount(totalMarketValue)} {globalCurrency}</div>
+                                {fundBalanceByCurrencyText && (
+                                    <div className="text-[10px]">{fundBalanceByCurrencyText}</div>
+                                )}
+                                <div className={totalPnlClass}>
+                                    {tByLang('帳戶盈虧', 'Account P/L', '口座損益')}：{totalPnlAmount >= 0 ? '+' : ''}{formatAmount(totalPnlAmount)} {globalCurrency}
+                                    {' · '}
+                                    {totalPnlPercent >= 0 ? '+' : ''}{totalPnlPercent.toFixed(2)}%
+                                </div>
                             </div>
-                        </div>
+                        ) : (
+                            <div className="grid grid-cols-2 gap-2 text-[10px] font-black">
+                                <div className="rounded-md border border-slate-200 bg-white/80 px-2 py-1.5">
+                                    <div className="theme-text-sub">{tByLang('基金數量', 'Fund Count', 'ファンド数')}</div>
+                                    <div className="theme-text-main text-[11px]">{investmentFundRows.length}</div>
+                                </div>
+                                <div className="rounded-md border border-slate-200 bg-white/80 px-2 py-1.5">
+                                    <div className="theme-text-sub">{tByLang('保費總額', 'Total Premium', '総保険料')}</div>
+                                    <div className="theme-text-main text-[11px]">{formatAmount(totalPremiumValue)} {globalCurrency}</div>
+                                </div>
+                                <div className="rounded-md border border-slate-200 bg-white/80 px-2 py-1.5">
+                                    <div className="theme-text-sub">{tByLang('保單價值', 'Policy Value', '保単価値')}</div>
+                                    <div className={`text-[11px] ${totalPnlClass}`}>{formatAmount(totalMarketValue)} {globalCurrency}</div>
+                                </div>
+                                <div className="rounded-md border border-slate-200 bg-white/80 px-2 py-1.5">
+                                    <div className="theme-text-sub">{tByLang('帳戶盈虧', 'Account P/L', '口座損益')}</div>
+                                    <div className={`text-[11px] ${totalPnlClass}`}>{totalPnlAmount >= 0 ? '+' : ''}{formatAmount(totalPnlAmount)} {globalCurrency}</div>
+                                    <div className={`text-[10px] ${totalPnlClass}`}>{totalPnlPercent >= 0 ? '+' : ''}{totalPnlPercent.toFixed(2)}%</div>
+                                </div>
+                                {fundBalanceByCurrencyText && (
+                                    <div className="col-span-2 theme-text-sub text-[10px]">{fundBalanceByCurrencyText}</div>
+                                )}
+                            </div>
+                        )}
                     </div>
                     <div className={layout === 'desktop' ? 'lg:col-span-2 rounded-lg border theme-surface p-3' : 'rounded-lg border theme-surface p-3'} style={{ borderColor: `${resolvedAccentColor}44` }}>
                         <div className="text-[10px] font-black theme-text-sub mb-2">{tByLang('基金組成', 'Fund Composition', 'ファンド構成')}</div>
@@ -323,7 +364,7 @@
                                             <span className="w-2 h-2 rounded-full" style={{ backgroundColor: segment.color }}></span>
                                             <span className="truncate">{segment.label}</span>
                                         </div>
-                                        <span>{segment.allocationPercent.toFixed(1)}% · {segment.pnlPercent >= 0 ? '+' : ''}{segment.pnlPercent.toFixed(2)}%</span>
+                                        <span className={segment.pnlPercent >= 0 ? 'text-emerald-700' : 'text-rose-700'}>{segment.allocationPercent.toFixed(1)}% · {segment.pnlPercent >= 0 ? '+' : ''}{segment.pnlPercent.toFixed(2)}%</span>
                                     </div>
                                 );
                             }) : <div className="text-[10px] font-bold theme-text-sub">{tByLang('尚未有基金資料', 'No fund data yet', 'ファンドデータなし')}</div>}
@@ -331,70 +372,127 @@
                     </div>
                 </div>
 
-                <div className="overflow-x-auto">
-                    <table className="w-full table-fixed text-[11px]">
-                        <colgroup>
-                            <col style={{ width: '10%' }} />
-                            <col style={{ width: '18%' }} />
-                            <col style={{ width: '14%' }} />
-                            <col style={{ width: '8%' }} />
-                            <col style={{ width: '10%' }} />
-                            <col style={{ width: '10%' }} />
-                            <col style={{ width: '10%' }} />
-                            <col style={{ width: '10%' }} />
-                            <col style={{ width: '10%' }} />
-                            <col style={{ width: '10%' }} />
-                        </colgroup>
-                        <thead>
-                            <tr className="theme-text-sub font-black border-b border-slate-200">
-                                <th className="px-2 py-2 text-left">{tByLang('分配 %', 'Allocation %', '配分 %')}</th>
-                                <th className="px-2 py-2 text-left">{tByLang('基金／投資選項', 'Fund / Option', 'ファンド／投資オプション')}</th>
-                                <th className="px-2 py-2 text-left">{tByLang('基金編號', 'Fund Code', 'ファンドコード')}</th>
-                                <th className="px-2 py-2 text-left">{tByLang('貨幣', 'Currency', '通貨')}</th>
-                                <th className="px-2 py-2 text-left">{tByLang('單位數目', 'Units', '口数')}</th>
-                                <th className="px-2 py-2 text-left">{tByLang('單位價格', 'Unit Price', '基準価額')}</th>
-                                <th className="px-2 py-2 text-left">{tByLang('平均價格', 'Average Price', '平均価格')}</th>
-                                <th className="px-2 py-2 text-left">{tByLang('利潤或虧蝕 %', 'P/L %', '損益 %')}</th>
-                                <th className="px-2 py-2 text-left">{tByLang('結餘', 'Balance', '残高')}</th>
-                                <th className="px-2 py-2 text-right">{tByLang('操作', 'Action', '操作')}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {investmentFundRows.map((row, rowIndex) => {
-                                const computedAllocation = chartSegments[rowIndex]?.allocationPercent || 0;
-                                const computedPnlPercent = (() => {
-                                    const rawPnLPercent = parseNumberLoose(row.profitLossPercent);
-                                    if (rawPnLPercent !== 0) return rawPnLPercent;
-                                    if (row.averagePrice > 0 && row.unitPrice > 0) {
-                                        return ((row.unitPrice - row.averagePrice) / row.averagePrice) * 100;
-                                    }
-                                    return 0;
-                                })();
-                                return (
-                                    <tr key={`${item.id}-manage-fund-${rowIndex}`} className="border-t border-slate-200">
-                                        <td className="px-2 py-2"><span className="font-bold" style={{ color: resolvedAccentColor }}>{computedAllocation.toFixed(2)}%</span></td>
-                                        <td className="px-2 py-2"><span className="font-bold theme-text-main">{row.investmentOption || '--'}</span></td>
-                                        <td className="px-2 py-2"><span className="font-bold theme-text-main">{row.fundCode || '--'}</span></td>
-                                        <td className="px-2 py-2"><span className="font-bold theme-text-main">{row.currency || '--'}</span></td>
-                                        <td className="px-2 py-2"><span className="font-bold theme-text-main">{formatAmount(row.units)}</span></td>
-                                        <td className="px-2 py-2"><span className="font-bold theme-text-main">{formatAmount(row.unitPrice)}</span></td>
-                                        <td className="px-2 py-2"><span className="font-bold theme-text-main">{formatAmount(row.averagePrice)}</span></td>
-                                        <td className="px-2 py-2"><span className={computedPnlPercent >= 0 ? 'font-bold text-emerald-700' : 'font-bold text-rose-700'}>{computedPnlPercent >= 0 ? '+' : ''}{computedPnlPercent.toFixed(2)}%</span></td>
-                                        <td className="px-2 py-2">
-                                            <div className="font-bold theme-text-main">{formatAmount(row.balance)} {row.currency || item.currency || 'HKD'}</div>
-                                        </td>
-                                        <td className="px-2 py-2 text-right">
-                                            <div className="inline-flex items-center gap-1 text-[10px] font-black">
-                                                <button type="button" onClick={() => openEditModal(row, rowIndex)} className="rounded border bg-white px-1.5 py-0.5" style={{ borderColor: `${resolvedAccentColor}66`, color: resolvedAccentColor }}>{tByLang('編輯', 'Edit', '編集')}</button>
-                                                <button type="button" onClick={() => onInsuranceFundRemoveRow(item.id, rowIndex)} className="rounded border border-slate-300 bg-white px-1.5 py-0.5 theme-text-sub">✕</button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
-                </div>
+                {layout === 'desktop' ? (
+                    <div className="overflow-x-auto">
+                        <table className="w-full table-fixed text-[11px]">
+                            <colgroup>
+                                <col style={{ width: '10%' }} />
+                                <col style={{ width: '18%' }} />
+                                <col style={{ width: '14%' }} />
+                                <col style={{ width: '8%' }} />
+                                <col style={{ width: '10%' }} />
+                                <col style={{ width: '10%' }} />
+                                <col style={{ width: '10%' }} />
+                                <col style={{ width: '10%' }} />
+                                <col style={{ width: '10%' }} />
+                                <col style={{ width: '10%' }} />
+                            </colgroup>
+                            <thead>
+                                <tr className="theme-text-sub font-black border-b border-slate-200">
+                                    <th className="px-2 py-2 text-left">{tByLang('分配 %', 'Allocation %', '配分 %')}</th>
+                                    <th className="px-2 py-2 text-left">{tByLang('基金／投資選項', 'Fund / Option', 'ファンド／投資オプション')}</th>
+                                    <th className="px-2 py-2 text-left">{tByLang('基金編號', 'Fund Code', 'ファンドコード')}</th>
+                                    <th className="px-2 py-2 text-left">{tByLang('貨幣', 'Currency', '通貨')}</th>
+                                    <th className="px-2 py-2 text-left">{tByLang('單位數目', 'Units', '口数')}</th>
+                                    <th className="px-2 py-2 text-left">{tByLang('單位價格', 'Unit Price', '基準価額')}</th>
+                                    <th className="px-2 py-2 text-left">{tByLang('平均價格', 'Average Price', '平均価格')}</th>
+                                    <th className="px-2 py-2 text-left">{tByLang('利潤或虧蝕 %', 'P/L %', '損益 %')}</th>
+                                    <th className="px-2 py-2 text-left">{tByLang('結餘', 'Balance', '残高')}</th>
+                                    <th className="px-2 py-2 text-right">{tByLang('操作', 'Action', '操作')}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {investmentFundRows.map((row, rowIndex) => {
+                                    const computedAllocation = chartSegments[rowIndex]?.allocationPercent || 0;
+                                    const computedPnlPercent = (() => {
+                                        const rawPnLPercent = parseNumberLoose(row.profitLossPercent);
+                                        if (rawPnLPercent !== 0) return rawPnLPercent;
+                                        if (row.averagePrice > 0 && row.unitPrice > 0) {
+                                            return ((row.unitPrice - row.averagePrice) / row.averagePrice) * 100;
+                                        }
+                                        return 0;
+                                    })();
+                                    return (
+                                        <tr key={`${item.id}-manage-fund-${rowIndex}`} className="border-t border-slate-200">
+                                            <td className="px-2 py-2"><span className="font-bold" style={{ color: resolvedAccentColor }}>{computedAllocation.toFixed(2)}%</span></td>
+                                            <td className="px-2 py-2"><span className="font-bold theme-text-main">{row.investmentOption || '--'}</span></td>
+                                            <td className="px-2 py-2"><span className="font-bold theme-text-main">{row.fundCode || '--'}</span></td>
+                                            <td className="px-2 py-2"><span className="font-bold theme-text-main">{row.currency || '--'}</span></td>
+                                            <td className="px-2 py-2"><span className="font-bold theme-text-main">{formatAmount(row.units)}</span></td>
+                                            <td className="px-2 py-2"><span className="font-bold theme-text-main">{formatAmount(row.unitPrice)}</span></td>
+                                            <td className="px-2 py-2"><span className="font-bold theme-text-main">{formatAmount(row.averagePrice)}</span></td>
+                                            <td className="px-2 py-2"><span className={computedPnlPercent >= 0 ? 'font-bold text-emerald-700' : 'font-bold text-rose-700'}>{computedPnlPercent >= 0 ? '+' : ''}{computedPnlPercent.toFixed(2)}%</span></td>
+                                            <td className="px-2 py-2">
+                                                <div className="font-bold theme-text-main">{formatAmount(row.balance)} {row.currency || item.currency || 'HKD'}</div>
+                                            </td>
+                                            <td className="px-2 py-2 text-right">
+                                                <div className="inline-flex items-center gap-1 text-[10px] font-black">
+                                                    <button type="button" onClick={() => openEditModal(row, rowIndex)} className="rounded border bg-white px-1.5 py-0.5" style={{ borderColor: `${resolvedAccentColor}66`, color: resolvedAccentColor }}>{tByLang('編輯', 'Edit', '編集')}</button>
+                                                    <button type="button" onClick={() => onInsuranceFundRemoveRow(item.id, rowIndex)} className="rounded border border-slate-300 bg-white px-1.5 py-0.5 theme-text-sub">✕</button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                ) : (
+                    <div className="space-y-2">
+                        {investmentFundRows.length > 0 ? investmentFundRows.map((row, rowIndex) => {
+                            const computedAllocation = chartSegments[rowIndex]?.allocationPercent || 0;
+                            const computedPnlPercent = (() => {
+                                const rawPnLPercent = parseNumberLoose(row.profitLossPercent);
+                                if (rawPnLPercent !== 0) return rawPnLPercent;
+                                if (row.averagePrice > 0 && row.unitPrice > 0) {
+                                    return ((row.unitPrice - row.averagePrice) / row.averagePrice) * 100;
+                                }
+                                return 0;
+                            })();
+                            const computedPnlClass = computedPnlPercent >= 0 ? 'text-emerald-700' : 'text-rose-700';
+                            return (
+                                <div key={`${item.id}-manage-fund-mobile-${rowIndex}`} className="rounded-lg border border-slate-200 bg-white/80 p-2.5 space-y-2">
+                                    <div className="flex items-start justify-between gap-2">
+                                        <div className="min-w-0">
+                                            <div className="text-[11px] font-black theme-text-main truncate">{row.investmentOption || '--'}</div>
+                                            <div className="text-[10px] font-bold theme-text-sub">{row.fundCode || '--'} · {row.currency || '--'}</div>
+                                        </div>
+                                        <div className="inline-flex items-center gap-1 text-[10px] font-black">
+                                            <button type="button" onClick={() => openEditModal(row, rowIndex)} className="rounded border bg-white px-1.5 py-0.5" style={{ borderColor: `${resolvedAccentColor}66`, color: resolvedAccentColor }}>{tByLang('編輯', 'Edit', '編集')}</button>
+                                            <button type="button" onClick={() => onInsuranceFundRemoveRow(item.id, rowIndex)} className="rounded border border-slate-300 bg-white px-1.5 py-0.5 theme-text-sub">✕</button>
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2 text-[10px] font-bold">
+                                        <div>
+                                            <div className="theme-text-sub">{tByLang('分配 %', 'Allocation %', '配分 %')}</div>
+                                            <div style={{ color: resolvedAccentColor }}>{computedAllocation.toFixed(2)}%</div>
+                                        </div>
+                                        <div>
+                                            <div className="theme-text-sub">{tByLang('利潤或虧蝕 %', 'P/L %', '損益 %')}</div>
+                                            <div className={computedPnlClass}>{computedPnlPercent >= 0 ? '+' : ''}{computedPnlPercent.toFixed(2)}%</div>
+                                        </div>
+                                        <div>
+                                            <div className="theme-text-sub">{tByLang('單位數目', 'Units', '口数')}</div>
+                                            <div className="theme-text-main">{formatAmount(row.units)}</div>
+                                        </div>
+                                        <div>
+                                            <div className="theme-text-sub">{tByLang('結餘', 'Balance', '残高')}</div>
+                                            <div className={computedPnlClass}>{formatAmount(row.balance)} {row.currency || item.currency || 'HKD'}</div>
+                                        </div>
+                                        <div>
+                                            <div className="theme-text-sub">{tByLang('單位價格', 'Unit Price', '基準価額')}</div>
+                                            <div className="theme-text-main">{formatAmount(row.unitPrice)}</div>
+                                        </div>
+                                        <div>
+                                            <div className="theme-text-sub">{tByLang('平均價格', 'Average Price', '平均価格')}</div>
+                                            <div className="theme-text-main">{formatAmount(row.averagePrice)}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        }) : <div className="text-[10px] font-bold theme-text-sub">{tByLang('尚未有基金資料', 'No fund data yet', 'ファンドデータなし')}</div>}
+                    </div>
+                )}
 
                 {modalState.mode && (
                     <div className="fixed inset-0 z-[120] bg-black/40 flex items-center justify-center p-4">
@@ -481,7 +579,8 @@
         onInsuranceFundClearRows,
         fundCurrencyOptions,
         chartPalette,
-        fundAccentColor
+        fundAccentColor,
+        liquidAssetLabelById
     }) => (
         <div className="md:hidden px-4 pt-4 pb-4 space-y-3">
             {items.map(item => {
@@ -772,16 +871,63 @@
                             const profitDisplay = fromHKD(toHKD(profitOrig, item.currency), displayCurrency);
                             const perf = costValOrig > 0 ? (profitOrig / costValOrig) * 100 : 0;
                             const isFixedDepositItem = item.subtype === '定期存款';
+                            const isBankWealthItem = item.subtype === '銀行理財';
                             const fixedDepositMonths = Number(item.fixedDepositMonths || 0);
                             const fixedDepositRate = Number(item.fixedDepositAnnualRate || 0);
                             const fixedDepositStartDate = item.fixedDepositStartDate || '';
+                            const fixedDepositMaturityDate = resolveFixedDepositMaturityDateKey({
+                                startDateKey: fixedDepositStartDate,
+                                months: fixedDepositMonths
+                            });
+                            const fixedDepositTargetLabel = liquidAssetLabelById?.[item.fixedDepositTargetLiquidAssetId] || '';
+                            const bankWealthTermDays = Number(item.bankWealthTermDays || 0);
+                            const bankWealthGuaranteedRate = Number(item.bankWealthGuaranteedAnnualRate || 0);
+                            const bankWealthMaxRate = Number(item.bankWealthMaxAnnualRate || 0);
+                            const bankWealthStartDate = item.bankWealthStartDate || '';
+                            const bankWealthMaturityDate = item.bankWealthMaturityDate || resolveMaturityDateByDays({
+                                startDateKey: bankWealthStartDate,
+                                days: bankWealthTermDays
+                            });
+                            const bankWealthTargetLabel = liquidAssetLabelById?.[item.bankWealthTargetLiquidAssetId] || '';
+                            const bankWealthPayoutMode = item.bankWealthMaturityPayoutMode === 'max'
+                                ? 'max'
+                                : (item.bankWealthMaturityPayoutMode === 'manual' ? 'manual' : 'guaranteed');
+                            const bankWealthPayoutAmount = (() => {
+                                if (bankWealthPayoutMode === 'max') return Number(item.bankWealthMaxMaturityAmount || item.currentPrice || 0);
+                                if (bankWealthPayoutMode === 'manual') return Number(item.bankWealthMaturityManualAmount || 0);
+                                return Number(item.bankWealthGuaranteedMaturityAmount || item.currentPrice || 0);
+                            })();
 
                             return (
                                 <div className="space-y-1 text-xs font-bold">
                                     <div className="text-slate-500">市值 {formatAmount(mktValDisplay)} {displayCurrency} · 數量 {formatAmount(item.quantity)} {item.symbol ? `(${item.symbol})` : ''}</div>
                                     <div className="text-slate-500">現價 {formatAmount(item.currentPrice)} · 成本 {formatAmount(item.costBasis)} {item.currency}</div>
                                     {isFixedDepositItem && (
-                                        <div className="text-slate-500">定期 {fixedDepositMonths || '--'} 個月 · 年利率 {fixedDepositRate.toFixed(2)}% {fixedDepositStartDate ? `· 起存 ${fixedDepositStartDate}` : ''}</div>
+                                        <>
+                                            <div className="text-slate-500">定期 {fixedDepositMonths || '--'} 個月 · 年利率 {fixedDepositRate.toFixed(2)}% {fixedDepositStartDate ? `· 起存 ${fixedDepositStartDate}` : ''}</div>
+                                            <div className="text-slate-500">
+                                                {tByLang('預計到期', 'Expected Maturity', '満期予定')} {fixedDepositMaturityDate || '--'}
+                                                {fixedDepositTargetLabel ? ` · ${tByLang('到期入帳', 'Maturity Payout', '満期入金')} ${fixedDepositTargetLabel}` : ''}
+                                            </div>
+                                        </>
+                                    )}
+                                    {isBankWealthItem && (
+                                        <>
+                                            <div className="text-slate-500">
+                                                {tByLang('期限', 'Term', '期間')} {bankWealthTermDays || '--'} {tByLang('天', 'days', '日')} ·
+                                                {tByLang('保底/最高年化', 'Guaranteed/Max APR', '最低/最高年利')} {bankWealthGuaranteedRate.toFixed(2)}% / {bankWealthMaxRate.toFixed(2)}%
+                                                {bankWealthStartDate ? ` · ${tByLang('起息', 'Start', '起算')} ${bankWealthStartDate}` : ''}
+                                            </div>
+                                            <div className="text-slate-500">
+                                                {tByLang('到期', 'Maturity', '満期')} {bankWealthMaturityDate || '--'}
+                                                {bankWealthTargetLabel ? ` · ${tByLang('到期入帳', 'Maturity Payout', '満期入金')} ${bankWealthTargetLabel}` : ''}
+                                            </div>
+                                            <div className="text-slate-500">
+                                                {tByLang('入帳模式', 'Payout Mode', '入金モード')} {bankWealthPayoutMode === 'max' ? tByLang('最高', 'Maximum', '最高') : (bankWealthPayoutMode === 'manual' ? tByLang('手動', 'Manual', '手動') : tByLang('保底', 'Guaranteed', '最低'))}
+                                                {' · '}
+                                                {tByLang('到期入帳額', 'Payout Amount', '入金額')} {formatAmount(bankWealthPayoutAmount)} {item.currency}
+                                            </div>
+                                        </>
                                     )}
                                     <div className={`${profitOrig >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                                         <div className="font-black text-sm">持倉盈虧 {profitOrig >= 0 ? '+' : ''}{formatAmount(profitDisplay)} {displayCurrency}</div>
@@ -823,7 +969,8 @@
         onInsuranceFundClearRows,
         fundCurrencyOptions,
         chartPalette,
-        fundAccentColor
+        fundAccentColor,
+        liquidAssetLabelById
     }) => {
         const isHealthInsuranceGroup = isInsuranceCategory && items.length > 0 && items.every(item => INSURANCE_HEALTH_SUBTYPES.includes(item.subtype));
         const isLifeInsuranceGroup = isInsuranceCategory && items.length > 0 && items.every(item => INSURANCE_LIFE_WEALTH_SUBTYPES.includes(item.subtype));
@@ -1017,6 +1164,33 @@
                             const receivableInstallments = Number(item.receivableInstallments || 0);
                             const fixedPurchaseDisplay = fromHKD(toHKD(Number(item.fixedPurchasePrice || costValOrig), item.currency), displayCurrency);
                             const fixedCurrentDisplay = fromHKD(toHKD(Number(item.fixedCurrentValue || mktValOrig), item.currency), displayCurrency);
+                            const isFixedDepositItem = isInvestCategory && item.subtype === '定期存款';
+                            const isBankWealthItem = isInvestCategory && item.subtype === '銀行理財';
+                            const fixedDepositMonths = Number(item.fixedDepositMonths || 0);
+                            const fixedDepositRate = Number(item.fixedDepositAnnualRate || 0);
+                            const fixedDepositStartDate = item.fixedDepositStartDate || '';
+                            const fixedDepositMaturityDate = resolveFixedDepositMaturityDateKey({
+                                startDateKey: fixedDepositStartDate,
+                                months: fixedDepositMonths
+                            });
+                            const fixedDepositTargetLabel = liquidAssetLabelById?.[item.fixedDepositTargetLiquidAssetId] || '';
+                            const bankWealthTermDays = Number(item.bankWealthTermDays || 0);
+                            const bankWealthGuaranteedRate = Number(item.bankWealthGuaranteedAnnualRate || 0);
+                            const bankWealthMaxRate = Number(item.bankWealthMaxAnnualRate || 0);
+                            const bankWealthStartDate = item.bankWealthStartDate || '';
+                            const bankWealthMaturityDate = item.bankWealthMaturityDate || resolveMaturityDateByDays({
+                                startDateKey: bankWealthStartDate,
+                                days: bankWealthTermDays
+                            });
+                            const bankWealthTargetLabel = liquidAssetLabelById?.[item.bankWealthTargetLiquidAssetId] || '';
+                            const bankWealthPayoutMode = item.bankWealthMaturityPayoutMode === 'max'
+                                ? 'max'
+                                : (item.bankWealthMaturityPayoutMode === 'manual' ? 'manual' : 'guaranteed');
+                            const bankWealthPayoutAmount = (() => {
+                                if (bankWealthPayoutMode === 'max') return Number(item.bankWealthMaxMaturityAmount || item.currentPrice || 0);
+                                if (bankWealthPayoutMode === 'manual') return Number(item.bankWealthMaturityManualAmount || 0);
+                                return Number(item.bankWealthGuaranteedMaturityAmount || item.currentPrice || 0);
+                            })();
                             const isPerfPositive = perf > 0;
                             const isPerfNegative = perf < 0;
                             const perfClass = isPerfPositive
@@ -1048,6 +1222,19 @@
                                         {isReceivableItem && (
                                             <div className="text-[10px] text-slate-500 font-medium mt-1">
                                                 {item.receivableParty ? `對象 ${item.receivableParty}` : '未填對象'}
+                                            </div>
+                                        )}
+                                        {isFixedDepositItem && (
+                                            <div className="text-[10px] text-slate-500 font-medium mt-1 space-y-0.5">
+                                                <div>{tByLang('定期', 'Term', '預入期間')} {fixedDepositMonths || '--'} {tByLang('個月', 'months', 'か月')} · {tByLang('年利率', 'Rate', '年利率')} {fixedDepositRate.toFixed(2)}% {fixedDepositStartDate ? `· ${tByLang('起存', 'Start', '開始')} ${fixedDepositStartDate}` : ''}</div>
+                                                <div>{tByLang('預計到期', 'Expected Maturity', '満期予定')} {fixedDepositMaturityDate || '--'}{fixedDepositTargetLabel ? ` · ${tByLang('到期入帳', 'Maturity Payout', '満期入金')} ${fixedDepositTargetLabel}` : ''}</div>
+                                            </div>
+                                        )}
+                                        {isBankWealthItem && (
+                                            <div className="text-[10px] text-slate-500 font-medium mt-1 space-y-0.5">
+                                                <div>{tByLang('期限', 'Term', '期間')} {bankWealthTermDays || '--'} {tByLang('天', 'days', '日')} · {tByLang('保底/最高年化', 'Guaranteed/Max APR', '最低/最高年利')} {bankWealthGuaranteedRate.toFixed(2)}% / {bankWealthMaxRate.toFixed(2)}% {bankWealthStartDate ? `· ${tByLang('起息', 'Start', '起算')} ${bankWealthStartDate}` : ''}</div>
+                                                <div>{tByLang('到期', 'Maturity', '満期')} {bankWealthMaturityDate || '--'}{bankWealthTargetLabel ? ` · ${tByLang('到期入帳', 'Maturity Payout', '満期入金')} ${bankWealthTargetLabel}` : ''}</div>
+                                                <div>{tByLang('入帳模式', 'Payout Mode', '入金モード')} {bankWealthPayoutMode === 'max' ? tByLang('最高', 'Maximum', '最高') : (bankWealthPayoutMode === 'manual' ? tByLang('手動', 'Manual', '手動') : tByLang('保底', 'Guaranteed', '最低'))} · {tByLang('到期入帳額', 'Payout Amount', '入金額')} {formatAmount(bankWealthPayoutAmount)} {item.currency}</div>
                                             </div>
                                         )}
                                         {isFixedItem && item.fixedNote && (
@@ -1435,7 +1622,8 @@
         onInsuranceFundClearRows,
         fundCurrencyOptions,
         chartPalette,
-        fundAccentColor
+        fundAccentColor,
+        liquidAssetLabelById
     }) => (
         <div className="space-y-10">
             {groupedAssets.map(({ categoryKey: catKey, accounts }) => (
@@ -1538,6 +1726,7 @@
                                                     fundCurrencyOptions={fundCurrencyOptions}
                                                     chartPalette={chartPalette}
                                                     fundAccentColor={fundAccentColor}
+                                                    liquidAssetLabelById={liquidAssetLabelById}
                                                 />
                                                 <AssetDetailDesktopTable
                                                     items={groupItems}
@@ -1567,6 +1756,7 @@
                                                     fundCurrencyOptions={fundCurrencyOptions}
                                                     chartPalette={chartPalette}
                                                     fundAccentColor={fundAccentColor}
+                                                    liquidAssetLabelById={liquidAssetLabelById}
                                                 />
                                             </div>
                                         ))}
