@@ -12,6 +12,8 @@
         CATEGORIES,
         sortMode,
         setSortMode,
+        accumulationFilterMode,
+        setAccumulationFilterMode,
         viewMode,
         setViewMode
     }) => (
@@ -38,7 +40,7 @@
                 ))}
             </div>
 
-            <div className="px-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div className="px-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
                 <select
                     value={sortMode}
                     onChange={e => setSortMode(e.target.value)}
@@ -46,6 +48,15 @@
                 >
                     <option value="AMOUNT_DESC">{tByLang('按金額排序（大到小）', 'Sort by Amount (High to Low)', '金額順（大→小）')}</option>
                     <option value="NAME_ASC">{tByLang('按名稱排序（A-Z）', 'Sort by Name (A-Z)', '名称順（A-Z）')}</option>
+                    <option value="ACCUMULATION_DESC">{tByLang('按積存餘額排序（大到小）', 'Sort by Accumulation (High to Low)', '積立残高順（大→小）')}</option>
+                </select>
+                <select
+                    value={accumulationFilterMode}
+                    onChange={e => setAccumulationFilterMode(e.target.value)}
+                    className="theme-input rounded-lg px-3 py-1.5 font-bold text-xs shadow-sm outline-none w-full"
+                >
+                    <option value="ALL">{tByLang('全部資產', 'All Assets', '全資産')}</option>
+                    <option value="HAS_ACCUMULATION">{tByLang('只顯示有積存餘額', 'Accumulation Only', '積立残高ありのみ')}</option>
                 </select>
                 <select
                     value={viewMode}

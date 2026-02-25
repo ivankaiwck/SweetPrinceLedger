@@ -75,6 +75,10 @@
         const isPartialWithdrawalOverLimit = partialWithdrawalAmountInput > 0 && partialWithdrawalAmountInput > partialWithdrawalMaxAmount;
         const isInvestmentLinkedLifeSubtype = ['投資型壽險', '投資/投資相連'].includes(formData.subtype);
         const hasSupplementaryBenefit = formData.insuranceHasSupplementaryBenefit === 'yes';
+        const isFundDistributionEnabled = formData.fundDistributionEnabled === 'yes';
+        const isInsuranceInvestmentDistributionEnabled = formData.insuranceInvestmentDistributionEnabled === 'yes';
+        const fundDistributionMode = ['cash', 'accumulate', 'reinvest'].includes(formData.fundDistributionMode) ? formData.fundDistributionMode : 'cash';
+        const insuranceInvestmentDistributionMode = ['cash', 'accumulate', 'reinvest'].includes(formData.insuranceInvestmentDistributionMode) ? formData.insuranceInvestmentDistributionMode : 'cash';
         const parseInvestmentFundRows = (rawValue) => {
             const lines = String(rawValue || '')
                 .split(/\r?\n/)
@@ -429,34 +433,92 @@
                         {isFundForm && (
                             <div className={`${MODAL_GROUP_CLASS} grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4`}>
                                 <div className="space-y-1">
-                                    <label className={FIELD_LABEL_CLASS}>{tByLang('基金派息金額（每期）', 'Fund Distribution Amount (Per Cycle)', 'ファンド分配金額（各周期）')}</label>
-                                    <input type="number" step="any" min="0" className={MODAL_INPUT_CLASS} value={formData.fundDistributionAmount || ''} onChange={updateFormField('fundDistributionAmount')} />
-                                </div>
-                                <div className="space-y-1">
-                                    <label className={FIELD_LABEL_CLASS}>{tByLang('派息週期', 'Distribution Frequency', '分配周期')}</label>
-                                    <select className={MODAL_INPUT_CLASS} value={formData.fundDistributionFrequency || 'monthly'} onChange={updateFormField('fundDistributionFrequency')}>
-                                        <option value="monthly">{tByLang('每月', 'Monthly', '毎月')}</option>
-                                        <option value="yearly">{tByLang('每年', 'Yearly', '毎年')}</option>
-                                    </select>
-                                </div>
-                                <div className="space-y-1">
-                                    <label className={FIELD_LABEL_CLASS}>{tByLang('派息開始日', 'Distribution Start Date', '分配開始日')}</label>
-                                    <DatePicker
-                                        value={formData.fundDistributionStartDate || ''}
-                                        onChange={updateFormField('fundDistributionStartDate')}
+                                    <label className={FIELD_LABEL_CLASS}>{tByLang('基金是否派息', 'Fund Distributes?', 'ファンド分配の有無')}</label>
+                                    <select
                                         className={MODAL_INPUT_CLASS}
-                                        pageLanguage={pageLanguage}
-                                    />
-                                </div>
-                                <div className="space-y-1">
-                                    <label className={FIELD_LABEL_CLASS}>{tByLang('派息入帳帳戶', 'Distribution Payout Account', '分配入金口座')}</label>
-                                    <select className={MODAL_INPUT_CLASS} value={formData.fundDistributionAccountId || ''} onChange={updateFormField('fundDistributionAccountId')}>
-                                        <option value="">{tByLang('請選擇流動資產帳戶', 'Select a liquid asset account', '流動資産口座を選択')}</option>
-                                        {(liquidAssetOptions || []).map(option => (
-                                            <option key={option.id} value={option.id}>{option.label}</option>
-                                        ))}
+                                        value={formData.fundDistributionEnabled || 'no'}
+                                        onChange={(event) => {
+                                            const nextValue = event.target.value === 'yes' ? 'yes' : 'no';
+                                            updateFormField('fundDistributionEnabled')({ target: { value: nextValue } });
+                                            if (nextValue !== 'yes') {
+                                                updateFormField('fundDistributionAmount')({ target: { value: '' } });
+                                                updateFormField('fundDistributionRatePercent')({ target: { value: '' } });
+                                                updateFormField('fundDistributionAccumulationRatePercent')({ target: { value: '' } });
+                                                updateFormField('fundDistributionStartDate')({ target: { value: '' } });
+                                                updateFormField('fundDistributionAccountId')({ target: { value: '' } });
+                                            }
+                                        }}
+                                    >
+                                        <option value="no">{tByLang('不派息', 'No', 'なし')}</option>
+                                        <option value="yes">{tByLang('派息', 'Yes', 'あり')}</option>
                                     </select>
                                 </div>
+                                {isFundDistributionEnabled && (
+                                    <>
+                                        <div className="space-y-1">
+                                            <label className={FIELD_LABEL_CLASS}>{tByLang('派息處理方式', 'Distribution Handling', '分配処理方式')}</label>
+                                            <select
+                                                className={MODAL_INPUT_CLASS}
+                                                value={fundDistributionMode}
+                                                onChange={(event) => {
+                                                    const nextMode = ['cash', 'accumulate', 'reinvest'].includes(event.target.value) ? event.target.value : 'cash';
+                                                    updateFormField('fundDistributionMode')({ target: { value: nextMode } });
+                                                    if (nextMode !== 'cash') {
+                                                        updateFormField('fundDistributionAccountId')({ target: { value: '' } });
+                                                    }
+                                                    if (nextMode !== 'accumulate') {
+                                                        updateFormField('fundDistributionAccumulationRatePercent')({ target: { value: '' } });
+                                                    }
+                                                }}
+                                            >
+                                                <option value="cash">{tByLang('派息入帳', 'Cash Payout', '入金')}</option>
+                                                <option value="accumulate">{tByLang('積存生息', 'Accumulate', '積立')}</option>
+                                                <option value="reinvest">{tByLang('再投資', 'Reinvest', '再投資')}</option>
+                                            </select>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className={FIELD_LABEL_CLASS}>{tByLang('基金派息金額（每期）', 'Fund Distribution Amount (Per Cycle)', 'ファンド分配金額（各周期）')}</label>
+                                            <input type="number" step="any" min="0" className={MODAL_INPUT_CLASS} value={formData.fundDistributionAmount || ''} onChange={updateFormField('fundDistributionAmount')} />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className={FIELD_LABEL_CLASS}>{tByLang('基金派息比率（%）', 'Fund Distribution Rate (%)', 'ファンド分配率（%）')}</label>
+                                            <input type="number" step="any" min="0" className={MODAL_INPUT_CLASS} value={formData.fundDistributionRatePercent || ''} onChange={updateFormField('fundDistributionRatePercent')} />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className={FIELD_LABEL_CLASS}>{tByLang('派息週期', 'Distribution Frequency', '分配周期')}</label>
+                                            <select className={MODAL_INPUT_CLASS} value={formData.fundDistributionFrequency || 'monthly'} onChange={updateFormField('fundDistributionFrequency')}>
+                                                <option value="monthly">{tByLang('每月', 'Monthly', '毎月')}</option>
+                                                <option value="yearly">{tByLang('每年', 'Yearly', '毎年')}</option>
+                                            </select>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className={FIELD_LABEL_CLASS}>{tByLang('派息開始日', 'Distribution Start Date', '分配開始日')}</label>
+                                            <DatePicker
+                                                value={formData.fundDistributionStartDate || ''}
+                                                onChange={updateFormField('fundDistributionStartDate')}
+                                                className={MODAL_INPUT_CLASS}
+                                                pageLanguage={pageLanguage}
+                                            />
+                                        </div>
+                                        {fundDistributionMode === 'accumulate' && (
+                                            <div className="space-y-1">
+                                                <label className={FIELD_LABEL_CLASS}>{tByLang('積存年化利率（%）', 'Accumulation APR (%)', '積立年利（%）')}</label>
+                                                <input type="number" step="any" min="0" className={MODAL_INPUT_CLASS} value={formData.fundDistributionAccumulationRatePercent || ''} onChange={updateFormField('fundDistributionAccumulationRatePercent')} />
+                                            </div>
+                                        )}
+                                        {fundDistributionMode === 'cash' && (
+                                            <div className="space-y-1">
+                                                <label className={FIELD_LABEL_CLASS}>{tByLang('派息入帳帳戶', 'Distribution Payout Account', '分配入金口座')}</label>
+                                                <select className={MODAL_INPUT_CLASS} value={formData.fundDistributionAccountId || ''} onChange={updateFormField('fundDistributionAccountId')}>
+                                                    <option value="">{tByLang('請選擇流動資產帳戶', 'Select a liquid asset account', '流動資産口座を選択')}</option>
+                                                    {(liquidAssetOptions || []).map(option => (
+                                                        <option key={option.id} value={option.id}>{option.label}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        )}
+                                    </>
+                                )}
                             </div>
                         )}
 
@@ -1002,34 +1064,92 @@
                                                     <input type="text" className={MODAL_INPUT_CLASS} value={formData.insuranceInvestmentStrategyNote || ''} onChange={updateFormField('insuranceInvestmentStrategyNote')} />
                                                 </div>
                                                 <div className="space-y-1">
-                                                    <label className={FIELD_LABEL_CLASS}>{tByLang('基金派息金額（每期）', 'Fund Distribution Amount (Per Cycle)', 'ファンド分配金額（各周期）')}</label>
-                                                    <input type="number" step="any" min="0" className={MODAL_INPUT_CLASS} value={formData.insuranceInvestmentDistributionAmount || ''} onChange={updateFormField('insuranceInvestmentDistributionAmount')} />
-                                                </div>
-                                                <div className="space-y-1">
-                                                    <label className={FIELD_LABEL_CLASS}>{tByLang('派息週期', 'Distribution Frequency', '分配周期')}</label>
-                                                    <select className={MODAL_INPUT_CLASS} value={formData.insuranceInvestmentDistributionFrequency || 'monthly'} onChange={updateFormField('insuranceInvestmentDistributionFrequency')}>
-                                                        <option value="monthly">{tByLang('每月', 'Monthly', '毎月')}</option>
-                                                        <option value="yearly">{tByLang('每年', 'Yearly', '毎年')}</option>
-                                                    </select>
-                                                </div>
-                                                <div className="space-y-1">
-                                                    <label className={FIELD_LABEL_CLASS}>{tByLang('派息開始日', 'Distribution Start Date', '分配開始日')}</label>
-                                                    <DatePicker
-                                                        value={formData.insuranceInvestmentDistributionStartDate || formData.insuranceStartDate || ''}
-                                                        onChange={updateFormField('insuranceInvestmentDistributionStartDate')}
+                                                    <label className={FIELD_LABEL_CLASS}>{tByLang('基金是否派息', 'Fund Distributes?', 'ファンド分配の有無')}</label>
+                                                    <select
                                                         className={MODAL_INPUT_CLASS}
-                                                        pageLanguage={pageLanguage}
-                                                    />
-                                                </div>
-                                                <div className="space-y-1">
-                                                    <label className={FIELD_LABEL_CLASS}>{tByLang('派息入帳帳戶', 'Distribution Payout Account', '分配入金口座')}</label>
-                                                    <select className={MODAL_INPUT_CLASS} value={formData.insuranceInvestmentDistributionAccountId || ''} onChange={updateFormField('insuranceInvestmentDistributionAccountId')}>
-                                                        <option value="">{tByLang('請選擇流動資產帳戶', 'Select a liquid asset account', '流動資産口座を選択')}</option>
-                                                        {(liquidAssetOptions || []).map(option => (
-                                                            <option key={option.id} value={option.id}>{option.label}</option>
-                                                        ))}
+                                                        value={formData.insuranceInvestmentDistributionEnabled || 'no'}
+                                                        onChange={(event) => {
+                                                            const nextValue = event.target.value === 'yes' ? 'yes' : 'no';
+                                                            updateFormField('insuranceInvestmentDistributionEnabled')({ target: { value: nextValue } });
+                                                            if (nextValue !== 'yes') {
+                                                                updateFormField('insuranceInvestmentDistributionAmount')({ target: { value: '' } });
+                                                                updateFormField('insuranceInvestmentDistributionRatePercent')({ target: { value: '' } });
+                                                                updateFormField('insuranceInvestmentDistributionAccumulationRatePercent')({ target: { value: '' } });
+                                                                updateFormField('insuranceInvestmentDistributionStartDate')({ target: { value: '' } });
+                                                                updateFormField('insuranceInvestmentDistributionAccountId')({ target: { value: '' } });
+                                                            }
+                                                        }}
+                                                    >
+                                                        <option value="no">{tByLang('不派息', 'No', 'なし')}</option>
+                                                        <option value="yes">{tByLang('派息', 'Yes', 'あり')}</option>
                                                     </select>
                                                 </div>
+                                                {isInsuranceInvestmentDistributionEnabled && (
+                                                    <>
+                                                        <div className="space-y-1">
+                                                            <label className={FIELD_LABEL_CLASS}>{tByLang('派息處理方式', 'Distribution Handling', '分配処理方式')}</label>
+                                                            <select
+                                                                className={MODAL_INPUT_CLASS}
+                                                                value={insuranceInvestmentDistributionMode}
+                                                                onChange={(event) => {
+                                                                    const nextMode = ['cash', 'accumulate', 'reinvest'].includes(event.target.value) ? event.target.value : 'cash';
+                                                                    updateFormField('insuranceInvestmentDistributionMode')({ target: { value: nextMode } });
+                                                                    if (nextMode !== 'cash') {
+                                                                        updateFormField('insuranceInvestmentDistributionAccountId')({ target: { value: '' } });
+                                                                    }
+                                                                    if (nextMode !== 'accumulate') {
+                                                                        updateFormField('insuranceInvestmentDistributionAccumulationRatePercent')({ target: { value: '' } });
+                                                                    }
+                                                                }}
+                                                            >
+                                                                <option value="cash">{tByLang('派息入帳', 'Cash Payout', '入金')}</option>
+                                                                <option value="accumulate">{tByLang('積存生息', 'Accumulate', '積立')}</option>
+                                                                <option value="reinvest">{tByLang('再投資', 'Reinvest', '再投資')}</option>
+                                                            </select>
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <label className={FIELD_LABEL_CLASS}>{tByLang('基金派息金額（每期）', 'Fund Distribution Amount (Per Cycle)', 'ファンド分配金額（各周期）')}</label>
+                                                            <input type="number" step="any" min="0" className={MODAL_INPUT_CLASS} value={formData.insuranceInvestmentDistributionAmount || ''} onChange={updateFormField('insuranceInvestmentDistributionAmount')} />
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <label className={FIELD_LABEL_CLASS}>{tByLang('基金派息比率（%）', 'Fund Distribution Rate (%)', 'ファンド分配率（%）')}</label>
+                                                            <input type="number" step="any" min="0" className={MODAL_INPUT_CLASS} value={formData.insuranceInvestmentDistributionRatePercent || ''} onChange={updateFormField('insuranceInvestmentDistributionRatePercent')} />
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <label className={FIELD_LABEL_CLASS}>{tByLang('派息週期', 'Distribution Frequency', '分配周期')}</label>
+                                                            <select className={MODAL_INPUT_CLASS} value={formData.insuranceInvestmentDistributionFrequency || 'monthly'} onChange={updateFormField('insuranceInvestmentDistributionFrequency')}>
+                                                                <option value="monthly">{tByLang('每月', 'Monthly', '毎月')}</option>
+                                                                <option value="yearly">{tByLang('每年', 'Yearly', '毎年')}</option>
+                                                            </select>
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <label className={FIELD_LABEL_CLASS}>{tByLang('派息開始日', 'Distribution Start Date', '分配開始日')}</label>
+                                                            <DatePicker
+                                                                value={formData.insuranceInvestmentDistributionStartDate || formData.insuranceStartDate || ''}
+                                                                onChange={updateFormField('insuranceInvestmentDistributionStartDate')}
+                                                                className={MODAL_INPUT_CLASS}
+                                                                pageLanguage={pageLanguage}
+                                                            />
+                                                        </div>
+                                                        {insuranceInvestmentDistributionMode === 'accumulate' && (
+                                                            <div className="space-y-1">
+                                                                <label className={FIELD_LABEL_CLASS}>{tByLang('積存年化利率（%）', 'Accumulation APR (%)', '積立年利（%）')}</label>
+                                                                <input type="number" step="any" min="0" className={MODAL_INPUT_CLASS} value={formData.insuranceInvestmentDistributionAccumulationRatePercent || ''} onChange={updateFormField('insuranceInvestmentDistributionAccumulationRatePercent')} />
+                                                            </div>
+                                                        )}
+                                                        {insuranceInvestmentDistributionMode === 'cash' && (
+                                                            <div className="space-y-1">
+                                                                <label className={FIELD_LABEL_CLASS}>{tByLang('派息入帳帳戶', 'Distribution Payout Account', '分配入金口座')}</label>
+                                                                <select className={MODAL_INPUT_CLASS} value={formData.insuranceInvestmentDistributionAccountId || ''} onChange={updateFormField('insuranceInvestmentDistributionAccountId')}>
+                                                                    <option value="">{tByLang('請選擇流動資產帳戶', 'Select a liquid asset account', '流動資産口座を選択')}</option>
+                                                                    {(liquidAssetOptions || []).map(option => (
+                                                                        <option key={option.id} value={option.id}>{option.label}</option>
+                                                                    ))}
+                                                                </select>
+                                                            </div>
+                                                        )}
+                                                    </>
+                                                )}
                                                 <div className="space-y-1 md:col-span-2">
                                                     <label className={FIELD_LABEL_CLASS}>{tByLang('基金子項目管理', 'Fund Item Management', 'ファンド項目管理')}</label>
                                                     <div className="rounded-lg border border-indigo-200 bg-indigo-50/60 px-3 py-2 text-[10px] font-black text-indigo-700">

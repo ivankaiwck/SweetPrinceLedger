@@ -172,6 +172,21 @@
                     distributionStartDate: parts[10] || '',
                     distributionAccountId: parts[11] || '',
                     fundRowId: parts[12] || '',
+                    distributionRatePercentRaw: parts[13] || '',
+                    distributionEnabled: (() => {
+                        if (parts[14] === 'yes') return 'yes';
+                        if (parts[14] === 'no') return 'no';
+                        const hasDistributionData =
+                            (Number(parts[8] || 0) > 0)
+                            || (Number(parts[13] || 0) > 0)
+                            || Boolean(String(parts[10] || '').trim())
+                            || Boolean(String(parts[11] || '').trim())
+                            || (Number(parts[17] || 0) > 0);
+                        return hasDistributionData ? 'yes' : 'no';
+                    })(),
+                    distributionMode: ['cash', 'accumulate', 'reinvest'].includes(parts[15]) ? parts[15] : 'cash',
+                    distributionAccumulationRatePercentRaw: parts[16] || '',
+                    distributionAccumulationBalanceRaw: parts[17] || '',
                     balance,
                     units,
                     unitPrice,
@@ -201,7 +216,7 @@
         accentColor,
         layout = 'mobile'
     }) => {
-        const emptyDraft = { investmentOption: '', fundCode: '', currency: 'HKD', units: '', unitPrice: '', averagePrice: '', distributionAmount: '', distributionFrequency: 'monthly', distributionStartDate: '', distributionAccountId: '', fundRowId: '' };
+        const emptyDraft = { investmentOption: '', fundCode: '', currency: 'HKD', units: '', unitPrice: '', averagePrice: '', distributionEnabled: 'no', distributionMode: 'cash', distributionAmount: '', distributionRatePercent: '', distributionAccumulationRatePercent: '', distributionFrequency: 'monthly', distributionStartDate: '', distributionAccountId: '', fundRowId: '' };
         const [modalState, setModalState] = React.useState({ mode: '', rowIndex: -1, draft: emptyDraft });
         const distributionAccountOptions = Object.entries(liquidAssetLabelById || {}).map(([id, label]) => ({ id, label }));
 
@@ -270,15 +285,21 @@
         const totalPnlClass = totalPnlAmount >= 0 ? 'text-emerald-700' : 'text-rose-700';
 
         const commitRow = (rowIndex, draft) => {
+            const isDistributionEnabled = draft.distributionEnabled === 'yes';
+            const distributionMode = ['cash', 'accumulate', 'reinvest'].includes(draft.distributionMode) ? draft.distributionMode : 'cash';
             onInsuranceFundRowFieldChange(item.id, rowIndex, 'investmentOption', draft.investmentOption || '');
             onInsuranceFundRowFieldChange(item.id, rowIndex, 'codeCurrency', buildFundCodeCurrency(draft.fundCode, draft.currency));
             onInsuranceFundRowFieldChange(item.id, rowIndex, 'units', draft.units || '');
             onInsuranceFundRowFieldChange(item.id, rowIndex, 'unitPrice', draft.unitPrice || '');
             onInsuranceFundRowFieldChange(item.id, rowIndex, 'averagePrice', draft.averagePrice || '');
-            onInsuranceFundRowFieldChange(item.id, rowIndex, 'distributionAmount', draft.distributionAmount || '');
+            onInsuranceFundRowFieldChange(item.id, rowIndex, 'distributionEnabled', isDistributionEnabled ? 'yes' : 'no');
+            onInsuranceFundRowFieldChange(item.id, rowIndex, 'distributionMode', distributionMode);
+            onInsuranceFundRowFieldChange(item.id, rowIndex, 'distributionAmount', isDistributionEnabled ? (draft.distributionAmount || '') : '');
+            onInsuranceFundRowFieldChange(item.id, rowIndex, 'distributionRatePercent', isDistributionEnabled ? (draft.distributionRatePercent || '') : '');
+            onInsuranceFundRowFieldChange(item.id, rowIndex, 'distributionAccumulationRatePercent', (isDistributionEnabled && distributionMode === 'accumulate') ? (draft.distributionAccumulationRatePercent || '') : '');
             onInsuranceFundRowFieldChange(item.id, rowIndex, 'distributionFrequency', draft.distributionFrequency === 'yearly' ? 'yearly' : 'monthly');
-            onInsuranceFundRowFieldChange(item.id, rowIndex, 'distributionStartDate', draft.distributionStartDate || '');
-            onInsuranceFundRowFieldChange(item.id, rowIndex, 'distributionAccountId', draft.distributionAccountId || '');
+            onInsuranceFundRowFieldChange(item.id, rowIndex, 'distributionStartDate', isDistributionEnabled ? (draft.distributionStartDate || '') : '');
+            onInsuranceFundRowFieldChange(item.id, rowIndex, 'distributionAccountId', (isDistributionEnabled && distributionMode === 'cash') ? (draft.distributionAccountId || '') : '');
             onInsuranceFundRowFieldChange(item.id, rowIndex, 'fundRowId', draft.fundRowId || '');
         };
 
@@ -305,7 +326,11 @@
                     units: row.unitsRaw || '',
                     unitPrice: row.unitPriceRaw || '',
                     averagePrice: row.averagePriceRaw || '',
+                    distributionEnabled: row.distributionEnabled === 'yes' ? 'yes' : 'no',
+                    distributionMode: ['cash', 'accumulate', 'reinvest'].includes(row.distributionMode) ? row.distributionMode : 'cash',
                     distributionAmount: row.distributionAmountRaw || '',
+                    distributionRatePercent: row.distributionRatePercentRaw || '',
+                    distributionAccumulationRatePercent: row.distributionAccumulationRatePercentRaw || '',
                     distributionFrequency: row.distributionFrequency === 'yearly' ? 'yearly' : 'monthly',
                     distributionStartDate: row.distributionStartDate || '',
                     distributionAccountId: row.distributionAccountId || '',
@@ -325,10 +350,14 @@
                 units: modalState.draft.units || '',
                 unitPrice: modalState.draft.unitPrice || '',
                 averagePrice: modalState.draft.averagePrice || '',
-                distributionAmount: modalState.draft.distributionAmount || '',
+                distributionEnabled: modalState.draft.distributionEnabled === 'yes' ? 'yes' : 'no',
+                distributionMode: ['cash', 'accumulate', 'reinvest'].includes(modalState.draft.distributionMode) ? modalState.draft.distributionMode : 'cash',
+                distributionAmount: modalState.draft.distributionEnabled === 'yes' ? (modalState.draft.distributionAmount || '') : '',
+                distributionRatePercent: modalState.draft.distributionEnabled === 'yes' ? (modalState.draft.distributionRatePercent || '') : '',
+                distributionAccumulationRatePercent: (modalState.draft.distributionEnabled === 'yes' && (modalState.draft.distributionMode || 'cash') === 'accumulate') ? (modalState.draft.distributionAccumulationRatePercent || '') : '',
                 distributionFrequency: modalState.draft.distributionFrequency === 'yearly' ? 'yearly' : 'monthly',
-                distributionStartDate: modalState.draft.distributionStartDate || '',
-                distributionAccountId: modalState.draft.distributionAccountId || '',
+                distributionStartDate: modalState.draft.distributionEnabled === 'yes' ? (modalState.draft.distributionStartDate || '') : '',
+                distributionAccountId: (modalState.draft.distributionEnabled === 'yes' && (modalState.draft.distributionMode || 'cash') === 'cash') ? (modalState.draft.distributionAccountId || '') : '',
                 fundRowId: modalState.draft.fundRowId || ''
             };
 
@@ -470,9 +499,25 @@
                                             <td className="px-2 py-2"><span className={computedPnlPercent >= 0 ? 'font-bold text-emerald-700' : 'font-bold text-rose-700'}>{computedPnlPercent >= 0 ? '+' : ''}{computedPnlPercent.toFixed(2)}%</span></td>
                                             <td className="px-2 py-2">
                                                 <div className="font-bold theme-text-main">{formatAmount(row.balance)} {row.currency || item.currency || 'HKD'}</div>
-                                                {Number(row.distributionAmountRaw || 0) > 0 && (
+                                                {row.distributionEnabled === 'yes' && Number(row.distributionAmountRaw || 0) > 0 && (
                                                     <div className="text-[10px] text-indigo-600">
                                                         {tByLang('派息', 'Distribution', '分配')} {formatAmount(row.distributionAmountRaw)} {item.currency} · {row.distributionFrequency === 'yearly' ? tByLang('每年', 'Yearly', '毎年') : tByLang('每月', 'Monthly', '毎月')}
+                                                        {' · '}
+                                                        {(row.distributionMode || 'cash') === 'cash'
+                                                            ? tByLang('入帳', 'Cash Payout', '入金')
+                                                            : ((row.distributionMode || 'cash') === 'reinvest'
+                                                                ? tByLang('再投資', 'Reinvest', '再投資')
+                                                                : tByLang('積存生息', 'Accumulate', '積立'))}
+                                                    </div>
+                                                )}
+                                                {row.distributionEnabled === 'yes' && Number(row.distributionRatePercentRaw || 0) > 0 && (
+                                                    <div className="text-[10px] text-indigo-600">
+                                                        {tByLang('比率', 'Rate', '比率')} {formatAmount(row.distributionRatePercentRaw)}%
+                                                    </div>
+                                                )}
+                                                {row.distributionEnabled === 'yes' && (row.distributionMode || 'cash') === 'accumulate' && Number(row.distributionAccumulationBalanceRaw || 0) > 0 && (
+                                                    <div className="text-[10px] text-indigo-600">
+                                                        {tByLang('積存餘額', 'Accumulated Balance', '積立残高')} {formatAmount(row.distributionAccumulationBalanceRaw)} {item.currency || row.currency || 'HKD'}
                                                     </div>
                                                 )}
                                             </td>
@@ -529,9 +574,25 @@
                                         <div>
                                             <div className="theme-text-sub">{tByLang('結餘', 'Balance', '残高')}</div>
                                             <div className={computedPnlClass}>{formatAmount(row.balance)} {row.currency || item.currency || 'HKD'}</div>
-                                            {Number(row.distributionAmountRaw || 0) > 0 && (
+                                            {row.distributionEnabled === 'yes' && Number(row.distributionAmountRaw || 0) > 0 && (
                                                 <div className="text-[10px] text-indigo-600">
                                                     {tByLang('派息', 'Distribution', '分配')} {formatAmount(row.distributionAmountRaw)} {item.currency}
+                                                    {' · '}
+                                                    {(row.distributionMode || 'cash') === 'cash'
+                                                        ? tByLang('入帳', 'Cash Payout', '入金')
+                                                        : ((row.distributionMode || 'cash') === 'reinvest'
+                                                            ? tByLang('再投資', 'Reinvest', '再投資')
+                                                            : tByLang('積存生息', 'Accumulate', '積立'))}
+                                                </div>
+                                            )}
+                                            {row.distributionEnabled === 'yes' && Number(row.distributionRatePercentRaw || 0) > 0 && (
+                                                <div className="text-[10px] text-indigo-600">
+                                                    {tByLang('比率', 'Rate', '比率')} {formatAmount(row.distributionRatePercentRaw)}%
+                                                </div>
+                                            )}
+                                            {row.distributionEnabled === 'yes' && (row.distributionMode || 'cash') === 'accumulate' && Number(row.distributionAccumulationBalanceRaw || 0) > 0 && (
+                                                <div className="text-[10px] text-indigo-600">
+                                                    {tByLang('積存餘額', 'Accumulated Balance', '積立残高')} {formatAmount(row.distributionAccumulationBalanceRaw)} {item.currency || row.currency || 'HKD'}
                                                 </div>
                                             )}
                                         </div>
@@ -590,27 +651,89 @@
                                     <input type="number" step="any" min="0" value={modalState.draft.averagePrice} onChange={(event) => setModalState(prev => ({ ...prev, draft: { ...prev.draft, averagePrice: event.target.value } }))} className="w-full rounded-lg theme-input px-3 py-2 text-sm font-bold" />
                                 </div>
                                 <div className="space-y-1">
-                                    <label className="text-[10px] font-black theme-text-sub">{tByLang('每期派息', 'Distribution / Cycle', '各周期分配')}</label>
-                                    <input type="number" step="any" min="0" value={modalState.draft.distributionAmount} onChange={(event) => setModalState(prev => ({ ...prev, draft: { ...prev.draft, distributionAmount: event.target.value } }))} className="w-full rounded-lg theme-input px-3 py-2 text-sm font-bold" />
-                                </div>
-                                <div className="space-y-1">
-                                    <label className="text-[10px] font-black theme-text-sub">{tByLang('派息週期', 'Distribution Frequency', '分配周期')}</label>
-                                    <select value={modalState.draft.distributionFrequency || 'monthly'} onChange={(event) => setModalState(prev => ({ ...prev, draft: { ...prev.draft, distributionFrequency: event.target.value } }))} className="w-full rounded-lg theme-input px-3 py-2 text-sm font-bold">
-                                        <option value="monthly">{tByLang('每月', 'Monthly', '毎月')}</option>
-                                        <option value="yearly">{tByLang('每年', 'Yearly', '毎年')}</option>
+                                    <label className="text-[10px] font-black theme-text-sub">{tByLang('基金是否派息', 'Fund Distributes?', 'ファンド分配の有無')}</label>
+                                    <select
+                                        value={modalState.draft.distributionEnabled || 'no'}
+                                        onChange={(event) => setModalState(prev => {
+                                            const enabled = event.target.value === 'yes' ? 'yes' : 'no';
+                                            const nextDraft = {
+                                                ...prev.draft,
+                                                distributionEnabled: enabled
+                                            };
+                                            if (enabled !== 'yes') {
+                                                nextDraft.distributionAmount = '';
+                                                nextDraft.distributionRatePercent = '';
+                                                nextDraft.distributionStartDate = '';
+                                                nextDraft.distributionAccountId = '';
+                                            }
+                                            return { ...prev, draft: nextDraft };
+                                        })}
+                                        className="w-full rounded-lg theme-input px-3 py-2 text-sm font-bold"
+                                    >
+                                        <option value="no">{tByLang('不派息', 'No', 'なし')}</option>
+                                        <option value="yes">{tByLang('派息', 'Yes', 'あり')}</option>
                                     </select>
                                 </div>
-                                <div className="space-y-1">
-                                    <label className="text-[10px] font-black theme-text-sub">{tByLang('派息開始日', 'Distribution Start Date', '分配開始日')}</label>
-                                    <input type="date" value={modalState.draft.distributionStartDate || ''} onChange={(event) => setModalState(prev => ({ ...prev, draft: { ...prev.draft, distributionStartDate: event.target.value } }))} className="w-full rounded-lg theme-input px-3 py-2 text-sm font-bold" />
-                                </div>
-                                <div className="space-y-1 md:col-span-2">
-                                    <label className="text-[10px] font-black theme-text-sub">{tByLang('派息入帳帳戶', 'Distribution Payout Account', '分配入金口座')}</label>
-                                    <select value={modalState.draft.distributionAccountId || ''} onChange={(event) => setModalState(prev => ({ ...prev, draft: { ...prev.draft, distributionAccountId: event.target.value } }))} className="w-full rounded-lg theme-input px-3 py-2 text-sm font-bold">
-                                        <option value="">{tByLang('請選擇帳戶', 'Select account', '口座を選択')}</option>
-                                        {distributionAccountOptions.map(option => <option key={`${item.id}-dist-account-${option.id}`} value={option.id}>{option.label}</option>)}
-                                    </select>
-                                </div>
+                                {modalState.draft.distributionEnabled === 'yes' && (
+                                    <>
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-black theme-text-sub">{tByLang('派息處理方式', 'Distribution Handling', '分配処理方式')}</label>
+                                            <select
+                                                value={modalState.draft.distributionMode || 'cash'}
+                                                onChange={(event) => setModalState(prev => {
+                                                    const nextMode = ['cash', 'accumulate', 'reinvest'].includes(event.target.value) ? event.target.value : 'cash';
+                                                    const nextDraft = { ...prev.draft, distributionMode: nextMode };
+                                                    if (nextMode !== 'cash') {
+                                                        nextDraft.distributionAccountId = '';
+                                                    }
+                                                    if (nextMode !== 'accumulate') {
+                                                        nextDraft.distributionAccumulationRatePercent = '';
+                                                    }
+                                                    return { ...prev, draft: nextDraft };
+                                                })}
+                                                className="w-full rounded-lg theme-input px-3 py-2 text-sm font-bold"
+                                            >
+                                                <option value="cash">{tByLang('派息入帳', 'Cash Payout', '入金')}</option>
+                                                <option value="accumulate">{tByLang('積存生息', 'Accumulate', '積立')}</option>
+                                                <option value="reinvest">{tByLang('再投資', 'Reinvest', '再投資')}</option>
+                                            </select>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-black theme-text-sub">{tByLang('每期派息', 'Distribution / Cycle', '各周期分配')}</label>
+                                            <input type="number" step="any" min="0" value={modalState.draft.distributionAmount} onChange={(event) => setModalState(prev => ({ ...prev, draft: { ...prev.draft, distributionAmount: event.target.value } }))} className="w-full rounded-lg theme-input px-3 py-2 text-sm font-bold" />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-black theme-text-sub">{tByLang('派息比率 (%)', 'Distribution Rate (%)', '分配率 (%)')}</label>
+                                            <input type="number" step="any" min="0" value={modalState.draft.distributionRatePercent} onChange={(event) => setModalState(prev => ({ ...prev, draft: { ...prev.draft, distributionRatePercent: event.target.value } }))} className="w-full rounded-lg theme-input px-3 py-2 text-sm font-bold" />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-black theme-text-sub">{tByLang('派息週期', 'Distribution Frequency', '分配周期')}</label>
+                                            <select value={modalState.draft.distributionFrequency || 'monthly'} onChange={(event) => setModalState(prev => ({ ...prev, draft: { ...prev.draft, distributionFrequency: event.target.value } }))} className="w-full rounded-lg theme-input px-3 py-2 text-sm font-bold">
+                                                <option value="monthly">{tByLang('每月', 'Monthly', '毎月')}</option>
+                                                <option value="yearly">{tByLang('每年', 'Yearly', '毎年')}</option>
+                                            </select>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-black theme-text-sub">{tByLang('派息開始日', 'Distribution Start Date', '分配開始日')}</label>
+                                            <input type="date" value={modalState.draft.distributionStartDate || ''} onChange={(event) => setModalState(prev => ({ ...prev, draft: { ...prev.draft, distributionStartDate: event.target.value } }))} className="w-full rounded-lg theme-input px-3 py-2 text-sm font-bold" />
+                                        </div>
+                                        {(modalState.draft.distributionMode || 'cash') === 'accumulate' && (
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-black theme-text-sub">{tByLang('積存年化利率（%）', 'Accumulation APR (%)', '積立年利（%）')}</label>
+                                                <input type="number" step="any" min="0" value={modalState.draft.distributionAccumulationRatePercent || ''} onChange={(event) => setModalState(prev => ({ ...prev, draft: { ...prev.draft, distributionAccumulationRatePercent: event.target.value } }))} className="w-full rounded-lg theme-input px-3 py-2 text-sm font-bold" />
+                                            </div>
+                                        )}
+                                        {(modalState.draft.distributionMode || 'cash') === 'cash' && (
+                                            <div className="space-y-1 md:col-span-2">
+                                                <label className="text-[10px] font-black theme-text-sub">{tByLang('派息入帳帳戶', 'Distribution Payout Account', '分配入金口座')}</label>
+                                                <select value={modalState.draft.distributionAccountId || ''} onChange={(event) => setModalState(prev => ({ ...prev, draft: { ...prev.draft, distributionAccountId: event.target.value } }))} className="w-full rounded-lg theme-input px-3 py-2 text-sm font-bold">
+                                                    <option value="">{tByLang('請選擇帳戶', 'Select account', '口座を選択')}</option>
+                                                    {distributionAccountOptions.map(option => <option key={`${item.id}-dist-account-${option.id}`} value={option.id}>{option.label}</option>)}
+                                                </select>
+                                            </div>
+                                        )}
+                                    </>
+                                )}
                             </div>
 
                             <div className="flex items-center justify-end gap-2 text-xs font-black">
@@ -974,7 +1097,12 @@
                             const isFixedDepositItem = item.subtype === '定期存款';
                             const isBankWealthItem = item.subtype === '銀行理財';
                             const isFundInvestItem = item.subtype === '基金';
+                            const isFundDistributionEnabled = item.fundDistributionEnabled === 'yes';
+                            const fundDistributionMode = ['cash', 'accumulate', 'reinvest'].includes(item.fundDistributionMode) ? item.fundDistributionMode : 'cash';
                             const fundDistributionAmount = Number(item.fundDistributionAmount || 0);
+                            const fundDistributionRatePercent = Number(item.fundDistributionRatePercent || 0);
+                            const fundDistributionAccumulationRatePercent = Number(item.fundDistributionAccumulationRatePercent || 0);
+                            const fundDistributionAccumulationBalance = Number(item.fundDistributionAccumulationBalance || 0);
                             const fundDistributionFrequency = String(item.fundDistributionFrequency || 'monthly').toLowerCase() === 'yearly' ? 'yearly' : 'monthly';
                             const fundDistributionStartDate = item.fundDistributionStartDate || '';
                             const fundDistributionAccountLabel = liquidAssetLabelById?.[item.fundDistributionAccountId] || '';
@@ -1039,17 +1167,30 @@
                                             </div>
                                         </>
                                     )}
-                                    {isFundInvestItem && fundDistributionAmount > 0 && (
+                                    {isFundInvestItem && isFundDistributionEnabled && fundDistributionAmount > 0 && (
                                         <>
                                             <div className="text-slate-500">
                                                 {tByLang('基金派息', 'Fund Distribution', 'ファンド分配')} {formatAmount(fundDistributionAmount)} {item.currency}
                                                 {' · '}
                                                 {fundDistributionFrequency === 'yearly' ? tByLang('每年', 'Yearly', '毎年') : tByLang('每月', 'Monthly', '毎月')}
+                                                {' · '}
+                                                {fundDistributionMode === 'cash'
+                                                    ? tByLang('入帳', 'Cash Payout', '入金')
+                                                    : (fundDistributionMode === 'reinvest'
+                                                        ? tByLang('再投資', 'Reinvest', '再投資')
+                                                        : tByLang('積存生息', 'Accumulate', '積立'))}
+                                                {fundDistributionRatePercent > 0 ? ` · ${tByLang('比率', 'Rate', '比率')} ${formatAmount(fundDistributionRatePercent)}%` : ''}
                                             </div>
                                             <div className="text-slate-500">
                                                 {tByLang('開始日', 'Start Date', '開始日')} {fundDistributionStartDate || '--'}
-                                                {fundDistributionAccountLabel ? ` · ${tByLang('入帳', 'Payout', '入金')} ${fundDistributionAccountLabel}` : ''}
+                                                {fundDistributionMode === 'cash' && fundDistributionAccountLabel ? ` · ${tByLang('入帳', 'Payout', '入金')} ${fundDistributionAccountLabel}` : ''}
+                                                {fundDistributionMode === 'accumulate' && fundDistributionAccumulationRatePercent > 0 ? ` · ${tByLang('年化', 'APR', '年利')} ${formatAmount(fundDistributionAccumulationRatePercent)}%` : ''}
                                             </div>
+                                            {fundDistributionMode === 'accumulate' && fundDistributionAccumulationBalance > 0 && (
+                                                <div className="text-slate-500">
+                                                    {tByLang('積存餘額', 'Accumulated Balance', '積立残高')} {formatAmount(fundDistributionAccumulationBalance)} {item.currency}
+                                                </div>
+                                            )}
                                         </>
                                     )}
                                     <div className={`${profitOrig >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
@@ -1324,6 +1465,7 @@
                                 return Number(item.bankWealthGuaranteedMaturityAmount || item.currentPrice || 0);
                             })();
                             const fundDistributionAmount = Number(item.fundDistributionAmount || 0);
+                            const fundDistributionRatePercent = Number(item.fundDistributionRatePercent || 0);
                             const fundDistributionFrequency = String(item.fundDistributionFrequency || 'monthly').toLowerCase() === 'yearly' ? 'yearly' : 'monthly';
                             const fundDistributionStartDate = item.fundDistributionStartDate || '';
                             const fundDistributionAccountLabel = liquidAssetLabelById?.[item.fundDistributionAccountId] || '';
@@ -1379,6 +1521,7 @@
                                                     {tByLang('基金派息', 'Fund Distribution', 'ファンド分配')} {formatAmount(fundDistributionAmount)} {item.currency}
                                                     {' · '}
                                                     {fundDistributionFrequency === 'yearly' ? tByLang('每年', 'Yearly', '毎年') : tByLang('每月', 'Monthly', '毎月')}
+                                                    {fundDistributionRatePercent > 0 ? ` · ${tByLang('比率', 'Rate', '比率')} ${formatAmount(fundDistributionRatePercent)}%` : ''}
                                                 </div>
                                                 <div>
                                                     {tByLang('開始日', 'Start Date', '開始日')} {fundDistributionStartDate || '--'}

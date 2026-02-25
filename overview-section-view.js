@@ -45,6 +45,10 @@
                             <div className="theme-text-sub text-[10px] font-black uppercase tracking-widest mb-1">{pageText.totalAssets}</div>
                             <div className="text-xl font-black theme-text-main">{formatAmount(totals.assets)}</div>
                         </div>
+                        <div className="theme-summary-card p-4 rounded-xl">
+                            <div className="theme-text-sub text-[10px] font-black uppercase tracking-widest mb-1">{tByLang('積存餘額', 'Accumulated Balance', '積立残高')}</div>
+                            <div className="text-xl font-black theme-text-main">{formatAmount(totals.accumulationBalance || 0)}</div>
+                        </div>
                         <div className="theme-summary-card p-4 rounded-xl" style={totalLiabilitiesCardStyle}>
                             <div className="theme-text-sub text-[10px] font-black uppercase tracking-widest mb-1">{pageText.totalLiabilities}</div>
                             <div className="text-xl font-black theme-negative">{formatAmount(totals.liabilities)}</div>
