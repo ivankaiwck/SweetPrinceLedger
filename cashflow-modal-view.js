@@ -37,7 +37,7 @@
 
         return (
             <div className="fixed inset-0 z-50 flex items-stretch md:items-center justify-center p-0 md:p-4 modal-overlay">
-                <div className="theme-modal-shell w-full h-full md:h-auto md:w-[96vw] md:max-w-6xl md:max-h-[90vh] md:rounded-3xl shadow-2xl overflow-hidden">
+                <div className="theme-modal-shell w-full h-[100dvh] md:h-auto md:w-[96vw] md:max-w-6xl md:max-h-[90vh] md:rounded-3xl shadow-2xl overflow-hidden">
                     <div className="theme-modal-header px-5 md:px-8 py-4 md:py-6 flex justify-between items-center sticky top-0 z-10">
                         <h3 className="theme-modal-title font-black text-xl">
                             {editingCashflowId
@@ -53,7 +53,7 @@
                             <span className="leading-none">×</span>
                         </button>
                     </div>
-                    <div className="p-5 md:p-8 h-[calc(100vh-96px)] md:h-auto md:max-h-[calc(90vh-96px)] overflow-y-auto custom-scrollbar">
+                    <div className="p-5 md:p-8 pb-24 md:pb-8 h-[calc(100dvh-96px)] md:h-auto md:max-h-[calc(90vh-96px)] overflow-y-auto overscroll-y-contain custom-scrollbar">
                         <CashflowRuleForm
                             cashflowFormRef={cashflowFormRef}
                             handleCashflowSubmit={handleCashflowSubmit}

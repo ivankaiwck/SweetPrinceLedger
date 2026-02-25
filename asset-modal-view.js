@@ -346,7 +346,7 @@
 
         return (
             <div className="fixed inset-0 z-50 flex items-stretch md:items-center justify-center p-0 md:p-4 modal-overlay">
-                <div className="theme-modal-shell w-full h-full md:h-auto md:w-[96vw] md:max-w-6xl md:max-h-[90vh] md:rounded-3xl shadow-2xl overflow-hidden">
+                <div className="theme-modal-shell w-full h-[100dvh] md:h-auto md:w-[96vw] md:max-w-6xl md:max-h-[90vh] md:rounded-3xl shadow-2xl overflow-hidden">
                     <div className="theme-modal-header px-5 md:px-8 py-4 md:py-6 flex justify-between items-center sticky top-0 z-10">
                         <h3 className="theme-modal-title font-black text-xl">{editingId ? translate('編輯資產') : translate('新增資產')}</h3>
                         <button
@@ -358,7 +358,7 @@
                             <span className="leading-none">×</span>
                         </button>
                     </div>
-                    <form onSubmit={handleSubmit} className="p-5 md:p-8 space-y-4 h-[calc(100vh-96px)] md:h-auto md:max-h-[calc(90vh-96px)] overflow-y-auto custom-scrollbar">
+                    <form onSubmit={handleSubmit} className="p-5 md:p-8 pb-24 md:pb-8 space-y-4 h-[calc(100dvh-96px)] md:h-auto md:max-h-[calc(90vh-96px)] overflow-y-auto overscroll-y-contain custom-scrollbar">
                         <div className="rounded-2xl theme-soft-surface p-4 md:p-6 space-y-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                             <div className={`space-y-1 ${(isLiquidForm && !editingId) ? 'col-span-2' : ''}`}>
