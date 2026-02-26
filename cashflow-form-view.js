@@ -208,112 +208,57 @@
             <datalist id="cashflow-account-options">
                 {cashflowAccountOptions.map(account => <option key={account} value={account} />)}
             </datalist>
-            <div className="md:hidden space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1 col-span-2">
-                        <label className={FIELD_LABEL_CLASS}>{translate('項目名稱')}</label>
-                        <input
-                            required
-                            type="text"
-                            placeholder={tByLang('例如：每月租金、兼職收入、每日午餐', 'e.g. rent, side income, daily lunch', '例：家賃、臨時収入、毎日の昼食')}
-                            className={CASHFLOW_INPUT_FOCUS_CLASS}
-                            value={cashflowForm.title}
-                            onChange={updateCashflowField('title')}
-                        />
+            <div className="md:hidden space-y-4">
+                <div className="theme-form-group space-y-3">
+                    <div className="flex items-center justify-between pb-2 border-b theme-border">
+                        <div className="text-[10px] font-black uppercase tracking-widest theme-text-sub">{tByLang('基本資料', 'Basic Info', '基本情報')}</div>
+                        <span className="px-2 py-0.5 rounded-md theme-soft-surface text-[10px] font-black theme-text-sub">1/4</span>
                     </div>
-                    <div className="space-y-1">
-                        <label className={FIELD_LABEL_CLASS}>{translate('收支類型')}</label>
-                        <select value={cashflowForm.type} onChange={updateCashflowType} className={CASHFLOW_INPUT_CLASS}>
-                            {Object.entries(CASHFLOW_TYPES).map(([key, item]) => (
-                                <option key={key} value={key}>{translate(item.label)}</option>
-                            ))}
-                        </select>
-                    </div>
-                    <div className="space-y-1">
-                        <label className={FIELD_LABEL_CLASS}>{translate('記錄類型')}</label>
-                        <select value={cashflowForm.scheduleType} onChange={updateCashflowField('scheduleType')} className={CASHFLOW_INPUT_CLASS}>
-                            {CASHFLOW_SCHEDULE_TYPES.map(item => <option key={item.value} value={item.value}>{translate(item.label)}</option>)}
-                        </select>
-                    </div>
-                    <div className="space-y-1">
-                        <label className={FIELD_LABEL_CLASS}>{translate('金額')}</label>
-                        <input required type="number" min="0" step="any" className={CASHFLOW_INPUT_CLASS} value={cashflowForm.amount} onChange={updateCashflowField('amount')} />
-                    </div>
-                    <div className="space-y-1">
-                        <label className={FIELD_LABEL_CLASS}>{tByLang('幣種', 'Currency', '通貨')}</label>
-                        <select value={cashflowForm.currency} onChange={updateCashflowField('currency')} className={CASHFLOW_INPUT_CLASS} disabled={isTransfer}>
-                            {CURRENCIES.map(currency => <option key={currency} value={currency}>{currency}</option>)}
-                        </select>
-                    </div>
-                    {!isCashflowOneTime && (
-                        <div className="space-y-1">
-                            <label className={FIELD_LABEL_CLASS}>{translate('頻率')}</label>
-                            <select value={cashflowForm.frequency} onChange={updateCashflowField('frequency')} className={CASHFLOW_INPUT_CLASS}>
-                                {CASHFLOW_FREQUENCIES.map(item => <option key={item.value} value={item.value}>{translate(item.label)}</option>)}
-                            </select>
-                        </div>
-                    )}
-                    {!editingCashflowId && !isCashflowOneTime && (
-                        <div className="space-y-1">
-                            <label className={FIELD_LABEL_CLASS}>{tByLang('新增時套用', 'Apply on Create', '作成時の適用')}</label>
-                            <select value={cashflowForm.applyOnCreateMode || 'APPLY_CURRENT'} onChange={updateCashflowField('applyOnCreateMode')} className={CASHFLOW_INPUT_CLASS}>
-                                <option value="APPLY_CURRENT">{tByLang('今天若符合則立即套用', 'Apply today if rule matches', '今日が条件一致なら即時適用')}</option>
-                                <option value="START_NEXT">{tByLang('從下一次觸發日開始', 'Start from next trigger date', '次回の実行日から開始')}</option>
-                            </select>
-                            <div className="text-[10px] text-slate-400 font-bold ml-1">{tByLang('新增時僅處理本期或下期，不會回補歷史月份。', 'On create, only current or next period is applied; past months are not backfilled.', '作成時は当期または次期のみ適用し、過去月は遡って適用しません。')}</div>
-                        </div>
-                    )}
-                    {isCashflowOneTime ? (
-                        <OneTimeCalendarSelector
-                            cashflowForm={cashflowForm}
-                            FIELD_LABEL_CLASS={FIELD_LABEL_CLASS}
-                            CASHFLOW_INPUT_CLASS={CASHFLOW_INPUT_CLASS}
-                            toggleCashflowOneTimeDate={toggleCashflowOneTimeDate}
-                            updateCashflowOneTimeMonth={updateCashflowOneTimeMonth}
-                            applyCashflowOneTimeMonthPreset={applyCashflowOneTimeMonthPreset}
-                            clearCashflowOneTimeDates={clearCashflowOneTimeDates}
-                            parseDateKey={parseDateKey}
-                            toDateKey={toDateKey}
-                            pageLanguage={pageLanguage}
-                        />
-                    ) : (
-                        <div className="space-y-1">
-                            <label className={FIELD_LABEL_CLASS}>{translate('開始日期')}</label>
-                            <DatePicker
-                                value={cashflowForm.startDate}
-                                onChange={updateCashflowField('startDate')}
-                                className={CASHFLOW_INPUT_CLASS}
-                                required={true}
-                                pageLanguage={pageLanguage}
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1 col-span-2">
+                            <label className={FIELD_LABEL_CLASS}>{translate('項目名稱')}</label>
+                            <input
+                                required
+                                type="text"
+                                placeholder={tByLang('例如：每月租金、兼職收入、每日午餐', 'e.g. rent, side income, daily lunch', '例：家賃、臨時収入、毎日の昼食')}
+                                className={CASHFLOW_INPUT_FOCUS_CLASS}
+                                value={cashflowForm.title}
+                                onChange={updateCashflowField('title')}
                             />
                         </div>
-                    )}
-                    {isCashflowMonthlyRecurring && (
                         <div className="space-y-1">
-                            <label className={FIELD_LABEL_CLASS}>{translate('每月記錄日')}</label>
-                            <input type="number" min="1" max="31" step="1" className={CASHFLOW_INPUT_CLASS} value={cashflowForm.payday} onChange={updateCashflowField('payday')} />
-                            <div className="text-[10px] text-slate-400 font-bold ml-1">{tByLang('若超過當月天數，系統會自動記錄在月底。', 'If it exceeds the month length, it will record on the last day.', '月の日数を超える場合は月末に記録します。')}</div>
+                            <label className={FIELD_LABEL_CLASS}>{translate('收支類型')}</label>
+                            <select value={cashflowForm.type} onChange={updateCashflowType} className={CASHFLOW_INPUT_CLASS}>
+                                {Object.entries(CASHFLOW_TYPES).map(([key, item]) => (
+                                    <option key={key} value={key}>{translate(item.label)}</option>
+                                ))}
+                            </select>
                         </div>
-                    )}
-                    {!isCashflowOneTime && (
-                        <div className={`space-y-1 ${isCashflowMonthlyRecurring ? '' : 'col-span-2'}`}>
-                            <label className={FIELD_LABEL_CLASS}>{translate('結束日期')}</label>
-                            <DatePicker
-                                value={cashflowForm.endDate}
-                                onChange={updateCashflowField('endDate')}
-                                className={CASHFLOW_INPUT_CLASS}
-                                pageLanguage={pageLanguage}
-                            />
-                            <div className="text-[10px] text-slate-400 font-bold ml-1">{tByLang('可留空：留空代表長期規則（沒有結束日期）。', 'Optional: leave empty for ongoing rules (no end date).', '任意：空欄の場合は長期ルール（終了日なし）となります。')}</div>
+                        <div className="space-y-1">
+                            <label className={FIELD_LABEL_CLASS}>{translate('記錄類型')}</label>
+                            <select value={cashflowForm.scheduleType} onChange={updateCashflowField('scheduleType')} className={CASHFLOW_INPUT_CLASS}>
+                                {CASHFLOW_SCHEDULE_TYPES.map(item => <option key={item.value} value={item.value}>{translate(item.label)}</option>)}
+                            </select>
                         </div>
-                    )}
+                        <div className="space-y-1">
+                            <label className={FIELD_LABEL_CLASS}>{translate('金額')}</label>
+                            <input required type="number" min="0" step="any" className={CASHFLOW_INPUT_CLASS} value={cashflowForm.amount} onChange={updateCashflowField('amount')} />
+                        </div>
+                        <div className="space-y-1">
+                            <label className={FIELD_LABEL_CLASS}>{tByLang('幣種', 'Currency', '通貨')}</label>
+                            <select value={cashflowForm.currency} onChange={updateCashflowField('currency')} className={CASHFLOW_INPUT_CLASS} disabled={isTransfer}>
+                                {CURRENCIES.map(currency => <option key={currency} value={currency}>{currency}</option>)}
+                            </select>
+                        </div>
+                    </div>
                 </div>
 
-                <details className="rounded-xl theme-surface p-3">
-                    <summary className="list-none cursor-pointer text-xs font-black theme-text-sub flex items-center justify-between">
-                        {tByLang('進階欄位（可選）', 'Advanced Fields (Optional)', '詳細項目（任意）')}
-                    </summary>
-                    <div className="mt-3 space-y-3">
+                <div className="theme-form-group space-y-3">
+                    <div className="flex items-center justify-between pb-2 border-b theme-border">
+                        <div className="text-[10px] font-black uppercase tracking-widest theme-text-sub">{tByLang('帳戶設定', 'Account Setup', '口座設定')}</div>
+                        <span className="px-2 py-0.5 rounded-md theme-soft-surface text-[10px] font-black theme-text-sub">2/4</span>
+                    </div>
+                    <div className="space-y-3">
                         {isTransfer ? (
                             <>
                                 <div className="space-y-1">
@@ -358,168 +303,14 @@
                                 <div className="text-[10px] text-slate-400 font-bold ml-1">{tByLang('已綁定流動資金帳戶，會在符合規則日期時入帳/扣款。', 'Linked to a liquid account; it will post on schedule dates.', '流動資金口座に連携済み。該当日に入出金されます。')}</div>
                             )}
                         </div>
-                        <div className="space-y-1">
-                            <label className={FIELD_LABEL_CLASS}>{translate('分類')}</label>
-                            <select value={cashflowForm.category} onChange={updateCashflowField('category')} className={CASHFLOW_INPUT_CLASS}>
-                                {availableCashflowCategories.map(item => <option key={item} value={item}>{translate(item)}</option>)}
-                            </select>
-                        </div>
-                        <div className="space-y-1">
-                            <label className={FIELD_LABEL_CLASS}>{translate('備註')}</label>
-                            <input
-                                type="text"
-                                placeholder={tByLang('例如：每月 25 號入帳／扣款', 'e.g. post on the 25th each month', '例：毎月25日に入出金')}
-                                className={CASHFLOW_INPUT_FOCUS_CLASS}
-                                value={cashflowForm.note}
-                                onChange={updateCashflowField('note')}
-                            />
-                        </div>
-                    </div>
-                </details>
-
-                <button type="submit" className="w-full theme-btn-primary text-white px-4 py-3 rounded-xl font-black text-sm transition-all">
-                    {editingCashflowId ? tByLang('編輯現金流', 'Edit Cashflow', 'キャッシュフローを編集') : tByLang('新增現金流', 'Add Cashflow', 'キャッシュフローを追加')}
-                </button>
-            </div>
-
-            <div className="hidden md:block space-y-3">
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3">
-                    <div className="space-y-1 xl:col-span-2">
-                        <label className={FIELD_LABEL_CLASS}>{translate('項目名稱')}</label>
-                        <input
-                            required
-                            type="text"
-                            placeholder={tByLang('例如：每月租金、兼職收入、每日午餐', 'e.g. rent, side income, daily lunch', '例：家賃、臨時収入、毎日の昼食')}
-                            className={CASHFLOW_INPUT_FOCUS_CLASS}
-                            value={cashflowForm.title}
-                            onChange={updateCashflowField('title')}
-                        />
-                    </div>
-                    <div className="space-y-1">
-                        <label className={FIELD_LABEL_CLASS}>{translate('收支類型')}</label>
-                        <select
-                            value={cashflowForm.type}
-                            onChange={updateCashflowType}
-                            className={CASHFLOW_INPUT_CLASS}
-                        >
-                            {Object.entries(CASHFLOW_TYPES).map(([key, item]) => (
-                                <option key={key} value={key}>{translate(item.label)}</option>
-                            ))}
-                        </select>
-                    </div>
-                    <div className="space-y-1">
-                        <label className={FIELD_LABEL_CLASS}>{translate('記錄類型')}</label>
-                        <select
-                            value={cashflowForm.scheduleType}
-                            onChange={updateCashflowField('scheduleType')}
-                            className={CASHFLOW_INPUT_CLASS}
-                        >
-                            {CASHFLOW_SCHEDULE_TYPES.map(item => <option key={item.value} value={item.value}>{translate(item.label)}</option>)}
-                        </select>
-                    </div>
-                    <div className="space-y-1">
-                        <label className={FIELD_LABEL_CLASS}>{isTransfer ? tByLang('轉出帳戶（流動資金）', 'Source Account (Liquid)', '振替元口座（流動資金）') : translate('入帳/扣款帳戶（流動資金）')}</label>
-                        {isTransfer ? (
-                            <select
-                                value={cashflowForm.sourceLiquidAssetId}
-                                onChange={updateCashflowSourceLiquidAsset}
-                                className={CASHFLOW_INPUT_CLASS}
-                            >
-                                <option value="">{tByLang('請選擇轉出帳戶', 'Select source account', '振替元口座を選択')}</option>
-                                {liquidAssetOptions.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}
-                            </select>
-                        ) : (
-                            <select
-                                value={cashflowForm.targetLiquidAssetId}
-                                onChange={updateCashflowTargetLiquidAsset}
-                                className={CASHFLOW_INPUT_CLASS}
-                            >
-                                <option value="">{tByLang('只做現金流記錄（不自動入帳）', 'Record cashflow only (no auto posting)', '現金流のみ記録（自動入出金なし）')}</option>
-                                {liquidAssetOptions.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}
-                            </select>
-                        )}
-                    </div>
-                    <div className="space-y-1">
-                        <label className={FIELD_LABEL_CLASS}>{isTransfer ? tByLang('轉入帳戶（流動資金）', 'Destination Account (Liquid)', '振替先口座（流動資金）') : translate('帳戶')}</label>
-                        {isTransfer ? (
-                            <select
-                                value={cashflowForm.targetLiquidAssetId}
-                                onChange={updateCashflowTargetLiquidAsset}
-                                className={CASHFLOW_INPUT_CLASS}
-                            >
-                                <option value="">{tByLang('請選擇轉入帳戶', 'Select destination account', '振替先口座を選択')}</option>
-                                {liquidAssetOptions.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}
-                            </select>
-                        ) : (
-                            <input
-                                type="text"
-                                list="cashflow-account-options"
-                                placeholder={tByLang('可選，僅用於標記', 'Optional, for labeling only', '任意（ラベル用途のみ）')}
-                                className={`${CASHFLOW_INPUT_FOCUS_CLASS} disabled:bg-slate-100 disabled:text-slate-400`}
-                                value={cashflowForm.account}
-                                onChange={updateCashflowField('account')}
-                                disabled={Boolean(cashflowForm.targetLiquidAssetId)}
-                            />
-                        )}
-                        {isTransfer && (
-                            <div className="text-[10px] text-slate-400 font-bold ml-1">{tByLang('將按匯率由轉出帳戶扣款，並換算後轉入目標帳戶。', 'Deduct from source and convert by FX into destination account.', '振替元から出金し、為替換算して振替先へ入金します。')}</div>
-                        )}
-                        {cashflowForm.targetLiquidAssetId && !isTransfer && (
-                            <div className="text-[10px] text-slate-400 font-bold ml-1">{tByLang('已綁定流動資金帳戶，會在符合規則日期時入帳/扣款（單次或固定）。', 'Linked to a liquid account; it will post on schedule dates (one-time or recurring).', '流動資金口座に連携済み。該当日に入出金されます（単発/定期）。')}</div>
-                        )}
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3">
-                    <div className="space-y-1">
-                        <label className={FIELD_LABEL_CLASS}>{translate('金額')}</label>
-                        <input
-                            required
-                            type="number"
-                            min="0"
-                            step="any"
-                            className={CASHFLOW_INPUT_CLASS}
-                            value={cashflowForm.amount}
-                            onChange={updateCashflowField('amount')}
-                        />
+                <div className="theme-form-group space-y-3">
+                    <div className="flex items-center justify-between pb-2 border-b theme-border">
+                        <div className="text-[10px] font-black uppercase tracking-widest theme-text-sub">{tByLang('排程設定', 'Schedule Setup', 'スケジュール設定')}</div>
+                        <span className="px-2 py-0.5 rounded-md theme-soft-surface text-[10px] font-black theme-text-sub">3/4</span>
                     </div>
-                    <div className="space-y-1">
-                        <label className={FIELD_LABEL_CLASS}>{tByLang('幣種', 'Currency', '通貨')}</label>
-                        <select
-                            value={cashflowForm.currency}
-                            onChange={updateCashflowField('currency')}
-                            className={CASHFLOW_INPUT_CLASS}
-                            disabled={isTransfer}
-                        >
-                            {CURRENCIES.map(currency => <option key={currency} value={currency}>{currency}</option>)}
-                        </select>
-                    </div>
-                    {!isCashflowOneTime && (
-                        <div className="space-y-1">
-                            <label className={FIELD_LABEL_CLASS}>{translate('頻率')}</label>
-                            <select
-                                value={cashflowForm.frequency}
-                                onChange={updateCashflowField('frequency')}
-                                className={CASHFLOW_INPUT_CLASS}
-                            >
-                                {CASHFLOW_FREQUENCIES.map(item => <option key={item.value} value={item.value}>{translate(item.label)}</option>)}
-                            </select>
-                        </div>
-                    )}
-                    {!editingCashflowId && !isCashflowOneTime && (
-                        <div className="space-y-1">
-                            <label className={FIELD_LABEL_CLASS}>{tByLang('新增時套用', 'Apply on Create', '作成時の適用')}</label>
-                            <select
-                                value={cashflowForm.applyOnCreateMode || 'APPLY_CURRENT'}
-                                onChange={updateCashflowField('applyOnCreateMode')}
-                                className={CASHFLOW_INPUT_CLASS}
-                            >
-                                <option value="APPLY_CURRENT">{tByLang('今天若符合則立即套用', 'Apply today if rule matches', '今日が条件一致なら即時適用')}</option>
-                                <option value="START_NEXT">{tByLang('從下一次觸發日開始', 'Start from next trigger date', '次回の実行日から開始')}</option>
-                            </select>
-                            <div className="text-[10px] text-slate-400 font-bold ml-1">{tByLang('新增時僅處理本期或下期，不會回補歷史月份。', 'On create, only current or next period is applied; past months are not backfilled.', '作成時は当期または次期のみ適用し、過去月は遡って適用しません。')}</div>
-                        </div>
-                    )}
                     {isCashflowOneTime ? (
                         <OneTimeCalendarSelector
                             cashflowForm={cashflowForm}
@@ -534,58 +325,69 @@
                             pageLanguage={pageLanguage}
                         />
                     ) : (
-                        <div className="space-y-1">
-                            <label className={FIELD_LABEL_CLASS}>{translate('開始日期')}</label>
-                            <DatePicker
-                                value={cashflowForm.startDate}
-                                onChange={updateCashflowField('startDate')}
-                                className={CASHFLOW_INPUT_CLASS}
-                                required={true}
-                                pageLanguage={pageLanguage}
-                            />
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                                <label className={FIELD_LABEL_CLASS}>{translate('頻率')}</label>
+                                <select value={cashflowForm.frequency} onChange={updateCashflowField('frequency')} className={CASHFLOW_INPUT_CLASS}>
+                                    {CASHFLOW_FREQUENCIES.map(item => <option key={item.value} value={item.value}>{translate(item.label)}</option>)}
+                                </select>
+                            </div>
+                            {!editingCashflowId && (
+                                <div className="space-y-1">
+                                    <label className={FIELD_LABEL_CLASS}>{tByLang('新增時套用', 'Apply on Create', '作成時の適用')}</label>
+                                    <select value={cashflowForm.applyOnCreateMode || 'APPLY_CURRENT'} onChange={updateCashflowField('applyOnCreateMode')} className={CASHFLOW_INPUT_CLASS}>
+                                        <option value="APPLY_CURRENT">{tByLang('今天若符合則立即套用', 'Apply today if rule matches', '今日が条件一致なら即時適用')}</option>
+                                        <option value="START_NEXT">{tByLang('從下一次觸發日開始', 'Start from next trigger date', '次回の実行日から開始')}</option>
+                                    </select>
+                                    <div className="text-[10px] text-slate-400 font-bold ml-1">{tByLang('新增時僅處理本期或下期，不會回補歷史月份。', 'On create, only current or next period is applied; past months are not backfilled.', '作成時は当期または次期のみ適用し、過去月は遡って適用しません。')}</div>
+                                </div>
+                            )}
+                            <div className="space-y-1">
+                                <label className={FIELD_LABEL_CLASS}>{translate('開始日期')}</label>
+                                <DatePicker
+                                    value={cashflowForm.startDate}
+                                    onChange={updateCashflowField('startDate')}
+                                    className={CASHFLOW_INPUT_CLASS}
+                                    required={true}
+                                    pageLanguage={pageLanguage}
+                                />
+                            </div>
+                            {isCashflowMonthlyRecurring && (
+                                <div className="space-y-1">
+                                    <label className={FIELD_LABEL_CLASS}>{translate('每月記錄日')}</label>
+                                    <input type="number" min="1" max="31" step="1" className={CASHFLOW_INPUT_CLASS} value={cashflowForm.payday} onChange={updateCashflowField('payday')} />
+                                    <div className="text-[10px] text-slate-400 font-bold ml-1">{tByLang('若超過當月天數，系統會自動記錄在月底。', 'If it exceeds the month length, it will record on the last day.', '月の日数を超える場合は月末に記録します。')}</div>
+                                </div>
+                            )}
+                            <div className={`space-y-1 ${isCashflowMonthlyRecurring ? '' : 'col-span-2'}`}>
+                                <label className={FIELD_LABEL_CLASS}>{translate('結束日期')}</label>
+                                <DatePicker
+                                    value={cashflowForm.endDate}
+                                    onChange={updateCashflowField('endDate')}
+                                    className={CASHFLOW_INPUT_CLASS}
+                                    pageLanguage={pageLanguage}
+                                />
+                                <div className="text-[10px] text-slate-400 font-bold ml-1">{tByLang('可留空：留空代表長期規則（沒有結束日期）。', 'Optional: leave empty for ongoing rules (no end date).', '任意：空欄の場合は長期ルール（終了日なし）となります。')}</div>
+                            </div>
                         </div>
                     )}
-                    {isCashflowMonthlyRecurring && (
-                        <div className="space-y-1">
-                            <label className={FIELD_LABEL_CLASS}>{translate('每月記錄日')}</label>
-                            <input
-                                type="number"
-                                min="1"
-                                max="31"
-                                step="1"
-                                className={CASHFLOW_INPUT_CLASS}
-                                value={cashflowForm.payday}
-                                onChange={updateCashflowField('payday')}
-                            />
-                            <div className="text-[10px] text-slate-400 font-bold ml-1">{tByLang('若超過當月天數，系統會自動記錄在月底。', 'If it exceeds the month length, it will record on the last day.', '月の日数を超える場合は月末に記録します。')}</div>
-                        </div>
-                    )}
-                    {!isCashflowOneTime && (
-                        <div className="space-y-1">
-                            <label className={FIELD_LABEL_CLASS}>{translate('結束日期')}</label>
-                            <DatePicker
-                                value={cashflowForm.endDate}
-                                onChange={updateCashflowField('endDate')}
-                                className={CASHFLOW_INPUT_CLASS}
-                                pageLanguage={pageLanguage}
-                            />
-                            <div className="text-[10px] text-slate-400 font-bold ml-1">{tByLang('可留空：留空代表長期規則（沒有結束日期）。', 'Optional: leave empty for ongoing rules (no end date).', '任意：空欄の場合は長期ルール（終了日なし）となります。')}</div>
-                        </div>
+                    {!editingCashflowId && isCashflowOneTime && (
+                        <div className="text-[10px] text-slate-400 font-bold ml-1">{tByLang('單次記錄依所選日期處理，「新增時套用」不適用。', 'One-time records follow selected dates; "Apply on Create" is not applicable.', '単発記録は選択日で処理されるため、「作成時の適用」は適用されません。')}</div>
                     )}
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 items-end">
+                <div className="theme-form-group space-y-3">
+                    <div className="flex items-center justify-between pb-2 border-b theme-border">
+                        <div className="text-[10px] font-black uppercase tracking-widest theme-text-sub">{tByLang('補充資訊', 'Extra Info', '補足情報')}</div>
+                        <span className="px-2 py-0.5 rounded-md theme-soft-surface text-[10px] font-black theme-text-sub">4/4</span>
+                    </div>
                     <div className="space-y-1">
                         <label className={FIELD_LABEL_CLASS}>{translate('分類')}</label>
-                        <select
-                            value={cashflowForm.category}
-                            onChange={updateCashflowField('category')}
-                            className={CASHFLOW_INPUT_CLASS}
-                        >
+                        <select value={cashflowForm.category} onChange={updateCashflowField('category')} className={CASHFLOW_INPUT_CLASS}>
                             {availableCashflowCategories.map(item => <option key={item} value={item}>{translate(item)}</option>)}
                         </select>
                     </div>
-                    <div className="space-y-1 xl:col-span-2">
+                    <div className="space-y-1">
                         <label className={FIELD_LABEL_CLASS}>{translate('備註')}</label>
                         <input
                             type="text"
@@ -595,12 +397,240 @@
                             onChange={updateCashflowField('note')}
                         />
                     </div>
-                    <button
-                        type="submit"
-                        className="w-full theme-btn-primary text-white px-4 py-3 rounded-xl font-black text-sm transition-all"
-                    >
+                    <button type="submit" className="w-full theme-btn-primary text-white px-4 py-3 rounded-xl font-black text-sm transition-all">
                         {editingCashflowId ? tByLang('編輯現金流', 'Edit Cashflow', 'キャッシュフローを編集') : tByLang('新增現金流', 'Add Cashflow', 'キャッシュフローを追加')}
                     </button>
+                </div>
+            </div>
+
+            <div className="hidden md:block space-y-4">
+                <div className="theme-form-group">
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-12 gap-3 items-start">
+                        <div className="space-y-1 xl:col-span-4">
+                            <label className={FIELD_LABEL_CLASS}>{translate('項目名稱')}</label>
+                            <input
+                                required
+                                type="text"
+                                placeholder={tByLang('例如：每月租金、兼職收入、每日午餐', 'e.g. rent, side income, daily lunch', '例：家賃、臨時収入、毎日の昼食')}
+                                className={CASHFLOW_INPUT_FOCUS_CLASS}
+                                value={cashflowForm.title}
+                                onChange={updateCashflowField('title')}
+                            />
+                        </div>
+                        <div className="space-y-1 xl:col-span-2">
+                            <label className={FIELD_LABEL_CLASS}>{translate('收支類型')}</label>
+                            <select value={cashflowForm.type} onChange={updateCashflowType} className={CASHFLOW_INPUT_CLASS}>
+                                {Object.entries(CASHFLOW_TYPES).map(([key, item]) => (
+                                    <option key={key} value={key}>{translate(item.label)}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="space-y-1 xl:col-span-2">
+                            <label className={FIELD_LABEL_CLASS}>{translate('記錄類型')}</label>
+                            <select value={cashflowForm.scheduleType} onChange={updateCashflowField('scheduleType')} className={CASHFLOW_INPUT_CLASS}>
+                                {CASHFLOW_SCHEDULE_TYPES.map(item => <option key={item.value} value={item.value}>{translate(item.label)}</option>)}
+                            </select>
+                        </div>
+                        {!editingCashflowId && (
+                            <div className="space-y-1 xl:col-span-4">
+                                <label className={FIELD_LABEL_CLASS}>{tByLang('新增時套用', 'Apply on Create', '作成時の適用')}</label>
+                                <select
+                                    value={cashflowForm.applyOnCreateMode || 'APPLY_CURRENT'}
+                                    onChange={updateCashflowField('applyOnCreateMode')}
+                                    className={CASHFLOW_INPUT_CLASS}
+                                    disabled={isCashflowOneTime}
+                                >
+                                    <option value="APPLY_CURRENT">{tByLang('今天若符合則立即套用', 'Apply today if rule matches', '今日が条件一致なら即時適用')}</option>
+                                    <option value="START_NEXT">{tByLang('從下一次觸發日開始', 'Start from next trigger date', '次回の実行日から開始')}</option>
+                                </select>
+                                <div className="text-[10px] text-slate-400 font-bold ml-1">{isCashflowOneTime
+                                    ? tByLang('單次記錄依所選日期處理，此選項不適用。', 'One-time records follow selected dates; this option is not applicable.', '単発記録は選択日で処理されるため、このオプションは適用されません。')
+                                    : tByLang('新增時僅處理本期或下期，不會回補歷史月份。', 'On create, only current or next period is applied; past months are not backfilled.', '作成時は当期または次期のみ適用し、過去月は遡って適用しません。')}
+                                </div>
+                            </div>
+                        )}
+                        <div className="space-y-1 xl:col-span-2">
+                            <label className={FIELD_LABEL_CLASS}>{translate('金額')}</label>
+                            <input
+                                required
+                                type="number"
+                                min="0"
+                                step="any"
+                                className={CASHFLOW_INPUT_CLASS}
+                                value={cashflowForm.amount}
+                                onChange={updateCashflowField('amount')}
+                            />
+                        </div>
+                        <div className="space-y-1 xl:col-span-2">
+                            <label className={FIELD_LABEL_CLASS}>{tByLang('幣種', 'Currency', '通貨')}</label>
+                            <select
+                                value={cashflowForm.currency}
+                                onChange={updateCashflowField('currency')}
+                                className={CASHFLOW_INPUT_CLASS}
+                                disabled={isTransfer}
+                            >
+                                {CURRENCIES.map(currency => <option key={currency} value={currency}>{currency}</option>)}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="theme-form-group">
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-12 gap-3 items-start">
+                        <div className="space-y-1 xl:col-span-6">
+                            <label className={FIELD_LABEL_CLASS}>{isTransfer ? tByLang('轉出帳戶（流動資金）', 'Source Account (Liquid)', '振替元口座（流動資金）') : translate('入帳/扣款帳戶（流動資金）')}</label>
+                            {isTransfer ? (
+                                <select
+                                    value={cashflowForm.sourceLiquidAssetId}
+                                    onChange={updateCashflowSourceLiquidAsset}
+                                    className={CASHFLOW_INPUT_CLASS}
+                                >
+                                    <option value="">{tByLang('請選擇轉出帳戶', 'Select source account', '振替元口座を選択')}</option>
+                                    {liquidAssetOptions.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}
+                                </select>
+                            ) : (
+                                <select
+                                    value={cashflowForm.targetLiquidAssetId}
+                                    onChange={updateCashflowTargetLiquidAsset}
+                                    className={CASHFLOW_INPUT_CLASS}
+                                >
+                                    <option value="">{tByLang('只做現金流記錄（不自動入帳）', 'Record cashflow only (no auto posting)', '現金流のみ記録（自動入出金なし）')}</option>
+                                    {liquidAssetOptions.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}
+                                </select>
+                            )}
+                        </div>
+                        <div className="space-y-1 xl:col-span-6">
+                            <label className={FIELD_LABEL_CLASS}>{isTransfer ? tByLang('轉入帳戶（流動資金）', 'Destination Account (Liquid)', '振替先口座（流動資金）') : translate('帳戶')}</label>
+                            {isTransfer ? (
+                                <select
+                                    value={cashflowForm.targetLiquidAssetId}
+                                    onChange={updateCashflowTargetLiquidAsset}
+                                    className={CASHFLOW_INPUT_CLASS}
+                                >
+                                    <option value="">{tByLang('請選擇轉入帳戶', 'Select destination account', '振替先口座を選択')}</option>
+                                    {liquidAssetOptions.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}
+                                </select>
+                            ) : (
+                                <input
+                                    type="text"
+                                    list="cashflow-account-options"
+                                    placeholder={tByLang('可選，僅用於標記', 'Optional, for labeling only', '任意（ラベル用途のみ）')}
+                                    className={`${CASHFLOW_INPUT_FOCUS_CLASS} disabled:bg-slate-100 disabled:text-slate-400`}
+                                    value={cashflowForm.account}
+                                    onChange={updateCashflowField('account')}
+                                    disabled={Boolean(cashflowForm.targetLiquidAssetId)}
+                                />
+                            )}
+                        </div>
+                        <div className="xl:col-span-12">
+                            {isTransfer && (
+                                <div className="text-[10px] text-slate-400 font-bold ml-1">{tByLang('將按匯率由轉出帳戶扣款，並換算後轉入目標帳戶。', 'Deduct from source and convert by FX into destination account.', '振替元から出金し、為替換算して振替先へ入金します。')}</div>
+                            )}
+                            {cashflowForm.targetLiquidAssetId && !isTransfer && (
+                                <div className="text-[10px] text-slate-400 font-bold ml-1">{tByLang('已綁定流動資金帳戶，會在符合規則日期時入帳/扣款（單次或固定）。', 'Linked to a liquid account; it will post on schedule dates (one-time or recurring).', '流動資金口座に連携済み。該当日に入出金されます（単発/定期）。')}</div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                <div className="theme-form-group space-y-3">
+                    {!isCashflowOneTime && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-12 gap-3 items-start">
+                            <div className="space-y-1 xl:col-span-3">
+                                <label className={FIELD_LABEL_CLASS}>{translate('頻率')}</label>
+                                <select
+                                    value={cashflowForm.frequency}
+                                    onChange={updateCashflowField('frequency')}
+                                    className={CASHFLOW_INPUT_CLASS}
+                                >
+                                    {CASHFLOW_FREQUENCIES.map(item => <option key={item.value} value={item.value}>{translate(item.label)}</option>)}
+                                </select>
+                            </div>
+                            <div className="space-y-1 xl:col-span-3">
+                                <label className={FIELD_LABEL_CLASS}>{translate('開始日期')}</label>
+                                <DatePicker
+                                    value={cashflowForm.startDate}
+                                    onChange={updateCashflowField('startDate')}
+                                    className={CASHFLOW_INPUT_CLASS}
+                                    required={true}
+                                    pageLanguage={pageLanguage}
+                                />
+                            </div>
+                            {isCashflowMonthlyRecurring && (
+                                <div className="space-y-1 xl:col-span-3">
+                                    <label className={FIELD_LABEL_CLASS}>{translate('每月記錄日')}</label>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        max="31"
+                                        step="1"
+                                        className={CASHFLOW_INPUT_CLASS}
+                                        value={cashflowForm.payday}
+                                        onChange={updateCashflowField('payday')}
+                                    />
+                                    <div className="text-[10px] text-slate-400 font-bold ml-1">{tByLang('若超過當月天數，系統會自動記錄在月底。', 'If it exceeds the month length, it will record on the last day.', '月の日数を超える場合は月末に記録します。')}</div>
+                                </div>
+                            )}
+                            <div className={`space-y-1 ${isCashflowMonthlyRecurring ? 'xl:col-span-3' : 'xl:col-span-6'}`}>
+                                <label className={FIELD_LABEL_CLASS}>{translate('結束日期')}</label>
+                                <DatePicker
+                                    value={cashflowForm.endDate}
+                                    onChange={updateCashflowField('endDate')}
+                                    className={CASHFLOW_INPUT_CLASS}
+                                    pageLanguage={pageLanguage}
+                                />
+                                <div className="text-[10px] text-slate-400 font-bold ml-1">{tByLang('可留空：留空代表長期規則（沒有結束日期）。', 'Optional: leave empty for ongoing rules (no end date).', '任意：空欄の場合は長期ルール（終了日なし）となります。')}</div>
+                            </div>
+                        </div>
+                    )}
+
+                    {isCashflowOneTime && (
+                        <OneTimeCalendarSelector
+                            cashflowForm={cashflowForm}
+                            FIELD_LABEL_CLASS={FIELD_LABEL_CLASS}
+                            CASHFLOW_INPUT_CLASS={CASHFLOW_INPUT_CLASS}
+                            toggleCashflowOneTimeDate={toggleCashflowOneTimeDate}
+                            updateCashflowOneTimeMonth={updateCashflowOneTimeMonth}
+                            applyCashflowOneTimeMonthPreset={applyCashflowOneTimeMonthPreset}
+                            clearCashflowOneTimeDates={clearCashflowOneTimeDates}
+                            parseDateKey={parseDateKey}
+                            toDateKey={toDateKey}
+                            pageLanguage={pageLanguage}
+                        />
+                    )}
+                </div>
+
+                <div className="theme-form-group">
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-12 gap-3 items-end">
+                        <div className="space-y-1 xl:col-span-3">
+                            <label className={FIELD_LABEL_CLASS}>{translate('分類')}</label>
+                            <select
+                                value={cashflowForm.category}
+                                onChange={updateCashflowField('category')}
+                                className={CASHFLOW_INPUT_CLASS}
+                            >
+                                {availableCashflowCategories.map(item => <option key={item} value={item}>{translate(item)}</option>)}
+                            </select>
+                        </div>
+                        <div className="space-y-1 xl:col-span-7">
+                            <label className={FIELD_LABEL_CLASS}>{translate('備註')}</label>
+                            <input
+                                type="text"
+                                placeholder={tByLang('例如：每月 25 號入帳／扣款', 'e.g. post on the 25th each month', '例：毎月25日に入出金')}
+                                className={CASHFLOW_INPUT_FOCUS_CLASS}
+                                value={cashflowForm.note}
+                                onChange={updateCashflowField('note')}
+                            />
+                        </div>
+                        <div className="xl:col-span-2">
+                            <button
+                                type="submit"
+                                className="w-full theme-btn-primary text-white px-4 py-3 rounded-xl font-black text-sm transition-all"
+                            >
+                                {editingCashflowId ? tByLang('編輯現金流', 'Edit Cashflow', 'キャッシュフローを編集') : tByLang('新增現金流', 'Add Cashflow', 'キャッシュフローを追加')}
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </form>

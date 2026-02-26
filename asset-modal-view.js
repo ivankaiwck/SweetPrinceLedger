@@ -370,7 +370,7 @@
                         </button>
                     </div>
                     <form onSubmit={handleSubmit} className="p-5 md:p-8 pb-24 md:pb-8 space-y-4 h-[calc(100dvh-96px)] md:h-auto md:max-h-[calc(90vh-96px)] overflow-y-auto overscroll-y-contain custom-scrollbar">
-                        <div className="rounded-2xl theme-soft-surface p-4 md:p-6 space-y-4">
+                        <div className="rounded-2xl theme-soft-surface p-4 md:p-6 space-y-5">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                             <div className={`space-y-1 ${(isLiquidForm && !editingId) ? 'col-span-2' : ''}`}>
                                 <label className={FIELD_LABEL_CLASS}>{translate('帳戶 / 機構')}</label>
@@ -904,7 +904,7 @@
                         )}
 
                         {needsPremium && (
-                            <div className={`${MODAL_GROUP_CLASS} grid grid-cols-2 gap-4`}>
+                            <div className={`${MODAL_GROUP_CLASS} grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-4`}>
                                 <div className="space-y-1">
                                     <label className={FIELD_LABEL_CLASS}>{isLifeWealthInsuranceForm ? tByLang('主約每期保費', 'Base Premium per Term', '主契約の各期保険料') : translate('每期保費')}</label>
                                     {isLifeWealthInsuranceForm ? (
@@ -1281,7 +1281,7 @@
                                             <label className={FIELD_LABEL_CLASS}>{translate('保單備註 (選填)')}</label>
                                             <input type="text" className={MODAL_INPUT_CLASS} value={formData.insuranceNote || ''} onChange={updateFormField('insuranceNote')} />
                                         </div>
-                                        <details className="col-span-2 rounded-xl border border-slate-200/70 bg-slate-50/50 p-3">
+                                        <details className="md:col-span-2 rounded-xl border border-slate-200/70 bg-slate-50/50 p-3">
                                             <summary className="cursor-pointer text-[11px] font-black text-slate-600 tracking-wide">{tByLang('進階欄位（非必要）', 'Advanced Fields (Optional)', '詳細項目（任意）')}</summary>
                                             <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                                                 <div className="space-y-1">
@@ -1312,7 +1312,7 @@
                                             </div>
                                         </details>
                                         {editingId && (
-                                            <details className="col-span-2 rounded-xl border border-emerald-200/70 bg-emerald-50/40 p-3">
+                                            <details className="md:col-span-2 rounded-xl border border-emerald-200/70 bg-emerald-50/40 p-3">
                                                 <summary className="cursor-pointer text-[11px] font-black text-emerald-700 tracking-wide">{tByLang('部分提領快捷（單次）', 'Partial Withdrawal Shortcut (One-time)', '一部引き出しショートカット（単発）')}</summary>
                                                 <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                                                     {!!(formData.insurancePartialWithdrawalEditCashflowId || '').trim() && (
