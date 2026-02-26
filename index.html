@@ -808,6 +808,7 @@
                     oneTimeDates: [],
                     endDate: '',
                     payday: '25',
+                    applyOnCreateMode: 'APPLY_CURRENT',
                     sourceLiquidAssetId: '',
                     targetLiquidAssetId: '',
                     note: ''
@@ -2810,13 +2811,16 @@
                     return;
                 }
 
-                const applyImmediatePostingsNow = (entry, baseAssets, baseAppliedPostings, baseAppliedOccurrenceKeys) => {
+                const applyImmediatePostingsNow = (entry, baseAssets, baseAppliedPostings, baseAppliedOccurrenceKeys, options = {}) => {
                     if (!entry) return;
                     if (entry.type === 'TRANSFER') {
                         if (!entry.sourceLiquidAssetId || !entry.targetLiquidAssetId || entry.sourceLiquidAssetId === entry.targetLiquidAssetId) return;
                     } else if (!entry.targetLiquidAssetId) {
                         return;
                     }
+
+                    const isEditingMode = Boolean(options.isEditing);
+                    const applyOnCreateMode = options.applyOnCreateMode === 'START_NEXT' ? 'START_NEXT' : 'APPLY_CURRENT';
 
                     const today = new Date();
                     const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
@@ -2833,6 +2837,13 @@
                             .map(item => item.dateKey)
                         )).sort();
                     } else {
+                        if (!isEditingMode && applyOnCreateMode === 'START_NEXT') {
+                            occurrenceDateKeys = [];
+                        } else if (!isEditingMode && applyOnCreateMode === 'APPLY_CURRENT') {
+                            if (isEntryOnDate(entry, todayOnly)) {
+                                occurrenceDateKeys = [toDateKey(todayOnly)];
+                            }
+                        } else {
                         const parsedStart = parseDateKey(entry.startDate || '');
                         if (parsedStart) {
                             const startOnly = new Date(parsedStart.getFullYear(), parsedStart.getMonth(), parsedStart.getDate());
@@ -2847,6 +2858,7 @@
                                 if (isEntryOnDate(entry, cursor)) occurrenceDateKeys.push(toDateKey(cursor));
                                 cursor.setDate(cursor.getDate() + 1);
                             }
+                        }
                         }
                     }
 
@@ -2987,10 +2999,16 @@
                     immediateAppliedOccurrenceKeysBase = Array.from(rollbackKeySet);
 
                     setCashflowEntries(prev => sanitizeCashflowEntries(prev.map(item => item.id === editingCashflowId ? submission.nextEntry : item)));
-                    applyImmediatePostingsNow(submission.nextEntry, immediateAssetsBase, immediateAppliedPostingsBase, immediateAppliedOccurrenceKeysBase);
+                    applyImmediatePostingsNow(submission.nextEntry, immediateAssetsBase, immediateAppliedPostingsBase, immediateAppliedOccurrenceKeysBase, {
+                        isEditing: true,
+                        applyOnCreateMode: submission.applyOnCreateMode
+                    });
                 } else {
                     setCashflowEntries(prev => sanitizeCashflowEntries([...prev, submission.nextEntry]));
-                    applyImmediatePostingsNow(submission.nextEntry, immediateAssetsBase, immediateAppliedPostingsBase, immediateAppliedOccurrenceKeysBase);
+                    applyImmediatePostingsNow(submission.nextEntry, immediateAssetsBase, immediateAppliedPostingsBase, immediateAppliedOccurrenceKeysBase, {
+                        isEditing: false,
+                        applyOnCreateMode: submission.applyOnCreateMode
+                    });
                 }
                 setCashflowForm(prev => ({
                     ...prev,
@@ -2998,6 +3016,7 @@
                     amount: '',
                     note: '',
                     oneTimeDates: [],
+                    applyOnCreateMode: 'APPLY_CURRENT',
                     sourceLiquidAssetId: prev.type === 'TRANSFER' ? prev.sourceLiquidAssetId : '',
                     targetLiquidAssetId: prev.targetLiquidAssetId || ''
                 }));
@@ -3008,6 +3027,7 @@
                     selectedLiquidAsset: submission.selectedLiquidAsset,
                     nextEntry: submission.nextEntry,
                     amount: submission.amount,
+                    applyOnCreateMode: submission.applyOnCreateMode,
                     cashflowCurrency: cashflowForm.currency,
                     toHKD,
                     fromHKD,

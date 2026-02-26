@@ -253,6 +253,16 @@
                             </select>
                         </div>
                     )}
+                    {!editingCashflowId && !isCashflowOneTime && (
+                        <div className="space-y-1">
+                            <label className={FIELD_LABEL_CLASS}>{tByLang('新增時套用', 'Apply on Create', '作成時の適用')}</label>
+                            <select value={cashflowForm.applyOnCreateMode || 'APPLY_CURRENT'} onChange={updateCashflowField('applyOnCreateMode')} className={CASHFLOW_INPUT_CLASS}>
+                                <option value="APPLY_CURRENT">{tByLang('今天若符合則立即套用', 'Apply today if rule matches', '今日が条件一致なら即時適用')}</option>
+                                <option value="START_NEXT">{tByLang('從下一次觸發日開始', 'Start from next trigger date', '次回の実行日から開始')}</option>
+                            </select>
+                            <div className="text-[10px] text-slate-400 font-bold ml-1">{tByLang('新增時僅處理本期或下期，不會回補歷史月份。', 'On create, only current or next period is applied; past months are not backfilled.', '作成時は当期または次期のみ適用し、過去月は遡って適用しません。')}</div>
+                        </div>
+                    )}
                     {isCashflowOneTime ? (
                         <OneTimeCalendarSelector
                             cashflowForm={cashflowForm}
@@ -494,6 +504,20 @@
                             >
                                 {CASHFLOW_FREQUENCIES.map(item => <option key={item.value} value={item.value}>{translate(item.label)}</option>)}
                             </select>
+                        </div>
+                    )}
+                    {!editingCashflowId && !isCashflowOneTime && (
+                        <div className="space-y-1">
+                            <label className={FIELD_LABEL_CLASS}>{tByLang('新增時套用', 'Apply on Create', '作成時の適用')}</label>
+                            <select
+                                value={cashflowForm.applyOnCreateMode || 'APPLY_CURRENT'}
+                                onChange={updateCashflowField('applyOnCreateMode')}
+                                className={CASHFLOW_INPUT_CLASS}
+                            >
+                                <option value="APPLY_CURRENT">{tByLang('今天若符合則立即套用', 'Apply today if rule matches', '今日が条件一致なら即時適用')}</option>
+                                <option value="START_NEXT">{tByLang('從下一次觸發日開始', 'Start from next trigger date', '次回の実行日から開始')}</option>
+                            </select>
+                            <div className="text-[10px] text-slate-400 font-bold ml-1">{tByLang('新增時僅處理本期或下期，不會回補歷史月份。', 'On create, only current or next period is applied; past months are not backfilled.', '作成時は当期または次期のみ適用し、過去月は遡って適用しません。')}</div>
                         </div>
                     )}
                     {isCashflowOneTime ? (

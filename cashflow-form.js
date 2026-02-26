@@ -34,6 +34,7 @@
         const amount = Number(cashflowForm.amount);
         const startDate = cashflowForm.startDate;
         const endDate = cashflowForm.endDate;
+        const applyOnCreateMode = cashflowForm.applyOnCreateMode === 'START_NEXT' ? 'START_NEXT' : 'APPLY_CURRENT';
         const scheduleType = cashflowForm.scheduleType || 'RECURRING';
         const frequency = scheduleType === 'ONE_TIME' ? 'ONE_TIME' : cashflowForm.frequency;
         const normalizeDateList = (rawList) => {
@@ -121,6 +122,7 @@
         return {
             ok: true,
             amount,
+            applyOnCreateMode,
             nextEntry,
             isEditing: Boolean(editingCashflowId),
             selectedLiquidAsset: resolvedLiquidAsset,
@@ -134,6 +136,7 @@
         selectedLiquidAsset,
         nextEntry,
         amount,
+        applyOnCreateMode,
         cashflowCurrency,
         toHKD,
         fromHKD,
@@ -142,7 +145,15 @@
         tByLang
     }) => {
         const t = typeof tByLang === 'function' ? tByLang : ((zh) => zh);
+        const startsNextTrigger = applyOnCreateMode === 'START_NEXT';
         if (!isEditing && nextEntry.type === 'TRANSFER' && nextEntry.sourceLiquidAssetId && nextEntry.targetLiquidAssetId) {
+            if (startsNextTrigger) {
+                return t(
+                    '轉帳規則已新增（預覽）：本次不套用，將從下一次觸發日開始自動轉帳。',
+                    'Transfer rule added (preview): skipped for now and will start auto-transfer from the next trigger date.',
+                    '振替ルールを追加しました（プレビュー）：今回は適用せず、次回の実行日から自動振替を開始します。'
+                );
+            }
             return t(
                 '轉帳規則已新增（預覽）：將在符合規則日期自動由來源帳戶轉入目標帳戶，並按匯率換算。',
                 'Transfer rule added (preview): funds will auto-transfer from source to destination on matching dates with FX conversion.',
@@ -155,6 +166,13 @@
             const direction = nextEntry.type === 'INCOME'
                 ? t('入帳', 'deposit', '入金')
                 : t('扣款', 'withdraw', '出金');
+            if (startsNextTrigger) {
+                return t(
+                    `規則已新增（預覽）：本次不套用，將從下一次觸發日開始${direction}至「${selectedLiquidAsset.label}」${formatAmount(amountInTargetCurrency)} ${selectedLiquidAsset.currency}`,
+                    `Rule added (preview): skipped for now and will start from the next trigger date to ${direction} to "${selectedLiquidAsset.label}" ${formatAmount(amountInTargetCurrency)} ${selectedLiquidAsset.currency}`,
+                    `ルールを追加しました（プレビュー）：今回は適用せず、次回の実行日から「${selectedLiquidAsset.label}」へ${formatAmount(amountInTargetCurrency)} ${selectedLiquidAsset.currency} を${direction}します`
+                );
+            }
             const todayDate = new Date();
             const willApplyToday = isEntryOnDate(nextEntry, todayDate);
             const whenText = willApplyToday
@@ -170,6 +188,13 @@
         }
 
         if (!isEditing) {
+            if (startsNextTrigger) {
+                return t(
+                    '規則已新增（預覽）：本次不套用，將從下一次觸發日開始記錄現金流。',
+                    'Rule added (preview): skipped for now and cashflow recording will start from the next trigger date.',
+                    'ルールを追加しました（プレビュー）：今回は適用せず、次回の実行日から現金流の記録を開始します。'
+                );
+            }
             return t(
                 '規則已新增（預覽）：目前僅記錄現金流，不會自動入帳/扣款',
                 'Rule added (preview): cashflow will be recorded only, no auto posting yet',
@@ -211,6 +236,7 @@
         startDate: entry?.startDate || toDateKey(new Date()),
         endDate: entry?.endDate || '',
         payday: String(entry?.payday || entry?.monthday || 1),
+        applyOnCreateMode: 'APPLY_CURRENT',
         sourceLiquidAssetId: entry?.sourceLiquidAssetId || '',
         targetLiquidAssetId: entry?.targetLiquidAssetId || '',
         note: entry?.note || ''
