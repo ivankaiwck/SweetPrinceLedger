@@ -1425,11 +1425,20 @@
                                     <input
                                         required
                                         type="text"
-                                        placeholder={isCryptoForm ? 'BTC, ETH' : isFundForm ? 'VOO, 0050' : '2330, AAPL'}
+                                        placeholder={isCryptoForm ? 'BTC, ETH' : isFundForm ? '2800.HK, 0050.TW' : '0700.HK, 2330.TW, AAPL'}
                                         className={MODAL_INPUT_CLASS}
                                         value={formData.symbol}
                                         onChange={updateFormFieldUpper('symbol')}
                                     />
+                                    {(isStockForm || isFundForm) && (
+                                        <div className="text-[10px] font-bold text-slate-400 leading-relaxed">
+                                            {tByLang(
+                                                '要指定市場請加後綴（0700.HK、2330.TW）。未加後綴的數字代號先查台股；HKD/MOP 只在台股沒有報價時才改查港股，避免 0050、2330 被換成另一間公司。',
+                                                'Add a suffix to pick the market (0700.HK, 2330.TW). Bare numbers check Taiwan first; HKD/MOP uses Hong Kong only when Taiwan has no quote, so 0050 and 2330 stay on TWSE.',
+                                                '市場を指定するには接尾辞を付けてください（0700.HK、2330.TW）。数字のみは先に台湾を調べ、HKD/MOP は台湾に気配がないときだけ香港を使います。0050 と 2330 が別会社に替わらないようにします。'
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
