@@ -26,6 +26,7 @@
         monthlySnapshots: 'assetTracker.monthlySnapshots.v2',
         currencyRates: 'assetTracker.currencyRates.v1',
         currencyRatesUpdatedAt: 'assetTracker.currencyRatesUpdatedAt.v1',
+        lastPriceUpdate: 'assetTracker.lastPriceUpdate.v1',
         cashflowEntries: 'assetTracker.cashflowEntries.v1',
         cashflowAppliedOccurrenceKeys: 'assetTracker.cashflowAppliedOccurrenceKeys.v1',
         cashflowLastAutoApplyDate: 'assetTracker.cashflowLastAutoApplyDate.v1',

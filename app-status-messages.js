@@ -236,6 +236,82 @@
         '相場と為替を更新しました'
     );
 
+    const formatSymbolList = (pageLanguage, symbols) => {
+        const list = (Array.isArray(symbols) ? symbols : []).filter(Boolean);
+        const shown = list.slice(0, 8);
+        const extra = list.length - shown.length;
+        const separator = pageLanguage === 'en-US' ? ', ' : '、';
+        const text = shown.join(separator);
+        if (extra > 0) return `${text} +${extra}`;
+        return text;
+    };
+
+    const joinStatusParts = (pageLanguage, parts) => {
+        const separator = pageLanguage === 'en-US' ? '; ' : '；';
+        return (parts || []).filter(Boolean).join(separator);
+    };
+
+    const getMarketQuoteStatusMessage = (pageLanguage, market) => {
+        if (!market) {
+            return tByLang(
+                pageLanguage,
+                '行情更新失敗',
+                'Market update failed',
+                '相場の更新に失敗しました'
+            );
+        }
+        if (market.noSymbols) return getMarketNoSymbolsMessage(pageLanguage);
+        const failed = Array.isArray(market.failedSymbols) ? market.failedSymbols : [];
+        const updatedCount = Number(market.updatedCount) || 0;
+        const quotedCount = Number(market.quotedCount) || 0;
+        const failedText = formatSymbolList(pageLanguage, failed);
+        if (failed.length && updatedCount > 0) {
+            return tByLang(
+                pageLanguage,
+                `已更新 ${updatedCount} 筆行情，未取得：${failedText}`,
+                `Updated ${updatedCount} entries; unavailable: ${failedText}`,
+                `${updatedCount}件を更新、取得不可：${failedText}`
+            );
+        }
+        if (failed.length && quotedCount > 0) {
+            return tByLang(
+                pageLanguage,
+                `${quotedCount} 個代號已是最新，未取得：${failedText}`,
+                `${quotedCount} symbols already up to date; unavailable: ${failedText}`,
+                `${quotedCount}銘柄は最新、取得不可：${failedText}`
+            );
+        }
+        if (failed.length) {
+            return tByLang(
+                pageLanguage,
+                `行情更新失敗：${failedText}`,
+                `Market update failed: ${failedText}`,
+                `相場の更新に失敗：${failedText}`
+            );
+        }
+        if (updatedCount > 0) return getMarketUpdatedCountMessage(pageLanguage, updatedCount);
+        if (quotedCount > 0) {
+            return tByLang(
+                pageLanguage,
+                `行情已是最新（${quotedCount} 個代號）`,
+                `Market prices already up to date (${quotedCount} symbols)`,
+                `相場は最新です（${quotedCount}銘柄）`
+            );
+        }
+        return getMarketUpToDateMessage(pageLanguage);
+    };
+
+    const getMarketAndFxStatusMessage = (pageLanguage, summary) => {
+        const parts = [];
+        if (summary?.fxAttempted) {
+            parts.push(summary.fxOk ? getFxUpdatedMessage(pageLanguage) : getFxUpdateFailedMessage(pageLanguage));
+        }
+        if (summary?.marketAttempted) {
+            parts.push(getMarketQuoteStatusMessage(pageLanguage, summary.market));
+        }
+        return joinStatusParts(pageLanguage, parts);
+    };
+
     const getExportSuccessMessage = (pageLanguage) => tByLang(
         pageLanguage,
         '資料已成功匯出',
@@ -467,6 +543,7 @@
         getMarketUpToDateMessage,
         getMarketAndFxUpdatingMessage,
         getMarketAndFxUpdatedMessage,
+        getMarketAndFxStatusMessage,
         getExportSuccessMessage,
         getExportFailedMessage,
         getPdfDownloadedMessage,

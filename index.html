@@ -129,11 +129,13 @@
 
         const {
             normalizeYahooSymbol,
+            resolveYahooSymbolCandidates,
             fetchLatestCurrencyRates,
-            fetchYahooQuotes,
+            fetchYahooQuoteBatch,
+            fetchYahooQuoteFallback,
             fetchCryptoQuotes
         } = window.APP_MARKET_API || {};
-        if (!normalizeYahooSymbol || !fetchLatestCurrencyRates || !fetchYahooQuotes || !fetchCryptoQuotes) {
+        if (!normalizeYahooSymbol || !resolveYahooSymbolCandidates || !fetchLatestCurrencyRates || !fetchYahooQuoteBatch || !fetchYahooQuoteFallback || !fetchCryptoQuotes) {
             throw new Error('market-api.js is missing or incomplete.');
         }
 
@@ -291,6 +293,7 @@
             getMarketUpToDateMessage,
             getMarketAndFxUpdatingMessage,
             getMarketAndFxUpdatedMessage,
+            getMarketAndFxStatusMessage,
             getExportSuccessMessage,
             getExportFailedMessage,
             getPdfDownloadedMessage,
@@ -316,7 +319,7 @@
             getCloudUploadedMessage,
             getCloudUploadFailedMessage
         } = window.APP_STATUS_MESSAGES || {};
-        if (!getPrinceHintMessage || !getPdfGeneratingBusyMessage || !getPdfTimeoutMessage || !getCashflowStartNewMessage || !getCashflowStartEditMessage || !getCashflowAutoAppliedMessage || !getCashflowDeleteRollbackMessage || !getCashflowDeleteMessage || !getCashflowLinkedAccountLabel || !getCashflowDeleteConfirmMessage || !getCashflowEditCanceledMessage || !getFxUpdatingMessage || !getFxUpdatedMessage || !getFxUpdateFailedMessage || !getMarketNoSymbolsMessage || !getMarketUpdatingMessage || !getMarketUpdatedCountMessage || !getMarketUpToDateMessage || !getMarketAndFxUpdatingMessage || !getMarketAndFxUpdatedMessage || !getExportSuccessMessage || !getExportFailedMessage || !getPdfDownloadedMessage || !getPdfShareFailedMessage || !getImportSuccessMessage || !getImportFailedMessage || !getDataResetMessage || !getResetSeedConfirmMessage || !showSubmissionErrorAlert || !showConfirmDialog || !getCloudAuthStatusMessage || !getCloudPersistenceFailedMessage || !getCloudRedirectSignInFailedMessage || !getCloudRedirectUriMismatchHelpMessage || !getCloudFirebaseNotConfiguredMessage || !getCloudSignInRequiredMessage || !getCloudDownloadingMessage || !getCloudDownloadedMessage || !getCloudInvalidDataMessage || !getCloudNoDataMessage || !getCloudDownloadFailedMessage || !getCloudUploadingMessage || !getCloudUploadedMessage || !getCloudUploadFailedMessage) {
+        if (!getPrinceHintMessage || !getPdfGeneratingBusyMessage || !getPdfTimeoutMessage || !getCashflowStartNewMessage || !getCashflowStartEditMessage || !getCashflowAutoAppliedMessage || !getCashflowDeleteRollbackMessage || !getCashflowDeleteMessage || !getCashflowLinkedAccountLabel || !getCashflowDeleteConfirmMessage || !getCashflowEditCanceledMessage || !getFxUpdatingMessage || !getFxUpdatedMessage || !getFxUpdateFailedMessage || !getMarketNoSymbolsMessage || !getMarketUpdatingMessage || !getMarketUpdatedCountMessage || !getMarketUpToDateMessage || !getMarketAndFxUpdatingMessage || !getMarketAndFxUpdatedMessage || !getMarketAndFxStatusMessage || !getExportSuccessMessage || !getExportFailedMessage || !getPdfDownloadedMessage || !getPdfShareFailedMessage || !getImportSuccessMessage || !getImportFailedMessage || !getDataResetMessage || !getResetSeedConfirmMessage || !showSubmissionErrorAlert || !showConfirmDialog || !getCloudAuthStatusMessage || !getCloudPersistenceFailedMessage || !getCloudRedirectSignInFailedMessage || !getCloudRedirectUriMismatchHelpMessage || !getCloudFirebaseNotConfiguredMessage || !getCloudSignInRequiredMessage || !getCloudDownloadingMessage || !getCloudDownloadedMessage || !getCloudInvalidDataMessage || !getCloudNoDataMessage || !getCloudDownloadFailedMessage || !getCloudUploadingMessage || !getCloudUploadedMessage || !getCloudUploadFailedMessage) {
             throw new Error('app-status-messages.js is missing or incomplete.');
         }
 
@@ -371,9 +374,10 @@
 
         const {
             buildMarketTargets,
+            selectQuotedSymbolMap,
             applyQuotePricesToAssets
         } = window.APP_MARKET_SYNC || {};
-        if (!buildMarketTargets || !applyQuotePricesToAssets) {
+        if (!buildMarketTargets || !selectQuotedSymbolMap || !applyQuotePricesToAssets) {
             throw new Error('market-sync.js is missing or incomplete.');
         }
 
@@ -765,7 +769,10 @@
             const [isUpdatingRates, setIsUpdatingRates] = useState(false);
             const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
             const [priceStatus, setPriceStatus] = useState('');
-            const [lastPriceUpdate, setLastPriceUpdate] = useState(null);
+            const [lastPriceUpdate, setLastPriceUpdate] = useState(() => {
+                const saved = Number(parseStorage(STORAGE_KEYS.lastPriceUpdate, 0));
+                return Number.isFinite(saved) && saved > 0 ? new Date(saved) : null;
+            });
             const [showSettings, setShowSettings] = useState(false);
             const [pageLanguage, setPageLanguage] = useState(() => {
                 const saved = parseStorage(STORAGE_KEYS.pageLanguage, 'zh-Hant');
@@ -1049,6 +1056,12 @@
 
             const assetsRef = useRef(assets);
             useEffect(() => { assetsRef.current = assets; }, [assets]);
+            const updateMarketAndRatesRef = useRef(null);
+            const marketSyncFlightRef = useRef(null);
+            const lastPriceUpdateRef = useRef(lastPriceUpdate);
+            const lastRateUpdateRef = useRef(lastRateUpdate);
+            lastPriceUpdateRef.current = lastPriceUpdate;
+            lastRateUpdateRef.current = lastRateUpdate;
 
             const toHKD = (amount, currency) => amount / (currencyRates[currency] || 1);
             const fromHKD = (amountHKD, currency) => amountHKD * (currencyRates[currency] || 1);
@@ -1089,6 +1102,11 @@
                 const stamp = lastRateUpdate instanceof Date ? lastRateUpdate.getTime() : 0;
                 localStorage.setItem(STORAGE_KEYS.currencyRatesUpdatedAt, JSON.stringify(stamp));
             }, [lastRateUpdate]);
+
+            useEffect(() => {
+                const stamp = lastPriceUpdate instanceof Date ? lastPriceUpdate.getTime() : 0;
+                localStorage.setItem(STORAGE_KEYS.lastPriceUpdate, JSON.stringify(stamp));
+            }, [lastPriceUpdate]);
 
             useEffect(() => {
                 localStorage.setItem(STORAGE_KEYS.pageLanguage, JSON.stringify(pageLanguage));
@@ -3125,6 +3143,7 @@
                 try {
                     const { nextRates, stamp } = await refreshCurrencyRatesWithStamp({ fetchLatestCurrencyRates });
                     setCurrencyRates(nextRates);
+                    lastRateUpdateRef.current = stamp;
                     setLastRateUpdate(stamp);
                     if (showToast) setPriceStatus(getFxUpdatedMessage(pageLanguage));
                     return nextRates;
@@ -3158,37 +3177,71 @@
                 }
             }, [accountStats.accountNames, accountStats.segments, selectedStatsAccount, selectedStatsSegmentKey]);
 
-            const updateMarketPrices = async (showToast = true, ratesOverride = null) => {
+            const PRICE_UPDATE_TTL_MS = 4 * 60 * 1000;
+            const FX_UPDATE_TTL_MS = 20 * 60 * 1000;
+            const isStampFresh = (stamp, ttlMs) => {
+                if (!(stamp instanceof Date)) return false;
+                const age = Date.now() - stamp.getTime();
+                return age >= 0 && age < ttlMs;
+            };
+            const hasPositiveQuote = (quotes, symbol) => {
+                const price = quotes?.[String(symbol || '').toUpperCase()];
+                return typeof price === 'number' && price > 0;
+            };
+
+            const fetchMarketQuoteBundle = async () => {
                 const latestAssets = assetsRef.current;
-                const {
-                    stockTargets,
-                    cryptoTargets,
-                    stockSymbolMap,
-                    stockSymbols,
-                    cryptoSymbols
-                } = buildMarketTargets({ assets: latestAssets, normalizeYahooSymbol });
-
-                if (!stockTargets.length && !cryptoTargets.length) {
-                    if (showToast) setPriceStatus(getMarketNoSymbolsMessage(pageLanguage));
-                    return;
-                }
-
-                setIsUpdatingPrice(true);
-                if (showToast) {
-                    setPriceStatus(getMarketUpdatingMessage(pageLanguage));
+                const targets = buildMarketTargets({
+                    assets: latestAssets,
+                    normalizeYahooSymbol,
+                    resolveYahooSymbolCandidates
+                });
+                if (!targets.stockTargets.length && !targets.cryptoTargets.length) {
+                    return { targets, stockQuotes: {}, cryptoQuotesUSD: {}, noSymbols: true };
                 }
 
                 const [stockQuotes, cryptoQuotesUSD] = await Promise.all([
-                    fetchYahooQuotes(stockSymbols),
-                    fetchCryptoQuotes(cryptoSymbols)
+                    fetchYahooQuoteBatch(targets.stockSymbols),
+                    fetchCryptoQuotes(targets.cryptoSymbols)
                 ]);
 
-                let finalUpdatedCount = 0;
+                const unresolved = [];
+                targets.stockTargets.forEach(item => {
+                    const candidates = targets.stockSymbolCandidates[item.id] || [];
+                    const priced = candidates.some(symbol => hasPositiveQuote(stockQuotes, symbol));
+                    if (priced) return;
+                    candidates.forEach(symbol => {
+                        if (symbol) unresolved.push(symbol);
+                    });
+                });
+
+                let mergedStockQuotes = stockQuotes;
+                if (unresolved.length) {
+                    const fallbackQuotes = await fetchYahooQuoteFallback([...new Set(unresolved)]);
+                    mergedStockQuotes = { ...stockQuotes, ...fallbackQuotes };
+                }
+
+                return {
+                    targets,
+                    stockQuotes: mergedStockQuotes,
+                    cryptoQuotesUSD,
+                    noSymbols: false
+                };
+            };
+
+            const applyMarketQuoteBundle = (bundle, ratesOverride) => {
+                if (!bundle || bundle.noSymbols) {
+                    return { noSymbols: true, updatedCount: 0, quotedCount: 0, failedSymbols: [] };
+                }
+
+                const { targets, stockQuotes, cryptoQuotesUSD } = bundle;
+                const stockSymbolMap = selectQuotedSymbolMap({
+                    stockSymbolCandidates: targets.stockSymbolCandidates,
+                    stockQuotes
+                });
+                let updatedCount = 0;
                 setAssets(prev => {
-                    const {
-                        nextAssets,
-                        updatedCount
-                    } = applyQuotePricesToAssets({
+                    const applied = applyQuotePricesToAssets({
                         assets: prev,
                         stockSymbolMap,
                         stockQuotes,
@@ -3196,35 +3249,106 @@
                         currencyRates: ratesOverride || currencyRates,
                         defaultUsdRate: DEFAULT_RATES.USD
                     });
-                    finalUpdatedCount = updatedCount;
-                    return updatedCount > 0 ? nextAssets : prev;
+                    updatedCount = applied.updatedCount;
+                    return applied.updatedCount > 0 ? applied.nextAssets : prev;
                 });
 
-                const stamp = new Date();
-                setLastPriceUpdate(stamp);
-                setIsUpdatingPrice(false);
-                if (showToast) {
-                    setPriceStatus(finalUpdatedCount > 0
-                        ? getMarketUpdatedCountMessage(pageLanguage, finalUpdatedCount)
-                        : getMarketUpToDateMessage(pageLanguage));
-                }
+                const failedSymbols = [];
+                const quotedStock = new Set();
+                targets.stockTargets.forEach(item => {
+                    const raw = (item.symbol || '').trim().toUpperCase();
+                    const candidates = targets.stockSymbolCandidates[item.id] || [];
+                    const priced = candidates.some(symbol => hasPositiveQuote(stockQuotes, symbol));
+                    if (priced) {
+                        if (raw) quotedStock.add(raw);
+                        return;
+                    }
+                    if (raw) failedSymbols.push(raw);
+                });
+                targets.cryptoSymbols.forEach(symbol => {
+                    if (hasPositiveQuote(cryptoQuotesUSD, symbol)) return;
+                    failedSymbols.push(symbol);
+                });
+                const quotedCryptoCount = targets.cryptoSymbols.filter(symbol => hasPositiveQuote(cryptoQuotesUSD, symbol)).length;
+                return {
+                    noSymbols: false,
+                    updatedCount,
+                    quotedCount: quotedStock.size + quotedCryptoCount,
+                    failedSymbols: [...new Set(failedSymbols)]
+                };
             };
 
             const updateMarketAndRates = async ({ updateMarket = true, updateRates = true, showToast = true } = {}) => {
-                if (showToast) {
-                    setPriceStatus(getMarketAndFxUpdatingMessage(pageLanguage));
+                const manual = showToast === true;
+                if (!manual && typeof document !== 'undefined' && document.hidden) return null;
+
+                if (marketSyncFlightRef.current) {
+                    const current = marketSyncFlightRef.current;
+                    if (manual) current.manual = true;
+                    const covers = (!updateMarket || current.updateMarket) && (!updateRates || current.updateRates);
+                    if (covers) return current.promise;
+                    await current.promise;
+                    return updateMarketAndRates({ updateMarket, updateRates, showToast: manual });
                 }
-                let latestRates = null;
-                if (updateRates) {
-                    latestRates = await refreshCurrencyRates(false);
-                }
-                if (updateMarket) {
-                    await updateMarketPrices(false, latestRates);
-                }
-                if (showToast) {
-                    setPriceStatus(getMarketAndFxUpdatedMessage(pageLanguage));
-                }
+
+                const shouldRates = updateRates && (manual || !isStampFresh(lastRateUpdateRef.current, FX_UPDATE_TTL_MS));
+                const shouldMarket = updateMarket && (manual || !isStampFresh(lastPriceUpdateRef.current, PRICE_UPDATE_TTL_MS));
+                if (!shouldRates && !shouldMarket) return null;
+
+                const flight = {
+                    manual,
+                    updateMarket: shouldMarket,
+                    updateRates: shouldRates,
+                    promise: null
+                };
+                const run = (async () => {
+                    let latestRates = null;
+                    let marketSummary = null;
+                    try {
+                        if (flight.manual) setPriceStatus(getMarketAndFxUpdatingMessage(pageLanguage));
+                        if (shouldMarket) setIsUpdatingPrice(true);
+                        const ratesPromise = shouldRates ? refreshCurrencyRates(false) : Promise.resolve(null);
+                        const marketPromise = shouldMarket ? fetchMarketQuoteBundle() : Promise.resolve(null);
+                        const [ratesResult, marketBundle] = await Promise.all([ratesPromise, marketPromise]);
+                        latestRates = ratesResult;
+                        if (marketBundle) {
+                            marketSummary = applyMarketQuoteBundle(marketBundle, latestRates || currencyRates);
+                            if (marketSummary.quotedCount > 0) {
+                                const stamp = new Date();
+                                lastPriceUpdateRef.current = stamp;
+                                setLastPriceUpdate(stamp);
+                            }
+                        }
+                        if (flight.manual) {
+                            setPriceStatus(getMarketAndFxStatusMessage(pageLanguage, {
+                                fxAttempted: shouldRates,
+                                fxOk: shouldRates ? Boolean(latestRates) : false,
+                                marketAttempted: shouldMarket,
+                                market: marketSummary
+                            }));
+                        }
+                        return { latestRates, marketSummary };
+                    } catch (error) {
+                        if (flight.manual) {
+                            setPriceStatus(getMarketAndFxStatusMessage(pageLanguage, {
+                                fxAttempted: shouldRates,
+                                fxOk: false,
+                                marketAttempted: shouldMarket,
+                                market: null
+                            }));
+                        }
+                        return null;
+                    } finally {
+                        setIsUpdatingPrice(false);
+                        if (marketSyncFlightRef.current === flight) marketSyncFlightRef.current = null;
+                    }
+                })();
+
+                flight.promise = run;
+                marketSyncFlightRef.current = flight;
+                return run;
             };
+            updateMarketAndRatesRef.current = updateMarketAndRates;
 
             useEffect(() => {
                 if (!isCloudEnabled) {
@@ -3514,6 +3638,9 @@
                     localStorage.setItem(STORAGE_KEYS.cashflowAppliedOccurrenceKeys, JSON.stringify(nextCashflowAppliedOccurrenceKeys));
                     localStorage.setItem(STORAGE_KEYS.cashflowAppliedPostings, JSON.stringify(nextCashflowAppliedPostings));
                     localStorage.setItem(STORAGE_KEYS.cashflowLastAutoApplyDate, JSON.stringify(nextCashflowLastAutoApplyDate));
+                    lastPriceUpdateRef.current = null;
+                    setLastPriceUpdate(null);
+                    localStorage.setItem(STORAGE_KEYS.lastPriceUpdate, JSON.stringify(0));
                     setPriceStatus(getImportSuccessMessage(pageLanguage, nextAssets.length));
                 } catch (error) {
                     setPriceStatus(getImportFailedMessage(pageLanguage));
@@ -3534,6 +3661,8 @@
                 setCashflowAppliedOccurrenceKeys([]);
                 setCashflowAppliedPostings({});
                 setCashflowLastAutoApplyDate(toDateKey(new Date(Date.now() - ONE_DAY_MS)));
+                lastPriceUpdateRef.current = null;
+                setLastPriceUpdate(null);
 
                 // 同步寫入 localStorage（useEffect 也會在 state 變更時覆寫，但這裡先寫以確保立即一致）
                 try {
@@ -3544,6 +3673,7 @@
                     localStorage.setItem(STORAGE_KEYS.cashflowAppliedOccurrenceKeys, JSON.stringify([]));
                     localStorage.setItem(STORAGE_KEYS.cashflowAppliedPostings, JSON.stringify({}));
                     localStorage.setItem(STORAGE_KEYS.cashflowLastAutoApplyDate, JSON.stringify(toDateKey(new Date(Date.now() - ONE_DAY_MS))));
+                    localStorage.setItem(STORAGE_KEYS.lastPriceUpdate, JSON.stringify(0));
                 } catch (e) {
                     // 忽略 storage 錯誤
                 }
@@ -3552,12 +3682,20 @@
             };
 
             useEffect(() => {
-                updateMarketAndRates({ updateMarket: true, updateRates: true, showToast: false });
-                const timer = setInterval(() => updateMarketAndRates({ updateMarket: true, updateRates: false, showToast: false }), 5 * 60 * 1000);
-                const rateTimer = setInterval(() => updateMarketAndRates({ updateMarket: false, updateRates: true, showToast: false }), 30 * 60 * 1000);
+                const run = (options) => updateMarketAndRatesRef.current?.(options);
+                const runIfVisible = (options) => {
+                    if (typeof document !== 'undefined' && document.hidden) return;
+                    run(options);
+                };
+                runIfVisible({ updateMarket: true, updateRates: true, showToast: false });
+                const timer = setInterval(() => runIfVisible({ updateMarket: true, updateRates: false, showToast: false }), 5 * 60 * 1000);
+                const rateTimer = setInterval(() => runIfVisible({ updateMarket: false, updateRates: true, showToast: false }), 30 * 60 * 1000);
+                const onVisibility = () => runIfVisible({ updateMarket: true, updateRates: true, showToast: false });
+                document.addEventListener('visibilitychange', onVisibility);
                 return () => {
                     clearInterval(timer);
                     clearInterval(rateTimer);
+                    document.removeEventListener('visibilitychange', onVisibility);
                 };
             }, []);
 

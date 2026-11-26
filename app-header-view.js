@@ -117,9 +117,9 @@
                                     {!authUser && (
                                         <div className="text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-2.5 py-2">
                                             {tByLang(
-                                                '登入 Google 後可使用雲端上載/下載與本機匯入/匯出。',
-                                                'Sign in with Google to use cloud upload/download and local import/export.',
-                                                'Google にログインすると、クラウドのアップロード/ダウンロードとローカルのインポート/エクスポートが利用できます。'
+                                                '登入 Google 後可使用雲端上載/下載。本機匯入/匯出不需登入。',
+                                                'Sign in with Google for cloud upload/download. Local import/export does not require sign-in.',
+                                                'Google にログインするとクラウドのアップロード/ダウンロードが使えます。ローカルのインポート/エクスポートにログインは不要です。'
                                             )}
                                         </div>
                                     )}
@@ -173,22 +173,18 @@
                                     >
                                         {themeOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
                                     </select>
-                                    {authUser && (
-                                        <>
-                                            <button
-                                                onClick={() => { handleExportData(); setShowSettings(false); }}
-                                                className="theme-btn-gold w-full text-white px-4 py-2 rounded-lg font-bold text-sm transition-all"
-                                            >
-                                                {pageText.exportData}
-                                            </button>
-                                            <button
-                                                onClick={() => { openImportPicker(); setShowSettings(false); }}
-                                                className="w-full theme-tab-inactive px-4 py-2 rounded-lg font-bold text-sm transition-all"
-                                            >
-                                                {pageText.importData}
-                                            </button>
-                                        </>
-                                    )}
+                                    <button
+                                        onClick={() => { handleExportData(); setShowSettings(false); }}
+                                        className="theme-btn-gold w-full text-white px-4 py-2 rounded-lg font-bold text-sm transition-all"
+                                    >
+                                        {pageText.exportData}
+                                    </button>
+                                    <button
+                                        onClick={() => { openImportPicker(); setShowSettings(false); }}
+                                        className="w-full theme-tab-inactive px-4 py-2 rounded-lg font-bold text-sm transition-all"
+                                    >
+                                        {pageText.importData}
+                                    </button>
                                     <button
                                         onClick={() => { resetToSeed(); setShowSettings(false); }}
                                         title={tByLang('可愛重設：清空目前資料並回到範例帳本', 'Cute reset: clear current data and restore sample ledger', 'かわいくリセット：現在のデータを消去してサンプル台帳に戻します')}
